@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -18,6 +19,7 @@ import { getFirebaseAuth, googleProvider, isFirebaseConfigured } from './firebas
 type AuthContextValue = {
   user: User | null
   loading: boolean
+  signingIn: boolean
   configured: boolean
   signInWithGoogle: () => Promise<void>
   logout: () => Promise<void>
@@ -28,6 +30,8 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [signingIn, setSigningIn] = useState(false)
+  const signInLock = useRef(false)
 
   useEffect(() => {
     const auth = getFirebaseAuth()
@@ -42,9 +46,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signInWithGoogle = useCallback(async () => {
-    const auth = getFirebaseAuth()
-    if (!auth) throw new Error('Firebase is not configured. Add keys to .env')
-    await signInWithPopup(auth, googleProvider)
+    if (signInLock.current) return
+    signInLock.current = true
+    setSigningIn(true)
+    try {
+      const auth = getFirebaseAuth()
+      if (!auth) throw new Error('Firebase is not configured')
+      await signInWithPopup(auth, googleProvider)
+    } finally {
+      signInLock.current = false
+      setSigningIn(false)
+    }
   }, [])
 
   const logout = useCallback(async () => {
@@ -57,11 +69,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       loading,
+      signingIn,
       configured: isFirebaseConfigured,
       signInWithGoogle,
       logout,
     }),
-    [user, loading, signInWithGoogle, logout],
+    [user, loading, signingIn, signInWithGoogle, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

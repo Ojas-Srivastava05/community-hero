@@ -8,7 +8,7 @@ import { apiMyReports } from '../lib/api'
 import type { Issue } from '../../../shared/types'
 
 export function MyReportsPage() {
-  const { user, signInWithGoogle } = useAuth()
+  const { user, signInWithGoogle, signingIn } = useAuth()
   const [issues, setIssues] = useState<Issue[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -26,7 +26,9 @@ export function MyReportsPage() {
     return (
       <div className="p-6 pb-32 text-center">
         <p className="text-mist mb-4">Sign in to track your reports</p>
-        <button type="button" className="btn-primary" onClick={() => signInWithGoogle()}>Sign in with Google</button>
+        <button type="button" className="btn-primary" disabled={signingIn} onClick={() => signInWithGoogle()}>
+          {signingIn ? 'Opening Google…' : 'Sign in with Google'}
+        </button>
       </div>
     )
   }

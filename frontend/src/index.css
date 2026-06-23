@@ -27,7 +27,7 @@ html, body, #root {
 
 body {
   font-family: var(--font-sans);
-  background: var(--color-midnight);
+  background: radial-gradient(ellipse 120% 80% at 50% -20%, rgba(20, 184, 166, 0.12), transparent 50%), var(--color-midnight);
   color: var(--color-cloud);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

@@ -7,7 +7,7 @@ import type { Issue } from '../../../shared/types'
 const STATUSES = ['Submitted', 'Community Verified', 'Assigned', 'In Progress', 'Resolved', 'Closed']
 
 export function AdminPage() {
-  const { user, signInWithGoogle } = useAuth()
+  const { user, signInWithGoogle, signingIn } = useAuth()
   const [issues, setIssues] = useState<Issue[]>([])
   const [filter, setFilter] = useState('open')
 
@@ -32,7 +32,9 @@ export function AdminPage() {
     return (
       <div className="p-6 pb-32 text-center">
         <p className="text-mist mb-4">Admin sign-in required</p>
-        <button type="button" className="btn-primary" onClick={() => signInWithGoogle()}>Sign in</button>
+        <button type="button" className="btn-primary" disabled={signingIn} onClick={() => signInWithGoogle()}>
+          {signingIn ? 'Opening Google…' : 'Sign in'}
+        </button>
       </div>
     )
   }

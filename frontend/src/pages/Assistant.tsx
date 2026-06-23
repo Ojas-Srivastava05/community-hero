@@ -13,7 +13,7 @@ const STARTERS = [
 ]
 
 export function AssistantPage() {
-  const { user, signInWithGoogle } = useAuth()
+  const { user, signInWithGoogle, signingIn } = useAuth()
   const [messages, setMessages] = useState<Msg[]>([
     { role: 'assistant', content: 'Hi! I\'m your Civic Assistant. Ask about nearby issues, reporting, or your submissions.' },
   ])
@@ -52,7 +52,9 @@ export function AssistantPage() {
       <div className="p-6 pb-32 text-center">
         <Bot size={48} className="mx-auto text-teal mb-4" />
         <p className="text-mist mb-4">Sign in to chat with Civic Assistant</p>
-        <button type="button" className="btn-primary" onClick={() => signInWithGoogle()}>Sign in</button>
+        <button type="button" className="btn-primary" disabled={signingIn} onClick={() => signInWithGoogle()}>
+          {signingIn ? 'Opening Google…' : 'Sign in'}
+        </button>
       </div>
     )
   }

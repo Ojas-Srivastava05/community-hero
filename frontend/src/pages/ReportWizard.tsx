@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, MapPin, Sparkles, ChevronLeft, Loader2 } from 'lucide-react'
+import { Camera, MapPin, Sparkles, ChevronLeft, Loader2, LogIn } from 'lucide-react'
 import { GlassCard } from '../components/GlassCard'
 import { useAuth } from '../lib/auth'
 import { apiAnalyzeImage, apiCreateReport } from '../lib/api'
@@ -9,7 +9,7 @@ import type { IssueAnalysis } from '../../../shared/types'
 const DEFAULT_LOC = { lat: 12.9352, lng: 77.6245, address: 'Koramangala, Bengaluru' }
 
 export function ReportWizardPage() {
-  const { user, signInWithGoogle, configured } = useAuth()
+  const { user, signInWithGoogle, signingIn } = useAuth()
   const navigate = useNavigate()
   const fileRef = useRef<HTMLInputElement>(null)
   const [step, setStep] = useState(1)
@@ -66,14 +66,6 @@ export function ReportWizardPage() {
     }
   }
 
-  if (!configured) {
-    return (
-      <div className="p-6 pb-32">
-        <p className="text-mist">Firebase not configured.</p>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-full pb-32">
       <header className="glass sticky top-0 z-40 flex items-center gap-3 px-6 py-4">
@@ -89,12 +81,16 @@ export function ReportWizardPage() {
       <main className="space-y-6 px-6 pt-4">
         {step === 1 && (
           <>
-            <GlassCard className="flex flex-col items-center gap-4 py-10">
+            <GlassCard className="relative flex flex-col items-center gap-4 overflow-hidden py-10">
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-teal/10 to-transparent" />
               {preview ? (
-                <img src={preview} alt="Preview" className="h-48 w-full rounded-xl object-cover" />
+                <img src={preview} alt="Preview" className="relative z-10 h-52 w-full rounded-2xl object-cover ring-1 ring-white/10" />
               ) : (
-                <div className="flex h-48 w-full items-center justify-center rounded-xl border border-dashed border-white/20 bg-elevated">
-                  <Camera size={40} className="text-mist" />
+                <div className="relative z-10 flex h-52 w-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-teal/30 bg-elevated/80">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-teal/15">
+                    <Camera size={32} className="text-teal" />
+                  </div>
+                  <p className="text-sm text-mist">Photograph the civic issue</p>
                 </div>
               )}
               <input
@@ -105,24 +101,30 @@ export function ReportWizardPage() {
                 className="hidden"
                 onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
               />
-              <button type="button" className="btn-primary max-w-xs" onClick={() => fileRef.current?.click()}>
-                <Camera size={18} className="inline mr-2" />
-                Capture or upload photo
+              <button type="button" className="btn-primary relative z-10 max-w-xs" onClick={() => fileRef.current?.click()}>
+                <Camera size={18} className="mr-2 inline" />
+                {preview ? 'Retake photo' : 'Capture or upload'}
               </button>
               {analyzing && (
-                <p className="flex items-center gap-2 text-sm text-teal">
+                <p className="relative z-10 flex items-center gap-2 text-sm text-teal">
                   <Loader2 size={16} className="animate-spin" /> Gemini analyzing…
                 </p>
               )}
             </GlassCard>
             {!user && (
-              <button type="button" className="btn-primary" onClick={() => signInWithGoogle()}>
-                Sign in to continue
+              <button
+                type="button"
+                className="btn-primary flex items-center justify-center gap-2"
+                disabled={signingIn}
+                onClick={() => signInWithGoogle().catch((e) => setError(String(e)))}
+              >
+                <LogIn size={18} />
+                {signingIn ? 'Opening Google…' : 'Sign in with Google to continue'}
               </button>
             )}
             {file && user && (
               <button type="button" className="btn-primary" onClick={() => setStep(2)}>
-                Continue
+                Continue to AI review
               </button>
             )}
           </>
@@ -130,7 +132,7 @@ export function ReportWizardPage() {
 
         {step === 2 && (
           <>
-            <div className="flex items-center gap-2 text-teal">
+            <div className="flex items-center gap-2 rounded-2xl bg-teal/10 px-4 py-3 text-teal">
               <Sparkles size={18} />
               <span className="text-sm font-medium">AI pre-filled — edit if needed</span>
             </div>
@@ -139,14 +141,14 @@ export function ReportWizardPage() {
                 <span className="text-xs uppercase tracking-wider text-mist">{field}</span>
                 {field === 'description' ? (
                   <textarea
-                    className="mt-1 w-full rounded-xl bg-elevated p-3 text-sm outline-none ring-1 ring-white/10"
+                    className="mt-1 w-full rounded-xl bg-elevated p-3 text-sm outline-none ring-1 ring-white/10 focus:ring-teal/40"
                     rows={3}
                     value={form[field as keyof typeof form] as string}
                     onChange={(e) => setForm({ ...form, [field]: e.target.value })}
                   />
                 ) : (
                   <input
-                    className="mt-1 w-full rounded-xl bg-elevated p-3 text-sm outline-none ring-1 ring-white/10"
+                    className="mt-1 w-full rounded-xl bg-elevated p-3 text-sm outline-none ring-1 ring-white/10 focus:ring-teal/40"
                     value={form[field as keyof typeof form] as string}
                     onChange={(e) => setForm({ ...form, [field]: e.target.value })}
                   />
@@ -188,11 +190,10 @@ export function ReportWizardPage() {
           <>
             <GlassCard>
               <div className="flex items-start gap-3">
-                <MapPin className="text-teal shrink-0" size={20} />
+                <MapPin className="shrink-0 text-teal" size={20} />
                 <div>
                   <p className="font-medium">{form.address}</p>
                   <p className="text-xs text-mist">{form.lat.toFixed(4)}, {form.lng.toFixed(4)}</p>
-                  <p className="mt-2 text-xs text-mist">GPS auto-detected (demo: Koramangala). Production uses browser geolocation.</p>
                 </div>
               </div>
             </GlassCard>
