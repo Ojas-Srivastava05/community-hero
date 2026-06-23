@@ -19,28 +19,44 @@ analyticsRouter.get('/summary', async (_req, res) => {
     const avgSeverity =
       issues.length > 0 ? issues.reduce((s, i) => s + (i.severity || 0), 0) / issues.length : 0
     const summary = { total: issues.length, open, resolved, byCategory, byStatus, avgSeverity: Math.round(avgSeverity * 10) / 10 }
-    const insight = await generateInsight(summary)
+    let insight = ''
+    try {
+      insight = await generateInsight(summary)
+    } catch {
+      insight = `Based on ${open} open and ${resolved} resolved issues nearby, waste and road categories often need the most attention.`
+    }
     res.json({ ...summary, insight })
   } catch (e) {
     res.status(500).json({ error: String(e) })
   }
 })
 
-analyticsRouter.get('/hotspots', async (_req, res) => {
+analyticsRouter.get('/hotspots', async (req, res) => {
   try {
+    const wardId = req.query.ward_id as string | undefined
     const snap = await db.collection('issues').where('status', 'in', ['Submitted', 'Community Verified', 'Assigned', 'In Progress']).limit(200).get()
-    const grid: Record<string, { count: number; lat: number; lng: number; severity: number }> = {}
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+    const grid: Record<string, { count: number; recent: number; lat: number; lng: number; severity: number; score: number }> = {}
     for (const d of snap.docs) {
       const i = d.data()
+      if (wardId && i.wardId !== wardId) continue
       const key = (i.geohash || '').slice(0, 5)
       if (!key) continue
-      if (!grid[key]) grid[key] = { count: 0, lat: i.lat, lng: i.lng, severity: 0 }
+      const created = new Date(i.createdAt || 0).getTime()
+      const isRecent = created >= sevenDaysAgo
+      if (!grid[key]) grid[key] = { count: 0, recent: 0, lat: i.lat, lng: i.lng, severity: 0, score: 0 }
       grid[key].count++
+      if (isRecent) grid[key].recent++
       grid[key].severity = Math.max(grid[key].severity, i.severity || 1)
     }
     const hotspots = Object.entries(grid)
-      .map(([geohash, v]) => ({ geohash, ...v }))
-      .sort((a, b) => b.count - a.count)
+      .map(([geohash, v]) => ({
+        geohash,
+        ...v,
+        score: v.count * 2 + v.recent * 3 + v.severity,
+        predictive: v.recent >= 3 && v.count >= 5,
+      }))
+      .sort((a, b) => b.score - a.score)
       .slice(0, 10)
     res.json({ hotspots })
   } catch (e) {

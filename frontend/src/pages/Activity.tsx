@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, MessageSquare } from 'lucide-react'
-import { GlassCard } from '../components/GlassCard'
+import { ArrowUp, Check, FilePlus } from 'lucide-react'
+import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { apiListIssues } from '../lib/api'
-import { formatDistanceToNow } from 'date-fns'
+import { issueReportedAt } from '@/lib/issue-ui'
 import type { Issue } from '../../../shared/types'
 
 export function ActivityPage() {
@@ -14,34 +14,41 @@ export function ActivityPage() {
   }, [])
 
   return (
-    <div className="min-h-full pb-32">
-      <header className="glass sticky top-0 z-40 px-6 py-4">
-        <h1 className="text-lg font-semibold">Activity</h1>
-        <p className="text-xs text-mist">Community updates & notifications</p>
-      </header>
-      <main className="space-y-4 px-6 pt-4">
-        <Link to="/assistant" className="btn-primary flex items-center justify-center gap-2">
-          <MessageSquare size={18} />
-          Ask Civic Assistant
-        </Link>
-
-        <section>
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-            <Bell size={16} className="text-teal" />
-            Recent community activity
-          </h2>
-          {recent.map((issue) => (
-            <Link key={issue.id} to={`/issues/${issue.id}`}>
-              <GlassCard className="mb-2 p-3">
-                <p className="text-sm font-medium">{issue.title}</p>
-                <p className="text-xs text-mist mt-1">
-                  {issue.status} · {formatDistanceToNow(new Date(issue.createdAt), { addSuffix: true })}
-                </p>
-              </GlassCard>
-            </Link>
-          ))}
-        </section>
-      </main>
-    </div>
+    <AppShell>
+      <PageHeader title="Activity" subtitle="Community updates" />
+      <div className="px-5 pt-4">
+        <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto">
+          <Tab active>All</Tab>
+          <Tab>Your ward</Tab>
+          <Tab>Resolved</Tab>
+        </div>
+        <ol className="relative space-y-3 border-l border-glass-border pl-4">
+          {recent.map((issue) => {
+            const Icon = issue.status === 'Resolved' ? Check : issue.upvoteCount > 5 ? ArrowUp : FilePlus
+            const tone = issue.status === 'Resolved' ? 'text-sev-low bg-sev-low/15' : 'text-teal bg-teal/15'
+            return (
+              <li key={issue.id} className="relative">
+                <span className={`absolute -left-[1.4rem] grid size-7 place-items-center rounded-full border border-glass-border ${tone}`}>
+                  <Icon className="size-3.5" />
+                </span>
+                <Link to={`/issues/${issue.id}`} className="glass block px-4 py-3">
+                  <p className="text-sm">
+                    <b>Community</b>{' '}
+                    <span className="text-muted-foreground">{issue.status === 'Resolved' ? 'resolved' : 'reported'}</span>{' '}
+                    <b className="text-teal">{issue.title}</b>
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">{issueReportedAt(issue)} · {issue.upvoteCount} boosts</p>
+                </Link>
+              </li>
+            )
+          })}
+        </ol>
+        {recent.length === 0 && <p className="py-8 text-center text-muted-foreground">No activity yet</p>}
+      </div>
+    </AppShell>
   )
+}
+
+function Tab({ children, active }: { children: React.ReactNode; active?: boolean }) {
+  return <button type="button" className={`chip whitespace-nowrap ${active ? 'bg-teal/15 text-teal border-teal/40' : ''}`}>{children}</button>
 }

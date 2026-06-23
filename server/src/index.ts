@@ -6,6 +6,9 @@ import { reportsRouter } from './routes/reports'
 import { analyticsRouter } from './routes/analytics'
 import { aiRouter } from './routes/ai'
 import { leaderboardRouter } from './routes/leaderboard'
+import { geoRouter } from './routes/geo'
+import { threadsRouter } from './routes/threads'
+import { usersRouter } from './routes/users'
 const app = express()
 const PORT = Number(process.env.PORT) || 3001
 const isProd = process.env.NODE_ENV === 'production'
@@ -40,6 +43,9 @@ app.use('/api/reports', reportsRouter)
 app.use('/api/analytics', analyticsRouter)
 app.use('/api/ai', aiRouter)
 app.use('/api/leaderboard', leaderboardRouter)
+app.use('/api/geo', geoRouter)
+app.use('/api/threads', threadsRouter)
+app.use('/api/users', usersRouter)
 
 if (isProd) {
   const frontendDist = path.resolve(__dirname, '../../frontend/dist')

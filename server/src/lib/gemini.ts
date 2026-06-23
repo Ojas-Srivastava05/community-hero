@@ -39,16 +39,31 @@ export async function chatWithTools(
   if (!genAI) return 'AI assistant requires GEMINI_API_KEY on the server. Try browsing the map or my reports instead.'
 
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
-  const system = `You are Civic Assistant for Community Hero Bengaluru. NEVER invent issue data. Use tools for facts. Be concise.`
+  const system = `You are Civic Assistant for Community Hero — a hyperlocal civic reporting app. NEVER invent issue data. Use tools for facts. Be concise.`
   const last = messages[messages.length - 1]?.content?.toLowerCase() || ''
 
   if (last.includes('near me') || last.includes('nearby')) {
-    const data = await toolHandler('findNearbyIssues', { radius_km: 0.5 })
-    return `Here are open issues near you:\n${JSON.stringify(data, null, 2)}`
+    const data = await toolHandler('findNearbyIssues', { radius_km: 5 })
+    const items = Array.isArray(data) ? data : []
+    if (!items.length) return 'No open issues found near your location in the last fetch. Try widening your search on the map.'
+    return `Issues near you:\n${items.map((i: { title: string; status: string; category: string }) => `• ${i.title} (${i.category}, ${i.status})`).join('\n')}`
   }
   if (last.includes('my report') || last.includes('status')) {
     const data = await toolHandler('getMyReports', {})
-    return `Your reports:\n${JSON.stringify(data, null, 2)}`
+    const items = Array.isArray(data) ? data : []
+    if (!items.length) return "You haven't submitted any reports yet. Tap Report in the bottom nav to get started."
+    return `Your reports:\n${items.map((i: { title: string; status: string }) => `• ${i.title} — ${i.status}`).join('\n')}`
+  }
+  if (last.includes('hotspot')) {
+    const data = await toolHandler('getHotspots', {})
+    const items = Array.isArray(data) ? data : []
+    return items.length
+      ? `Top hotspot clusters:\n${items.map((h: { geohash: string; count: number }) => `• ${h.geohash}: ${h.count} issues`).join('\n')}`
+      : 'No hotspot clusters detected yet.'
+  }
+  if (last.includes('department') || last.includes('who fix')) {
+    const data = await toolHandler('getDepartmentInfo', { category: 'pothole' })
+    return `Road issues are typically handled by: ${JSON.stringify(data)}`
   }
   if (last.includes('how to report') || last.includes('garbage')) {
     return 'Tap Report in the bottom nav → photograph the issue → AI pre-fills details → confirm location → submit. Takes under 30 seconds.'
@@ -63,7 +78,7 @@ export async function chatWithTools(
 
 export async function generateInsight(summary: Record<string, unknown>): Promise<string> {
   if (!genAI) {
-    return `Based on ${summary.open ?? 0} open and ${summary.resolved ?? 0} resolved issues, waste and pothole categories remain highest in Koramangala ward. Preventive sweeps recommended.`
+    return `Based on ${summary.open ?? 0} open and ${summary.resolved ?? 0} resolved issues nearby, waste and road categories often need the most attention. Preventive sweeps in high-density clusters are recommended.`
   }
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
   const result = await model.generateContent(

@@ -59,6 +59,8 @@ export type Issue = {
   createdAt: string
   updatedAt: string
   resolvedAt?: string
+  proofImageUrl?: string
+  mergedInto?: string
 }
 
 export const DEPARTMENTS: Record<Category, { name: string; slaHours: Record<number, number> }> = {

@@ -103,10 +103,21 @@ code=$(http_code "$URL/api/analytics/export/open311")
 [ "$code" = "200" ] && check "12" "Open311 export" "PASS" || check "12" "Open311 export" "HTTP $code"
 
 # Phase 14 — key routes
-for route in "/activity" "/profile"; do
+for route in "/activity" "/profile" "/login" "/terms"; do
   code=$(http_code "$URL$route")
   [ "$code" = "200" ] && check "14" "Route $route" "PASS" || check "14" "Route $route" "HTTP $code"
 done
+
+# Phase 14 — threads route (SPA)
+if [ -n "$issue_id" ]; then
+  thread_id="thread-$(curl -sf "$URL/api/reports/$issue_id" | python3 -c "import sys,json; print(json.load(sys.stdin)['issue'].get('geohash','')[:5])" 2>/dev/null || echo 'test')"
+  code=$(http_code "$URL/threads/$thread_id")
+  [ "$code" = "200" ] && check "14" "Route /threads/:id" "PASS" || check "14" "Route /threads/:id" "HTTP $code"
+fi
+
+# Phase 3 — geo reverse API
+code=$(http_code "$URL/api/geo/reverse?lat=12.97&lng=77.59")
+[ "$code" = "200" ] && check "3" "Geo reverse API" "PASS" || check "3" "Geo reverse API" "HTTP $code"
 
 # Phase 16 — deployment
 [[ "$URL" == *".run.app"* ]] && check "16" "Cloud Run .run.app URL" "PASS" || check "16" "Cloud Run URL format" "wrong domain"

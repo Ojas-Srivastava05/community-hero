@@ -1,99 +1,82 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
-import { Sparkles, Download } from 'lucide-react'
-import { GlassCard } from '../components/GlassCard'
-import { apiAnalyticsSummary, apiHotspots } from '../lib/api'
-
-type Summary = {
-  total: number
-  open: number
-  resolved: number
-  byCategory: Record<string, number>
-  byStatus: Record<string, number>
-  avgSeverity: number
-  insight: string
-}
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Sparkles, TrendingUp, ArrowRight } from 'lucide-react'
+import { AppShell, PageHeader } from '@/components/layout/AppShell'
+import { GlassCard, SectionHeader } from '@/components/civic/GlassCard'
+import { apiAnalyticsSummary } from '../lib/api'
+import { useLocation } from '../lib/location'
 
 export function DashboardPage() {
-  const [summary, setSummary] = useState<Summary | null>(null)
-  const [hotspots, setHotspots] = useState<{ geohash: string; count: number }[]>([])
-  const [loading, setLoading] = useState(true)
+  const { location } = useLocation()
+  const [summary, setSummary] = useState<{
+    total: number
+    open: number
+    resolved: number
+    byCategory: Record<string, number>
+    insight?: string
+    avgResolutionHours?: number
+  } | null>(null)
 
   useEffect(() => {
-    setLoading(true)
-    Promise.all([apiAnalyticsSummary(), apiHotspots()])
-      .then(([s, h]) => {
-        setSummary(s)
-        setHotspots(h.hotspots)
-      })
-      .finally(() => setLoading(false))
+    apiAnalyticsSummary().then(setSummary).catch(() => {})
   }, [])
 
   const chartData = summary
-    ? Object.entries(summary.byCategory).map(([name, count]) => ({ name: name.replace('_', ' '), count }))
+    ? Object.entries(summary.byCategory).map(([name, count]) => ({ name: name.replace('_', ' ').slice(0, 10), count }))
     : []
 
   return (
-    <div className="min-h-full pb-32">
-      <header className="glass sticky top-0 z-40 flex items-center justify-between px-6 py-4">
-        <h1 className="text-lg font-semibold">Impact Dashboard</h1>
-        <a href="/api/analytics/export/open311" className="btn-ghost flex items-center gap-1 text-xs">
-          <Download size={14} /> Open311
-        </a>
-      </header>
-
-      <main className="space-y-6 px-6 pt-4">
-        <section className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Total', value: loading ? '…' : (summary?.total ?? '—') },
-            { label: 'Open', value: loading ? '…' : (summary?.open ?? '—') },
-            { label: 'Resolved', value: loading ? '…' : (summary?.resolved ?? '—') },
-          ].map(({ label, value }) => (
-            <GlassCard key={label} className="text-center py-4">
-              <p className="text-2xl font-bold tabular-nums">{value}</p>
-              <p className="text-xs text-mist">{label}</p>
-            </GlassCard>
-          ))}
-        </section>
-
-        {summary?.insight && (
-          <GlassCard className="border-teal/20">
-            <div className="flex gap-2 text-teal mb-2">
-              <Sparkles size={18} />
-              <span className="text-sm font-semibold">AI Insight</span>
-            </div>
-            <p className="text-sm text-mist leading-relaxed">{summary.insight}</p>
-          </GlassCard>
-        )}
-
-        <GlassCard>
-          <h2 className="mb-4 text-sm font-semibold">By category</h2>
-          <div className="h-48">
+    <AppShell>
+      <PageHeader title="Civic dashboard" subtitle={location ? `${location.label} · live` : 'Live data'} />
+      <section className="px-5 pt-4">
+        <div className="grid grid-cols-2 gap-3">
+          <Kpi label="Total" value={String(summary?.total ?? '—')} delta="live" />
+          <Kpi label="Open" value={String(summary?.open ?? '—')} delta="active" />
+          <Kpi label="Resolved" value={String(summary?.resolved ?? '—')} delta="done" good />
+          <Kpi label="Avg resolve" value={summary?.avgResolutionHours ? `${Math.round(summary.avgResolutionHours)}h` : '—'} delta="SLA" good />
+        </div>
+      </section>
+      <section className="mt-6 px-5">
+        <SectionHeader title="By category" hint="All reports" />
+        <GlassCard className="pt-5">
+          <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <XAxis dataKey="name" tick={{ fill: '#94A3B8', fontSize: 10 }} />
-                <YAxis tick={{ fill: '#94A3B8', fontSize: 10 }} />
-                <Tooltip contentStyle={{ background: '#151B23', border: 'none' }} />
-                <Bar dataKey="count" fill="#14B8A6" radius={[4, 4, 0, 0]} />
+              <BarChart data={chartData} barGap={4}>
+                <XAxis dataKey="name" stroke="oklch(0.7 0.025 250)" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="oklch(0.7 0.025 250)" fontSize={11} tickLine={false} axisLine={false} width={28} />
+                <Tooltip cursor={{ fill: 'oklch(1 0 0 / 0.04)' }} contentStyle={{ background: 'oklch(0.235 0.014 245)', border: '1px solid oklch(1 0 0 / 0.1)', borderRadius: 12, fontSize: 12 }} />
+                <Bar dataKey="count" fill="oklch(0.72 0.13 184)" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </GlassCard>
-
-        <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-mist">Hotspots</h2>
-          {hotspots.map((h) => (
-            <GlassCard key={h.geohash} className="mb-2 flex justify-between py-3 px-4">
-              <span className="text-sm">Zone {h.geohash}</span>
-              <span className="text-teal font-semibold">{h.count} issues</span>
-            </GlassCard>
-          ))}
+      </section>
+      {summary?.insight && (
+        <section className="mt-6 px-5">
+          <div className="relative overflow-hidden rounded-2xl border border-teal/30 bg-gradient-to-br from-teal/15 via-glass to-glass p-5">
+            <div className="flex items-start gap-3">
+              <div className="grid size-10 place-items-center rounded-xl bg-teal/20 ring-1 ring-teal/40"><Sparkles className="size-5 text-teal" /></div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-teal">AI insight</p>
+                <p className="mt-1 text-sm font-semibold leading-snug">{summary.insight}</p>
+                <a href="/api/analytics/export/open311" className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-teal">Export Open311 <ArrowRight className="size-3.5" /></a>
+              </div>
+            </div>
+          </div>
         </section>
+      )}
+    </AppShell>
+  )
+}
 
-        <Link to="/leaderboard" className="btn-ghost block text-center">View leaderboard →</Link>
-        <Link to="/admin" className="btn-ghost block text-center text-xs">Admin panel</Link>
-      </main>
-    </div>
+function Kpi({ label, value, delta, good }: { label: string; value: string; delta: string; good?: boolean }) {
+  return (
+    <GlassCard>
+      <p className="text-[11px] font-semibold text-muted-foreground">{label}</p>
+      <p className="mt-1 text-2xl font-extrabold tracking-tight">{value}</p>
+      <div className={`mt-1 inline-flex items-center gap-1 text-[11px] font-bold ${good ? 'text-sev-low' : 'text-teal'}`}>
+        <TrendingUp className="size-3" /> {delta}
+      </div>
+    </GlassCard>
   )
 }

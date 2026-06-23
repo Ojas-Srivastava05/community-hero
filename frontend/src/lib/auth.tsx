@@ -39,9 +39,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
       return
     }
-    return onAuthStateChanged(auth, (next) => {
+    return onAuthStateChanged(auth, async (next) => {
       setUser(next)
       setLoading(false)
+      if (next) {
+        try {
+          const token = await next.getIdToken()
+          const { apiEnsureUser } = await import('./api')
+          await apiEnsureUser(token, {
+            displayName: next.displayName || undefined,
+            email: next.email || undefined,
+            photoURL: next.photoURL || undefined,
+          })
+        } catch {
+          /* non-blocking */
+        }
+      }
     })
   }, [])
 

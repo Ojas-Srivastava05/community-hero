@@ -1,174 +1,200 @@
 import { useEffect, useState } from 'react'
-import { Bell, Camera, ChevronRight, MapPin, TrendingUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { GlassCard, SeverityDot } from '../components/GlassCard'
-import { apiListIssues, apiAnalyticsSummary } from '../lib/api'
+import { motion } from 'framer-motion'
+import { ArrowUpRight, Bell, Loader2, MapPin, Sparkles, TrendingUp, ShieldCheck } from 'lucide-react'
+import { AppShell } from '@/components/layout/AppShell'
+import { GlassCard, SectionHeader, Chip } from '@/components/civic/GlassCard'
+import { SeverityBadge } from '@/components/civic/SeverityBadge'
+import { apiAnalyticsSummary, apiListIssues } from '../lib/api'
+import { useLocation } from '../lib/location'
+import { sortByDistance } from '../lib/geo'
+import {
+  apiSeverityToUi,
+  categoryLabel,
+  issueArea,
+  issueImage,
+  issueReportedAt,
+} from '@/lib/issue-ui'
 import type { Issue } from '../../../shared/types'
 
-function severityLevel(s: number): 'critical' | 'high' | 'medium' | 'low' {
-  if (s >= 5) return 'critical'
-  if (s >= 4) return 'high'
-  if (s >= 3) return 'medium'
-  return 'low'
-}
-
-const quickLinks = [
-  { to: '/map', label: 'Map Explorer', icon: MapPin },
-  { to: '/my-reports', label: 'My Reports', icon: ChevronRight },
-  { to: '/dashboard', label: 'Dashboard', icon: TrendingUp },
-]
+const HERO_IMG = 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=1200&q=80'
 
 export function LandingPage() {
-  const [issues, setIssues] = useState<Issue[]>([])
-  const [stats, setStats] = useState({ open: 0, resolved: 0, total: 0 })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const { location, loading: locLoading, error: locError } = useLocation()
+  const [stats, setStats] = useState({ open: 0, resolved: 0, total: 0, avgHours: 36 })
+  const [trending, setTrending] = useState<Issue[]>([])
+  const [recent, setRecent] = useState<Issue[]>([])
+  const [dataLoading, setDataLoading] = useState(true)
 
   useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    Promise.all([apiListIssues(20), apiAnalyticsSummary()])
-      .then(([list, summary]) => {
-        if (cancelled) return
-        setIssues(list.issues)
-        setStats({ open: summary.open, resolved: summary.resolved, total: summary.total })
+    const opts =
+      location ? { lat: location.lat, lng: location.lng, radiusKm: 25 } : undefined
+    setDataLoading(true)
+    Promise.all([apiAnalyticsSummary(), apiListIssues(50, opts)])
+      .then(([s, list]) => {
+        setStats({
+          open: s.open ?? 0,
+          resolved: s.resolved ?? 0,
+          total: s.total ?? 0,
+          avgHours: Math.round(s.avgResolutionHours ?? 36),
+        })
+        let issues = list.issues
+        if (location) {
+          issues = sortByDistance(issues, location.lat, location.lng, 25)
+        }
+        const sorted = [...issues].sort((a, b) => b.upvoteCount - a.upvoteCount)
+        setTrending(sorted.slice(0, 4))
+        setRecent(issues.slice(0, 3))
       })
-      .catch((e) => {
-        if (!cancelled) setError(String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+      .catch(() => {})
+      .finally(() => setDataLoading(false))
+  }, [location])
 
-  const trending = issues.slice(0, 6)
+  const areaLabel = location?.label || (locLoading ? 'Finding your area…' : 'Near you')
+  const cityLabel = location?.city || 'Your city'
 
   return (
-    <div className="min-h-full pb-32">
-      {/* Top bar */}
-      <header className="glass sticky top-0 z-40 flex items-center justify-between px-6 py-4">
-        <div>
-          <p className="text-[11px] font-medium uppercase tracking-widest text-mist">CIVICPULSE AI</p>
-          <h1 className="text-lg font-semibold tracking-tight">Community Hero</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <button type="button" className="relative flex h-10 w-10 items-center justify-center rounded-full glass">
-            <Bell size={18} className="text-mist" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-teal" />
-          </button>
-          <Link to="/profile" className="flex h-10 w-10 items-center justify-center rounded-full bg-teal/20 text-sm font-semibold text-teal">
-            CH
+    <AppShell>
+      <section className="relative px-5 pb-6 pt-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2">
+            <div className="grid size-9 place-items-center rounded-xl bg-teal/15 ring-1 ring-teal/30">
+              <ShieldCheck className="size-5 text-teal" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                CivicPulse · {cityLabel}
+              </p>
+              <p className="text-sm font-bold">Community Hero</p>
+            </div>
+          </div>
+          <Link to="/activity" className="grid size-9 place-items-center rounded-xl border border-glass-border bg-glass">
+            <Bell className="size-4" />
           </Link>
         </div>
-      </header>
 
-      <main className="space-y-6 px-6 pt-4">
-        {/* Bento grid */}
-        <section className="stagger grid grid-cols-2 gap-4">
-          <GlassCard className="col-span-2 relative overflow-hidden p-0">
-            <div className="relative h-36 bg-gradient-to-br from-elevated to-midnight p-4">
-              <div className="absolute inset-0 opacity-30">
-                <svg className="h-full w-full" viewBox="0 0 400 140" preserveAspectRatio="none">
-                  <path d="M0 80 Q100 40 200 70 T400 50 L400 140 L0 140 Z" fill="#14B8A6" opacity="0.15" />
-                  <path d="M0 100 Q150 60 300 90 L400 85 L400 140 L0 140 Z" fill="#2DD4BF" opacity="0.1" />
-                </svg>
-              </div>
-              {[20, 55, 75].map((left, i) => (
-                <span
-                  key={left}
-                  className="pulse-ring absolute h-3 w-3 rounded-full bg-teal"
-                  style={{ left: `${left}%`, top: `${30 + i * 12}%` }}
-                />
-              ))}
-              <div className="relative">
-                <p className="text-[11px] font-medium uppercase tracking-wider text-mist">Nearby</p>
-                <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight">
-                  {loading ? '…' : stats.open || trending.length}
-                </p>
-                <p className="text-sm text-mist">open issues nearby</p>
-              </div>
-            </div>
-          </GlassCard>
-
-          <GlassCard>
-            <p className="text-[11px] font-medium uppercase tracking-wider text-mist">This week</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums">{loading ? '…' : stats.resolved}</p>
-            <p className="text-xs text-mist">resolved</p>
-            <div className="mt-3 flex h-8 items-end gap-0.5">
-              {[4, 6, 3, 8, 5, 9, 12].map((h, i) => (
-                <div key={i} className="flex-1 rounded-sm bg-teal/30" style={{ height: `${h * 3}px` }} />
-              ))}
-            </div>
-          </GlassCard>
-
-          <GlassCard>
-            <p className="text-[11px] font-medium uppercase tracking-wider text-mist">Your ward</p>
-            <p className="mt-2 text-lg font-semibold">Koramangala</p>
-            <span className="mt-2 inline-block rounded-full bg-teal/15 px-2.5 py-0.5 text-[11px] font-medium text-teal">
-              Ward 12 · Bengaluru
-            </span>
-          </GlassCard>
-        </section>
-
-        {/* Primary CTA */}
-        <Link to="/report" className="btn-primary flex items-center justify-center gap-2">
-          <Camera size={20} />
-          Report an Issue
-        </Link>
-
-        {/* Trending */}
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Trending near you</h2>
-            <Link to="/map" className="text-sm text-teal">See all</Link>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
-            {trending.map((item) => (
-              <Link
-                key={item.id}
-                to={`/issues/${item.id}`}
-                className="glass-card w-44 shrink-0 overflow-hidden rounded-2xl"
-              >
-                <img src={item.imageUrls?.[0] || 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=200'} alt="" className="h-20 w-full object-cover" />
-                <div className="p-3">
-                  <div className="mb-1 flex items-center gap-1.5">
-                    <SeverityDot level={severityLevel(item.severity)} />
-                    <span className="text-[10px] font-medium uppercase tracking-wider text-mist">{item.category}</span>
-                  </div>
-                  <p className="line-clamp-2 text-sm font-medium leading-snug">{item.title}</p>
-                  <p className="mt-1 text-xs text-mist">{item.status}</p>
-                </div>
-              </Link>
-            ))}
-            {loading && <p className="text-sm text-mist px-2">Loading community data…</p>}
-            {error && (
-              <p className="text-sm text-critical px-2">
-                {error}. <button type="button" className="underline" onClick={() => window.location.reload()}>Retry</button>
-              </p>
-            )}
-            {!loading && !error && trending.length === 0 && (
-              <p className="text-sm text-mist px-2">No issues yet — tap Report to add the first one.</p>
-            )}
-          </div>
-        </section>
-
-        {/* Quick links */}
-        <section className="grid grid-cols-3 gap-3">
-          {quickLinks.map(({ to, label, icon: Icon }) => (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="relative mt-5 overflow-hidden rounded-3xl border border-glass-border"
+        >
+          <img src={HERO_IMG} alt={cityLabel} className="absolute inset-0 size-full object-cover opacity-70" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30" />
+          <div className="relative p-6 pt-32">
+            <Chip tone="teal">
+              {locLoading ? (
+                <span className="flex items-center gap-1"><Loader2 className="size-3 animate-spin" /> Locating…</span>
+              ) : (
+                <><MapPin className="size-3" /> {areaLabel}</>
+              )}
+            </Chip>
+            <h1 className="mt-3 text-3xl font-extrabold leading-tight tracking-tight">
+              Your city,
+              <br />
+              <span className="text-gradient-teal">your move.</span>
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {dataLoading ? (
+                <span className="flex items-center gap-2"><Loader2 className="size-3 animate-spin" /> Loading issues…</span>
+              ) : (
+                `${stats.total} issues tracked · ${stats.resolved} resolved`
+              )}
+            </p>
+            {locError && <p className="mt-1 text-xs text-sev-med">Location unavailable — showing all issues</p>}
             <Link
-              key={to}
-              to={to}
-              className="glass-card flex flex-col items-center gap-2 rounded-2xl py-4 text-center"
+              to="/report"
+              className="mt-5 inline-flex items-center gap-2 rounded-full bg-teal px-5 py-2.5 text-sm font-bold text-primary-foreground teal-glow"
             >
-              <Icon size={20} className="text-teal" />
-              <span className="text-xs font-medium text-mist">{label}</span>
+              Report something
+              <ArrowUpRight className="size-4" />
+            </Link>
+          </div>
+        </motion.div>
+      </section>
+
+      <section className="px-5">
+        <SectionHeader title="Live pulse" hint="Updated from Firestore" />
+        <div className="grid grid-cols-3 gap-3">
+          <GlassCard className="col-span-2 row-span-2">
+            <p className="text-xs font-semibold text-muted-foreground">Open issues</p>
+            <p className="mt-1 text-3xl font-extrabold tracking-tight text-teal">{dataLoading ? '—' : stats.open}</p>
+            <div className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-sev-low">
+              <TrendingUp className="size-3.5" /> Near {areaLabel}
+            </div>
+            <div className="mt-4 flex h-14 items-end gap-1">
+              {[18, 24, 21, 30, 28, 36, 44].map((h, i) => (
+                <div key={i} className="flex-1 rounded-sm bg-teal/40" style={{ height: `${h * 1.4}%` }} />
+              ))}
+            </div>
+          </GlassCard>
+          <GlassCard>
+            <p className="text-[11px] font-semibold text-muted-foreground">Total</p>
+            <p className="mt-1 text-xl font-extrabold">{dataLoading ? '—' : stats.total}</p>
+          </GlassCard>
+          <GlassCard>
+            <p className="text-[11px] font-semibold text-muted-foreground">Avg resolve</p>
+            <p className="mt-1 text-xl font-extrabold">{stats.avgHours}h</p>
+          </GlassCard>
+        </div>
+      </section>
+
+      <section className="mt-6">
+        <div className="px-5">
+          <SectionHeader title="Trending nearby" hint={areaLabel} action={<Link to="/map">See map →</Link>} />
+        </div>
+        <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2">
+          {trending.map((issue) => (
+            <Link
+              key={issue.id}
+              to={`/issues/${issue.id}`}
+              className="group relative w-[78%] shrink-0 snap-start overflow-hidden rounded-2xl border border-glass-border"
+            >
+              <img src={issueImage(issue)} alt="" className="aspect-[5/4] w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-4">
+                <SeverityBadge severity={apiSeverityToUi(issue.severity)} />
+                <h3 className="mt-2 text-sm font-bold leading-tight">{issue.title}</h3>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {issueArea(issue)} · {issue.upvoteCount} upvotes
+                </p>
+              </div>
             </Link>
           ))}
-        </section>
-      </main>
-    </div>
+        </div>
+      </section>
+
+      <section className="mt-6 px-5">
+        <SectionHeader title="Recent near you" action={<Link to="/activity">All →</Link>} />
+        <div className="space-y-2">
+          {recent.map((i) => (
+            <Link key={i.id} to={`/issues/${i.id}`} className="glass grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-3 py-3">
+              <img src={issueImage(i)} alt="" className="size-12 shrink-0 rounded-lg object-cover" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{i.title}</p>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {categoryLabel(i.category)} · {issueReportedAt(i)}
+                </p>
+              </div>
+              <SeverityBadge severity={apiSeverityToUi(i.severity)} />
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-6 px-5 pb-4">
+        <Link to="/assistant" className="relative block overflow-hidden rounded-2xl border border-teal/30 bg-gradient-to-br from-teal/15 via-glass to-glass p-5">
+          <div className="flex items-start gap-3">
+            <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-teal/20 ring-1 ring-teal/40">
+              <Sparkles className="size-5 text-teal" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold">Ask Civic AI</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Which issues are near me? How do I report?</p>
+            </div>
+          </div>
+        </Link>
+      </section>
+    </AppShell>
   )
 }

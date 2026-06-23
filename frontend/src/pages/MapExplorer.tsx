@@ -1,113 +1,107 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api'
-import { List, Map as MapIcon } from 'lucide-react'
-import { GlassCard, SeverityDot } from '../components/GlassCard'
+import { Filter, Layers, Search, X } from 'lucide-react'
+import { AppShell } from '@/components/layout/AppShell'
+import { CivicMap } from '@/components/civic/CivicMap'
+import { SeverityBadge } from '@/components/civic/SeverityBadge'
+import { Chip } from '@/components/civic/GlassCard'
 import { apiListIssues } from '../lib/api'
+import { useLocation } from '../lib/location'
+import {
+  apiSeverityToUi,
+  issueArea,
+  issueImage,
+  issueReportedAt,
+} from '@/lib/issue-ui'
 import type { Issue } from '../../../shared/types'
 
-const BENGALURU = { lat: 12.9352, lng: 77.6245 }
-const mapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY || ''
-
-const darkMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#0B0F14' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#94A3B8' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1e2733' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
-]
-
-function severityLevel(s: number): 'critical' | 'high' | 'medium' | 'low' {
-  if (s >= 5) return 'critical'
-  if (s >= 4) return 'high'
-  if (s >= 3) return 'medium'
-  return 'low'
-}
-
 export function MapExplorerPage() {
+  const { location } = useLocation()
   const [issues, setIssues] = useState<Issue[]>([])
-  const [selected, setSelected] = useState<Issue | null>(null)
-  const [view, setView] = useState<'map' | 'list'>('map')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: mapsKey,
-    id: 'community-hero-map',
-  })
+  const [selected, setSelected] = useState<string | undefined>()
+  const [filter, setFilter] = useState<'all' | 'critical' | 'high' | 'resolved'>('all')
+  const issue = issues.find((i) => i.id === selected) ?? issues[0]
 
   useEffect(() => {
-    apiListIssues(100)
-      .then((r) => setIssues(r.issues))
-      .catch((e) => setError(String(e)))
-      .finally(() => setLoading(false))
-  }, [])
+    const opts = location ? { lat: location.lat, lng: location.lng, radiusKm: 50 } : undefined
+    apiListIssues(100, opts)
+      .then((r) => {
+        setIssues(r.issues)
+        setSelected(r.issues[0]?.id)
+      })
+      .catch(() => {})
+  }, [location])
 
-  const showMap = view === 'map' && mapsKey && isLoaded && !loadError
+  const filtered = issues.filter((i) => {
+    if (filter === 'resolved') return ['Resolved', 'Closed'].includes(i.status)
+    if (filter === 'critical') return i.severity >= 5
+    if (filter === 'high') return i.severity >= 4
+    return true
+  })
+
+  const center = location
+    ? { lat: location.lat, lng: location.lng }
+    : issues[0]
+      ? { lat: issues[0].lat, lng: issues[0].lng }
+      : { lat: 20, lng: 0 }
 
   return (
-    <div className="min-h-full pb-32">
-      <header className="glass sticky top-0 z-40 flex items-center justify-between px-6 py-4">
-        <div>
-          <h1 className="text-lg font-semibold">Map Explorer</h1>
-          <p className="text-xs text-mist">{issues.length} issues in Koramangala</p>
+    <AppShell bare>
+      <div className="relative h-screen w-full">
+        <CivicMap
+          center={center}
+          issues={filtered}
+          selectedId={selected}
+          onSelect={setSelected}
+          className="absolute inset-0 size-full"
+        />
+        <div className="absolute inset-x-0 top-0 z-20 px-4 pt-4">
+          <div className="glass-strong flex items-center gap-2 rounded-2xl px-3 py-2.5">
+            <Search className="size-4 text-muted-foreground" />
+            <input placeholder="Search area or issue" className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+            <button type="button" className="grid size-8 place-items-center rounded-lg border border-glass-border">
+              <Filter className="size-4" />
+            </button>
+          </div>
+          <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto">
+            <button type="button" onClick={() => setFilter('all')}><Chip tone={filter === 'all' ? 'teal' : undefined}>All</Chip></button>
+            <button type="button" onClick={() => setFilter('critical')}><Chip tone={filter === 'critical' ? 'danger' : undefined}>Critical</Chip></button>
+            <button type="button" onClick={() => setFilter('high')}><Chip tone={filter === 'high' ? 'warn' : undefined}>High</Chip></button>
+            <button type="button" onClick={() => setFilter('resolved')}><Chip tone={filter === 'resolved' ? 'ok' : undefined}>Resolved</Chip></button>
+          </div>
         </div>
-        <button
-          type="button"
-          className="btn-ghost flex items-center gap-2 px-3 py-2 text-xs"
-          onClick={() => setView(view === 'map' ? 'list' : 'map')}
-        >
-          {view === 'map' ? <List size={16} /> : <MapIcon size={16} />}
-          {view === 'map' ? 'List' : 'Map'}
+        <button type="button" className="absolute right-4 top-40 z-20 grid size-11 place-items-center rounded-xl glass-strong">
+          <Layers className="size-5" />
         </button>
-      </header>
-
-      {showMap ? (
-        <div className="mx-4 overflow-hidden rounded-2xl ring-1 ring-white/10" style={{ height: 'calc(100vh - 200px)' }}>
-          <GoogleMap
-            mapContainerStyle={{ width: '100%', height: '100%' }}
-            center={BENGALURU}
-            zoom={14}
-            options={{ styles: darkMapStyle, disableDefaultUI: true, zoomControl: true }}
-          >
-            {issues.map((issue) => (
-              <Marker key={issue.id} position={{ lat: issue.lat, lng: issue.lng }} onClick={() => setSelected(issue)} />
-            ))}
-            {selected && (
-              <InfoWindow position={{ lat: selected.lat, lng: selected.lng }} onCloseClick={() => setSelected(null)}>
-                <div className="text-sm text-black">
-                  <p className="font-semibold">{selected.title}</p>
-                  <Link to={`/issues/${selected.id}`} className="text-teal">View details →</Link>
+        {issue && (
+          <div className="absolute inset-x-0 bottom-24 z-20 px-3">
+            <Link to={`/issues/${issue.id}`} className="glass-strong relative block overflow-hidden rounded-2xl">
+              <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-muted-foreground/40" />
+              <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 p-3">
+                <img src={issueImage(issue)} alt="" className="size-16 rounded-xl object-cover" />
+                <div className="min-w-0">
+                  <SeverityBadge severity={apiSeverityToUi(issue.severity)} />
+                  <p className="mt-1 truncate text-sm font-bold">{issue.title}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {issueArea(issue)} · {issue.upvoteCount} upvotes · {issueReportedAt(issue)}
+                  </p>
                 </div>
-              </InfoWindow>
-            )}
-          </GoogleMap>
-        </div>
-      ) : (
-        <main className="space-y-3 px-6 pt-2">
-          {view === 'map' && !isLoaded && mapsKey && !loadError && (
-            <p className="text-center text-mist py-8">Loading map…</p>
-          )}
-          {issues.map((issue) => (
-            <Link key={issue.id} to={`/issues/${issue.id}`}>
-              <GlassCard className="flex gap-3 p-3 transition-transform active:scale-[0.99]">
-                {issue.imageUrls?.[0] && (
-                  <img src={issue.imageUrls[0]} alt="" className="h-16 w-16 rounded-xl object-cover ring-1 ring-white/10" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <SeverityDot level={severityLevel(issue.severity)} />
-                    <span className="text-[10px] uppercase tracking-wider text-mist">{issue.category.replace('_', ' ')}</span>
-                  </div>
-                  <p className="truncate font-medium">{issue.title}</p>
-                  <p className="text-xs text-mist">{issue.status}</p>
-                </div>
-              </GlassCard>
+                <button
+                  type="button"
+                  aria-label="Close"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setSelected(undefined)
+                  }}
+                  className="grid size-8 place-items-center rounded-lg border border-glass-border"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
             </Link>
-          ))}
-          {loading && <p className="text-center text-mist py-8">Loading issues…</p>}
-          {error && <p className="text-center text-critical py-8 text-sm">{error}</p>}
-        </main>
-      )}
-    </div>
+          </div>
+        )}
+      </div>
+    </AppShell>
   )
 }

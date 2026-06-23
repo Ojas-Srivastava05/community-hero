@@ -8,8 +8,10 @@ async function apiFetch(path: string, init?: RequestInit, retries = 3): Promise<
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
       const res = await fetch(url, init)
-      if (res.ok || res.status < 500) return res
-      lastError = new Error(`HTTP ${res.status}`)
+      if (res.ok) return res
+      if (res.status < 500) return res
+      const body = await res.text().catch(() => '')
+      lastError = new Error(body || `HTTP ${res.status}`)
     } catch (e) {
       lastError = e
     }
@@ -18,6 +20,18 @@ async function apiFetch(path: string, init?: RequestInit, retries = 3): Promise<
     }
   }
   throw lastError instanceof Error ? lastError : new Error('API unavailable — server may be waking up')
+}
+
+async function parseApiError(res: Response): Promise<never> {
+  const text = await res.text()
+  try {
+    const j = JSON.parse(text) as { error?: string | object }
+    if (typeof j.error === 'string') throw new Error(j.error)
+    if (j.error) throw new Error(JSON.stringify(j.error))
+  } catch (e) {
+    if (e instanceof Error && e.message !== text) throw e
+  }
+  throw new Error(text || `HTTP ${res.status}`)
 }
 
 async function authHeaders(token?: string | null): Promise<HeadersInit> {
@@ -39,7 +53,7 @@ export async function apiAnalyzeImage(
     headers: await authHeaders(token),
     body: fd,
   })
-  if (!res.ok) throw new Error(await res.text())
+  if (!res.ok) await parseApiError(res)
   return res.json()
 }
 
@@ -52,37 +66,48 @@ export async function apiCreateReport(
     lat: number
     lng: number
     address?: string
+    mergeIntoId?: string
   },
   images: File[],
   token: string,
-): Promise<{ id: string; issue: Issue }> {
+): Promise<{ id: string; issue: Issue; duplicateSuggestions?: { id: string; title: string }[]; merged?: boolean }> {
   const fd = new FormData()
-  Object.entries(data).forEach(([k, v]) => fd.append(k, String(v)))
+  Object.entries(data).forEach(([k, v]) => {
+    if (v !== undefined && v !== '') fd.append(k, String(v))
+  })
   images.forEach((img) => fd.append('images', img))
   const res = await apiFetch('/api/reports', {
     method: 'POST',
     headers: await authHeaders(token),
     body: fd,
   })
-  if (!res.ok) throw new Error(await res.text())
+  if (!res.ok) await parseApiError(res)
   return res.json()
 }
 
-export async function apiListIssues(limit = 50): Promise<{ issues: Issue[] }> {
-  const res = await apiFetch(`/api/reports?limit=${limit}`)
-  if (!res.ok) throw new Error(await res.text())
+export async function apiListIssues(
+  limit = 50,
+  opts?: { lat?: number; lng?: number; radiusKm?: number; status?: string },
+): Promise<{ issues: Issue[] }> {
+  const q = new URLSearchParams({ limit: String(limit) })
+  if (opts?.lat !== undefined) q.set('lat', String(opts.lat))
+  if (opts?.lng !== undefined) q.set('lng', String(opts.lng))
+  if (opts?.radiusKm !== undefined) q.set('radius_km', String(opts.radiusKm))
+  if (opts?.status) q.set('status', opts.status)
+  const res = await apiFetch(`/api/reports?${q}`)
+  if (!res.ok) await parseApiError(res)
   return res.json()
 }
 
 export async function apiMyReports(token: string): Promise<{ issues: Issue[] }> {
   const res = await apiFetch('/api/reports/mine', { headers: await authHeaders(token) })
-  if (!res.ok) throw new Error(await res.text())
+  if (!res.ok) await parseApiError(res)
   return res.json()
 }
 
 export async function apiGetIssue(id: string): Promise<{ issue: Issue; events: unknown[] }> {
   const res = await apiFetch(`/api/reports/${id}`)
-  if (!res.ok) throw new Error(await res.text())
+  if (!res.ok) await parseApiError(res)
   return res.json()
 }
 
@@ -91,29 +116,52 @@ export async function apiUpvote(id: string, token: string) {
     method: 'POST',
     headers: await authHeaders(token),
   })
-  if (!res.ok) throw new Error(await res.text())
+  if (!res.ok) await parseApiError(res)
   return res.json()
 }
 
-export async function apiUpdateStatus(id: string, status: string, token: string) {
+export async function apiMergeIssue(sourceId: string, targetId: string, token: string) {
+  const res = await apiFetch(`/api/reports/${sourceId}/merge`, {
+    method: 'POST',
+    headers: { ...(await authHeaders(token)), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targetId }),
+  })
+  if (!res.ok) await parseApiError(res)
+  return res.json()
+}
+
+export async function apiReopenIssue(id: string, token: string) {
+  const res = await apiFetch(`/api/reports/${id}/reopen`, {
+    method: 'POST',
+    headers: await authHeaders(token),
+  })
+  if (!res.ok) await parseApiError(res)
+  return res.json()
+}
+
+export async function apiUpdateStatus(id: string, status: string, token: string, proof?: File) {
+  const fd = new FormData()
+  fd.append('status', status)
+  if (proof) fd.append('proof', proof)
   const res = await apiFetch(`/api/reports/${id}/status`, {
     method: 'PATCH',
-    headers: { ...(await authHeaders(token)), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status }),
+    headers: await authHeaders(token),
+    body: fd,
   })
-  if (!res.ok) throw new Error(await res.text())
+  if (!res.ok) await parseApiError(res)
   return res.json()
 }
 
 export async function apiAnalyticsSummary() {
   const res = await apiFetch('/api/analytics/summary')
-  if (!res.ok) throw new Error(await res.text())
+  if (!res.ok) await parseApiError(res)
   return res.json()
 }
 
-export async function apiHotspots() {
-  const res = await apiFetch('/api/analytics/hotspots')
-  if (!res.ok) throw new Error(await res.text())
+export async function apiHotspots(wardId?: string) {
+  const q = wardId ? `?ward_id=${encodeURIComponent(wardId)}` : ''
+  const res = await apiFetch(`/api/analytics/hotspots${q}`)
+  if (!res.ok) await parseApiError(res)
   return res.json()
 }
 
@@ -123,12 +171,47 @@ export async function apiChat(messages: { role: string; content: string }[], tok
     headers: { ...(await authHeaders(token)), 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages, lat, lng }),
   })
-  if (!res.ok) throw new Error(await res.text())
+  if (!res.ok) await parseApiError(res)
   return res.json()
 }
 
-export async function apiLeaderboard() {
-  const res = await apiFetch('/api/leaderboard')
-  if (!res.ok) throw new Error(await res.text())
+export async function apiLeaderboard(period = 'alltime') {
+  const res = await apiFetch(`/api/leaderboard?period=${period}`)
+  if (!res.ok) await parseApiError(res)
+  return res.json()
+}
+
+export async function apiGetThread(id: string) {
+  const res = await apiFetch(`/api/threads/${id}`)
+  if (!res.ok) await parseApiError(res)
+  return res.json()
+}
+
+export async function apiListThreads() {
+  const res = await apiFetch('/api/threads')
+  if (!res.ok) await parseApiError(res)
+  return res.json()
+}
+
+export async function apiReverseGeocode(lat: number, lng: number) {
+  const res = await apiFetch(`/api/geo/reverse?lat=${lat}&lng=${lng}`)
+  if (!res.ok) await parseApiError(res)
+  return res.json()
+}
+
+export async function apiGetProfile(token: string) {
+  const res = await apiFetch('/api/users/me', { headers: await authHeaders(token) })
+  if (!res.ok) return null
+  const data = await res.json()
+  return data.user as { civicPoints?: number; badges?: string[] } | null
+}
+
+export async function apiEnsureUser(token: string, profile: { displayName?: string; email?: string; photoURL?: string }) {
+  const res = await apiFetch('/api/users/me', {
+    method: 'POST',
+    headers: { ...(await authHeaders(token)), 'Content-Type': 'application/json' },
+    body: JSON.stringify(profile),
+  })
+  if (!res.ok) await parseApiError(res)
   return res.json()
 }

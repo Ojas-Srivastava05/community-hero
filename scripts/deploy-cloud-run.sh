@@ -5,7 +5,12 @@ PROJECT_ID="${GCP_PROJECT_ID:-community-hero-vibe2ship}"
 REGION="${GCP_REGION:-asia-south1}"
 SERVICE_NAME="${CLOUD_RUN_SERVICE:-community-hero}"
 
-if [ -f frontend/.env ]; then
+if [ -f frontend/.env.production ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source frontend/.env.production
+  set +a
+elif [ -f frontend/.env ]; then
   set -a
   # shellcheck disable=SC1091
   source frontend/.env
@@ -30,8 +35,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --allow-unauthenticated \
   --port=8080 \
   --memory=512Mi \
-  --set-env-vars="FIREBASE_PROJECT_ID=${PROJECT_ID},NODE_ENV=production,ADMIN_EMAILS=srivastavaojas454@gmail.com,FIREBASE_STORAGE_BUCKET=community-hero-vibe2ship.firebasestorage.app" \
-  ${GEMINI_API_KEY:+--set-env-vars="GEMINI_API_KEY=${GEMINI_API_KEY}"}
+  --set-env-vars="FIREBASE_PROJECT_ID=${PROJECT_ID},NODE_ENV=production,ADMIN_EMAILS=srivastavaojas454@gmail.com,FIREBASE_STORAGE_BUCKET=community-hero-vibe2ship-uploads,GOOGLE_MAPS_API_KEY=${VITE_GOOGLE_MAPS_API_KEY:-}${GEMINI_API_KEY:+,GEMINI_API_KEY=${GEMINI_API_KEY}}" \
 
 URL=$(gcloud run services describe "${SERVICE_NAME}" --project="${PROJECT_ID}" --region="${REGION}" --format='value(status.url)')
 echo ""

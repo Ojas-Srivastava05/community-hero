@@ -8,6 +8,7 @@ export async function runAgentPipeline(
   lat: number,
   lng: number,
   reporterId: string,
+  wardId?: string,
 ) {
   const dept = DEPARTMENTS[analysis.category]
   const slaHours = dept.slaHours[Math.min(5, Math.max(1, analysis.severity))] || 72
@@ -25,7 +26,7 @@ export async function runAgentPipeline(
     slaDeadline,
     priorityScore,
     geohash,
-    wardId: 'Koramangala',
+    wardId: wardId || `area-${geohash.slice(0, 5)}`,
     verificationLevel: 0,
     'aiMetadata.agents': ['intake', 'vision', 'routing', 'sla'],
     updatedAt: new Date().toISOString(),
@@ -57,16 +58,20 @@ export async function runAgentPipeline(
 }
 
 async function findDuplicates(lat: number, lng: number, category: string) {
-  const center = ngeohash.encode(lat, lng, 6)
-  const snap = await db
-    .collection('issues')
-    .where('geohash', '>=', center)
-    .where('geohash', '<=', center + '\uf8ff')
-    .limit(5)
-    .get()
-  return snap.docs
-    .filter((d) => d.data().category === category)
-    .map((d) => ({ id: d.id, title: d.data().title }))
+  try {
+    const center = ngeohash.encode(lat, lng, 6)
+    const snap = await db
+      .collection('issues')
+      .where('geohash', '>=', center)
+      .where('geohash', '<=', center + '\uf8ff')
+      .limit(5)
+      .get()
+    return snap.docs
+      .filter((d) => d.data().category === category)
+      .map((d) => ({ id: d.id, title: d.data().title }))
+  } catch {
+    return []
+  }
 }
 
 export async function awardPoints(uid: string, points: number, reason: string) {
@@ -108,6 +113,7 @@ export async function processUpvote(issueId: string, userId: string) {
 
   const reporterId = issue.data()?.reporterId
   if (reporterId && count === 3) await awardPoints(reporterId, 15, 'verified')
+  await awardPoints(userId, 5, 'upvote')
 
   return { count, verificationLevel }
 }

@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './lib/auth'
-import { BottomNav } from './components/BottomNav'
+import { LocationProvider } from './lib/location'
 import { LandingPage } from './pages/Landing'
 import { ProfilePage } from './pages/Profile'
 import { ReportWizardPage } from './pages/ReportWizard'
@@ -12,35 +12,36 @@ import { AdminPage } from './pages/Admin'
 import { AssistantPage } from './pages/Assistant'
 import { ActivityPage } from './pages/Activity'
 import { LeaderboardPage } from './pages/Leaderboard'
+import { LoginPage } from './pages/Login'
+import { TermsPage } from './pages/Terms'
+import { ThreadDetailPage } from './pages/ThreadDetail'
+import { NotFoundPage } from './pages/NotFound'
 import './index.css'
-
-function AppShell() {
-  return (
-    <div className="mx-auto min-h-full max-w-lg bg-midnight">
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/map" element={<MapExplorerPage />} />
-        <Route path="/report" element={<ReportWizardPage />} />
-        <Route path="/activity" element={<ActivityPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/my-reports" element={<MyReportsPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/issues/:id" element={<IssueDetailPage />} />
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="/assistant" element={<AssistantPage />} />
-        <Route path="/leaderboard" element={<LeaderboardPage />} />
-      </Routes>
-      <BottomNav />
-    </div>
-  )
-}
 
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppShell />
-      </BrowserRouter>
+      <LocationProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/map" element={<MapExplorerPage />} />
+            <Route path="/report" element={<ReportWizardPage />} />
+            <Route path="/activity" element={<ActivityPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/my-reports" element={<MyReportsPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/issues/:id" element={<IssueDetailPage />} />
+            <Route path="/threads/:id" element={<ThreadDetailPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/assistant" element={<AssistantPage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </BrowserRouter>
+      </LocationProvider>
     </AuthProvider>
   )
 }
