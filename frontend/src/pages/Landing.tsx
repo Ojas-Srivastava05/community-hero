@@ -21,10 +21,27 @@ const quickLinks = [
 export function LandingPage() {
   const [issues, setIssues] = useState<Issue[]>([])
   const [stats, setStats] = useState({ open: 0, resolved: 0, total: 0 })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    apiListIssues(20).then((r) => setIssues(r.issues)).catch(() => {})
-    apiAnalyticsSummary().then((s) => setStats({ open: s.open, resolved: s.resolved, total: s.total })).catch(() => {})
+    let cancelled = false
+    setLoading(true)
+    Promise.all([apiListIssues(20), apiAnalyticsSummary()])
+      .then(([list, summary]) => {
+        if (cancelled) return
+        setIssues(list.issues)
+        setStats({ open: summary.open, resolved: summary.resolved, total: summary.total })
+      })
+      .catch((e) => {
+        if (!cancelled) setError(String(e))
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const trending = issues.slice(0, 6)
@@ -68,7 +85,9 @@ export function LandingPage() {
               ))}
               <div className="relative">
                 <p className="text-[11px] font-medium uppercase tracking-wider text-mist">Nearby</p>
-                <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight">{stats.open || trending.length}</p>
+                <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight">
+                  {loading ? '…' : stats.open || trending.length}
+                </p>
                 <p className="text-sm text-mist">open issues nearby</p>
               </div>
             </div>
@@ -76,7 +95,7 @@ export function LandingPage() {
 
           <GlassCard>
             <p className="text-[11px] font-medium uppercase tracking-wider text-mist">This week</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums">{stats.resolved}</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums">{loading ? '…' : stats.resolved}</p>
             <p className="text-xs text-mist">resolved</p>
             <div className="mt-3 flex h-8 items-end gap-0.5">
               {[4, 6, 3, 8, 5, 9, 12].map((h, i) => (
@@ -124,7 +143,13 @@ export function LandingPage() {
                 </div>
               </Link>
             ))}
-            {trending.length === 0 && (
+            {loading && <p className="text-sm text-mist px-2">Loading community data…</p>}
+            {error && (
+              <p className="text-sm text-critical px-2">
+                {error}. <button type="button" className="underline" onClick={() => window.location.reload()}>Retry</button>
+              </p>
+            )}
+            {!loading && !error && trending.length === 0 && (
               <p className="text-sm text-mist px-2">No issues yet — tap Report to add the first one.</p>
             )}
           </div>

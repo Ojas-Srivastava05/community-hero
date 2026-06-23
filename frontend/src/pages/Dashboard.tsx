@@ -18,10 +18,16 @@ type Summary = {
 export function DashboardPage() {
   const [summary, setSummary] = useState<Summary | null>(null)
   const [hotspots, setHotspots] = useState<{ geohash: string; count: number }[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    apiAnalyticsSummary().then(setSummary).catch(() => {})
-    apiHotspots().then((r) => setHotspots(r.hotspots)).catch(() => {})
+    setLoading(true)
+    Promise.all([apiAnalyticsSummary(), apiHotspots()])
+      .then(([s, h]) => {
+        setSummary(s)
+        setHotspots(h.hotspots)
+      })
+      .finally(() => setLoading(false))
   }, [])
 
   const chartData = summary
@@ -40,9 +46,9 @@ export function DashboardPage() {
       <main className="space-y-6 px-6 pt-4">
         <section className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Total', value: summary?.total ?? '—' },
-            { label: 'Open', value: summary?.open ?? '—' },
-            { label: 'Resolved', value: summary?.resolved ?? '—' },
+            { label: 'Total', value: loading ? '…' : (summary?.total ?? '—') },
+            { label: 'Open', value: loading ? '…' : (summary?.open ?? '—') },
+            { label: 'Resolved', value: loading ? '…' : (summary?.resolved ?? '—') },
           ].map(({ label, value }) => (
             <GlassCard key={label} className="text-center py-4">
               <p className="text-2xl font-bold tabular-nums">{value}</p>

@@ -13,11 +13,20 @@ const isProd = process.env.NODE_ENV === 'production'
 app.use(cors())
 app.use(express.json())
 
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', async (_req, res) => {
+  let firestore = 'unknown'
+  try {
+    const { db } = await import('./lib/firebase-admin')
+    await db.collection('issues').limit(1).get()
+    firestore = 'connected'
+  } catch {
+    firestore = 'error'
+  }
   res.json({
-    status: 'ok',
+    status: firestore === 'connected' ? 'ok' : 'degraded',
     service: 'community-hero-api',
     phase: 19,
+    firestore,
     timestamp: new Date().toISOString(),
     stack: ['Node.js', 'Express', 'Firebase Admin', 'Gemini', 'Google Maps'],
   })

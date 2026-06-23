@@ -21,6 +21,8 @@ export function MapExplorerPage() {
   const [selected, setSelected] = useState<Issue | null>(null)
   const [filter] = useState<string>('all')
   const [view, setView] = useState<'map' | 'list'>('map')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: mapsKey,
@@ -28,7 +30,11 @@ export function MapExplorerPage() {
   })
 
   useEffect(() => {
-    apiListIssues(100).then((r) => setIssues(r.issues)).catch(() => {})
+    setLoading(true)
+    apiListIssues(100)
+      .then((r) => setIssues(r.issues))
+      .catch((e) => setError(String(e)))
+      .finally(() => setLoading(false))
   }, [])
 
   const filtered = useMemo(() => {
@@ -97,7 +103,9 @@ export function MapExplorerPage() {
               </GlassCard>
             </Link>
           ))}
-          {filtered.length === 0 && <p className="text-center text-mist py-8">No issues yet. Be the first to report!</p>}
+          {loading && <p className="text-center text-mist py-8">Loading issues…</p>}
+          {error && <p className="text-center text-critical py-8 text-sm">{error}</p>}
+          {!loading && !error && filtered.length === 0 && <p className="text-center text-mist py-8">No issues yet. Be the first to report!</p>}
         </main>
       )}
     </div>
