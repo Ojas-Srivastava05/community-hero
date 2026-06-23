@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "@fontsource-variable/plus-jakarta-sans";
 @import "tailwindcss";
 
 @theme {
@@ -13,7 +13,7 @@
   --color-medium: #EAB308;
   --color-low: #22C55E;
   --color-gold: #F59E0B;
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
 * {
@@ -30,6 +30,13 @@ body {
   background: var(--color-midnight);
   color: var(--color-cloud);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  letter-spacing: -0.01em;
+}
+
+h1, h2, h3 {
+  letter-spacing: -0.025em;
 }
 
 .glass {

@@ -1,6 +1,6 @@
 # Community Hero (CIVICPULSE AI)
 
-Hyperlocal civic issue reporting for Indian urban citizens — potholes, water leaks, streetlights, and waste. Built for **Vibe2Ship / Google Solution Challenge 2026** (Problem Statement 2).
+Hyperlocal civic issue reporting for Indian urban citizens — potholes, water leaks, streetlights, and waste. Built for **Vibe to Ship (Vibe2Ship)** — Problem Statement 2: Community Hero.
 
 ## Live preview
 
@@ -32,7 +32,11 @@ GitHub: https://github.com/Ojas-Srivastava05/community-hero
 - [ ] Firestore write test from Profile page
 - [ ] GitHub repo pushed
 
-## Quick start
+## Firebase project
+
+Dedicated project: `community-hero-vibe2ship` (isolated from LogiFlow).
+
+Local env: `frontend/.env` (gitignored). Production env vars are set on Vercel.
 
 ```bash
 cp .env.example .env          # add Firebase keys
@@ -58,4 +62,4 @@ firestore.rules    Security rules
 
 ## License
 
-MIT — hackathon submission
+MIT — Vibe to Ship submission

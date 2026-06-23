@@ -8,7 +8,7 @@
 
 Static frontend from `frontend/dist`. API deploys in Phase 2.
 
-## Production (hackathon)
+## Production (Vibe to Ship)
 
 Google AI Studio → Publish to Cloud Run (asia-south1).  
 GCP project: `project-6d6f652b-7066-4341-806`

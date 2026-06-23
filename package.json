@@ -2,7 +2,7 @@
   "name": "community-hero",
   "version": "0.1.0",
   "private": true,
-  "description": "CIVICPULSE AI — hyperlocal civic issue reporting (Vibe2Ship / Google Solution Challenge)",
+  "description": "CIVICPULSE AI — hyperlocal civic issue reporting for Vibe to Ship (Vibe2Ship)",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:frontend\"",
     "dev:frontend": "npm run dev --prefix frontend",

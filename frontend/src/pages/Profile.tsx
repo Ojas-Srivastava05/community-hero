@@ -7,9 +7,18 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { GlassCard } from '../components/GlassCard'
 
 export function ProfilePage() {
-  const { user, loading, configured, signInWithGoogle, logout } = useAuth()
+  const { user, configured, signInWithGoogle, logout } = useAuth()
   const [testStatus, setTestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [testMessage, setTestMessage] = useState('')
+
+  async function handleGoogleSignIn() {
+    try {
+      await signInWithGoogle()
+    } catch (err) {
+      setTestStatus('error')
+      setTestMessage(err instanceof Error ? err.message : 'Sign-in failed')
+    }
+  }
 
   async function runFirestoreTest() {
     const db = getFirebaseDb()
@@ -57,8 +66,8 @@ export function ProfilePage() {
             ) : (
               <button
                 type="button"
-                disabled={loading || !configured}
-                onClick={() => signInWithGoogle()}
+                disabled={!configured}
+                onClick={() => handleGoogleSignIn()}
                 className="btn-primary flex items-center justify-center gap-2 !w-auto px-6"
               >
                 <LogIn size={18} /> Google Sign-In
