@@ -17,7 +17,7 @@ export async function analyzeImage(
 
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       generationConfig: { responseMimeType: 'application/json' },
     })
     const result = await model.generateContent([
@@ -38,7 +38,7 @@ export async function chatWithTools(
 ): Promise<string> {
   if (!genAI) return 'AI assistant requires GEMINI_API_KEY on the server. Try browsing the map or my reports instead.'
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
   const system = `You are Civic Assistant for Community Hero — a hyperlocal civic reporting app. NEVER invent issue data. Use tools for facts. Be concise.`
   const last = messages[messages.length - 1]?.content?.toLowerCase() || ''
 
@@ -80,7 +80,7 @@ export async function generateInsight(summary: Record<string, unknown>): Promise
   if (!genAI) {
     return `Based on ${summary.open ?? 0} open and ${summary.resolved ?? 0} resolved issues nearby, waste and road categories often need the most attention. Preventive sweeps in high-density clusters are recommended.`
   }
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
   const result = await model.generateContent(
     `Write 2 sentences of civic insight for a dashboard card. Data: ${JSON.stringify(summary)}. No hallucination beyond data.`,
   )
