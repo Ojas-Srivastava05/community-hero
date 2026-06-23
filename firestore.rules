@@ -1,18 +1,52 @@
-rules_version='2'
+rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2026, 7, 23);
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    match /issues/{issueId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.keys().hasAll(['title', 'category', 'status', 'createdAt']);
+      allow update: if signedIn() && (
+        resource.data.reporterId == request.auth.uid
+        || request.auth.token.email in ['srivastavaojas454@gmail.com']
+      );
+      allow delete: if false;
+
+      match /votes/{voteId} {
+        allow read: if true;
+        allow create: if signedIn() && voteId == request.auth.uid;
+        allow update, delete: if false;
+      }
+
+      match /events/{eventId} {
+        allow read: if true;
+        allow write: if signedIn();
+      }
+    }
+
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if isOwner(userId);
+      allow delete: if false;
+    }
+
+    match /threads/{threadId} {
+      allow read: if true;
+      allow create: if signedIn();
+      allow update: if signedIn();
+      match /messages/{msgId} {
+        allow read: if true;
+        allow create: if signedIn();
+      }
     }
   }
 }

@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+server/node_modules/
+
+# Secrets (server-side only)
+server/.env
+.env
+*.pem
+
+# OS
+.DS_Store
+
+# Git
+.git/
+
+# Docs assets
+*.pdf

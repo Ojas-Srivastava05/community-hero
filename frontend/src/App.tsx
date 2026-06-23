@@ -3,7 +3,15 @@ import { AuthProvider } from './lib/auth'
 import { BottomNav } from './components/BottomNav'
 import { LandingPage } from './pages/Landing'
 import { ProfilePage } from './pages/Profile'
-import { PlaceholderPage } from './pages/Placeholder'
+import { ReportWizardPage } from './pages/ReportWizard'
+import { MapExplorerPage } from './pages/MapExplorer'
+import { IssueDetailPage } from './pages/IssueDetail'
+import { MyReportsPage } from './pages/MyReports'
+import { DashboardPage } from './pages/Dashboard'
+import { AdminPage } from './pages/Admin'
+import { AssistantPage } from './pages/Assistant'
+import { ActivityPage } from './pages/Activity'
+import { LeaderboardPage } from './pages/Leaderboard'
 import './index.css'
 
 function AppShell() {
@@ -11,13 +19,16 @@ function AppShell() {
     <div className="mx-auto min-h-full max-w-lg bg-midnight">
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/map" element={<PlaceholderPage title="Map Explorer" phase={3} description="Full-bleed map with clustered severity markers and filter sheet." />} />
-        <Route path="/report" element={<PlaceholderPage title="Report Wizard" phase={2} description="3-step capture → AI pre-fill → confirm & submit." />} />
-        <Route path="/activity" element={<PlaceholderPage title="Activity" phase={4} description="Notifications and community updates." />} />
+        <Route path="/map" element={<MapExplorerPage />} />
+        <Route path="/report" element={<ReportWizardPage />} />
+        <Route path="/activity" element={<ActivityPage />} />
         <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/my-reports" element={<PlaceholderPage title="My Reports" phase={4} description="Track your submitted issues with SLA countdowns." />} />
-        <Route path="/dashboard" element={<PlaceholderPage title="Impact Dashboard" phase={5} description="Ward-level KPIs and AI insight cards." />} />
-        <Route path="/issues/:id" element={<PlaceholderPage title="Issue Detail" phase={3} description="Photo carousel, status timeline, and community upvote." />} />
+        <Route path="/my-reports" element={<MyReportsPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/issues/:id" element={<IssueDetailPage />} />
+        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/assistant" element={<AssistantPage />} />
+        <Route path="/leaderboard" element={<LeaderboardPage />} />
       </Routes>
       <BottomNav />
     </div>

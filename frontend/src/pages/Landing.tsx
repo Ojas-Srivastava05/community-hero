@@ -1,33 +1,16 @@
+import { useEffect, useState } from 'react'
 import { Bell, Camera, ChevronRight, MapPin, TrendingUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { GlassCard, SeverityDot } from '../components/GlassCard'
+import { apiListIssues, apiAnalyticsSummary } from '../lib/api'
+import type { Issue } from '../../../shared/types'
 
-const trending = [
-  {
-    id: '1',
-    title: 'Large pothole near metro pillar',
-    category: 'Pothole',
-    distance: '0.3 km',
-    severity: 'high' as const,
-    image: 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=200&h=120&fit=crop',
-  },
-  {
-    id: '2',
-    title: 'Garbage blackspot on 12th Main',
-    category: 'Waste',
-    distance: '0.8 km',
-    severity: 'medium' as const,
-    image: 'https://images.unsplash.com/photo-1530587191325-3db28176de87?w=200&h=120&fit=crop',
-  },
-  {
-    id: '3',
-    title: 'Broken streetlight at junction',
-    category: 'Streetlight',
-    distance: '1.2 km',
-    severity: 'low' as const,
-    image: 'https://images.unsplash.com/photo-1513828583688-c52646db42da?w=200&h=120&fit=crop',
-  },
-]
+function severityLevel(s: number): 'critical' | 'high' | 'medium' | 'low' {
+  if (s >= 5) return 'critical'
+  if (s >= 4) return 'high'
+  if (s >= 3) return 'medium'
+  return 'low'
+}
 
 const quickLinks = [
   { to: '/map', label: 'Map Explorer', icon: MapPin },
@@ -36,6 +19,16 @@ const quickLinks = [
 ]
 
 export function LandingPage() {
+  const [issues, setIssues] = useState<Issue[]>([])
+  const [stats, setStats] = useState({ open: 0, resolved: 0, total: 0 })
+
+  useEffect(() => {
+    apiListIssues(20).then((r) => setIssues(r.issues)).catch(() => {})
+    apiAnalyticsSummary().then((s) => setStats({ open: s.open, resolved: s.resolved, total: s.total })).catch(() => {})
+  }, [])
+
+  const trending = issues.slice(0, 6)
+
   return (
     <div className="min-h-full pb-32">
       {/* Top bar */}
@@ -75,7 +68,7 @@ export function LandingPage() {
               ))}
               <div className="relative">
                 <p className="text-[11px] font-medium uppercase tracking-wider text-mist">Nearby</p>
-                <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight">247</p>
+                <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight">{stats.open || trending.length}</p>
                 <p className="text-sm text-mist">open issues nearby</p>
               </div>
             </div>
@@ -83,7 +76,7 @@ export function LandingPage() {
 
           <GlassCard>
             <p className="text-[11px] font-medium uppercase tracking-wider text-mist">This week</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums">12</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums">{stats.resolved}</p>
             <p className="text-xs text-mist">resolved</p>
             <div className="mt-3 flex h-8 items-end gap-0.5">
               {[4, 6, 3, 8, 5, 9, 12].map((h, i) => (
@@ -120,17 +113,20 @@ export function LandingPage() {
                 to={`/issues/${item.id}`}
                 className="glass-card w-44 shrink-0 overflow-hidden rounded-2xl"
               >
-                <img src={item.image} alt="" className="h-20 w-full object-cover" />
+                <img src={item.imageUrls?.[0] || 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=200'} alt="" className="h-20 w-full object-cover" />
                 <div className="p-3">
                   <div className="mb-1 flex items-center gap-1.5">
-                    <SeverityDot level={item.severity} />
+                    <SeverityDot level={severityLevel(item.severity)} />
                     <span className="text-[10px] font-medium uppercase tracking-wider text-mist">{item.category}</span>
                   </div>
                   <p className="line-clamp-2 text-sm font-medium leading-snug">{item.title}</p>
-                  <p className="mt-1 text-xs text-mist">{item.distance}</p>
+                  <p className="mt-1 text-xs text-mist">{item.status}</p>
                 </div>
               </Link>
             ))}
+            {trending.length === 0 && (
+              <p className="text-sm text-mist px-2">No issues yet — tap Report to add the first one.</p>
+            )}
           </div>
         </section>
 

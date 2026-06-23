@@ -1,28 +1,24 @@
-# Community Hero — TODO
+# Community Hero — Build status
 
-## Phase 1 (current)
-- [x] Vite + React scaffold
-- [x] Civic Glass landing (Screen 1)
-- [x] Bottom nav shell
-- [x] Firebase client + Auth context
-- [x] Firestore rules + indexes
-- [x] Express health API
-- [x] docs/ skeleton
-- [ ] Link Firebase project + env vars
-- [ ] Verify Auth + Firestore gates
-- [ ] Push to GitHub `community-hero`
+## Complete (Phases 1–19)
 
-## Phase 2 — Report wizard + Gemini vision
-- [ ] 3-step report flow (capture → AI form → submit)
-- [ ] Gemini categorization endpoint
-- [ ] Image upload to Storage
+- [x] Civic Glass UI — landing, nav, all screens
+- [x] Firebase Auth + Firestore rules deployed
+- [x] Report wizard + Gemini analyze + create report API
+- [x] Google Maps explorer (with list fallback)
+- [x] Issue detail, upvote, timeline
+- [x] My Reports, Activity feed
+- [x] Impact dashboard, hotspots, Open311 export
+- [x] Admin panel, leaderboard, civic assistant chat
+- [x] Agent pipeline (routing, SLA, dedup, points)
+- [x] Cloud Run deploy: https://community-hero-987477089222.asia-south1.run.app
+- [x] Demo seed data (5 issues)
 
-## Phase 3 — Map + issue detail
-- [ ] Google Maps explorer
-- [ ] Issue detail + timeline
+## Your manual steps for BlockseBlock submission
 
-## Phase 4 — My reports + notifications
-## Phase 5 — Impact dashboard
-## Phase 6+ — Agents, leaderboard, admin, AI chat
-
-See `Community-Hero-Phase-Development-Plan.pdf` for full roadmap.
+1. Add `community-hero-987477089222.asia-south1.run.app` to Firebase Auth authorized domains
+2. Enable Firebase Storage (console) for image uploads on reports
+3. Set `GEMINI_API_KEY` on Cloud Run for live AI (optional — fallbacks work for demo)
+4. Set `VITE_GOOGLE_MAPS_API_KEY` and redeploy for live map tiles
+5. Create public Google Doc (problem, solution, features, tech stack)
+6. Submit 3 links on BlockseBlock before **June 29, 2026 2:00 PM**

@@ -3,6 +3,7 @@
   "outputDirectory": "frontend/dist",
   "framework": "vite",
   "rewrites": [
+    { "source": "/api/:path*", "destination": "https://community-hero-987477089222.asia-south1.run.app/api/:path*" },
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ]
 }
