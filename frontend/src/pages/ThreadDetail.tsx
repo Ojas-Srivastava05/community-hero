@@ -13,19 +13,43 @@ export function ThreadDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [thread, setThread] = useState<{ title: string; summary: string; count: number } | null>(null)
   const [issues, setIssues] = useState<Issue[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
-    apiGetThread(id).then((r) => {
-      setThread(r.thread)
-      setIssues(r.issues || [])
-    }).catch(() => {})
+    setLoading(true)
+    setError(null)
+    apiGetThread(id)
+      .then((r) => {
+        setThread(r.thread)
+        setIssues(r.issues || [])
+      })
+      .catch((e) => {
+        setThread(null)
+        setIssues([])
+        setError(e instanceof Error ? e.message : 'Could not load this thread')
+      })
+      .finally(() => setLoading(false))
   }, [id])
 
-  if (!thread) {
+  if (loading) {
     return (
       <AppShell>
         <div className="px-5 py-20 text-center text-ink-muted">Loading thread…</div>
+      </AppShell>
+    )
+  }
+
+  if (error || !thread) {
+    return (
+      <AppShell>
+        <div className="px-5 py-20 text-center">
+          <p className="text-sm text-ink-muted">{error || 'Thread not found'}</p>
+          <Link to="/activity" className="mt-4 inline-flex text-sm font-bold text-coral">
+            ← Back to activity
+          </Link>
+        </div>
       </AppShell>
     )
   }

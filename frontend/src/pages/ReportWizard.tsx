@@ -193,14 +193,20 @@ export function ReportWizardPage() {
         token,
       )
       const pe = result.pointsEarned
-      const pts = pe?.pointsAwarded ?? (mergeIntoId ? 15 : 10)
-      const parts = [
-        mergeIntoId ? 'Duplicate Hunter' : 'Report submitted',
-        pe?.streakBonus ? `${pe.streakBonus} streak bonus` : '',
-        ...(pe?.badgesEarned ?? []),
-      ].filter(Boolean)
-      showPoints(pts, parts.join(' · ') || undefined)
+      if (pe?.pointsAwarded && pe.pointsAwarded > 0) {
+        const parts = [
+          mergeIntoId ? 'Duplicate Hunter' : 'Report submitted',
+          pe.streakBonus ? `${pe.streakBonus} streak bonus` : '',
+          ...(pe.badgesEarned ?? []),
+        ].filter(Boolean)
+        showPoints(pe.pointsAwarded, parts.join(' · ') || undefined)
+      }
       await clearReportDraft()
+
+      if (result.needsReview) {
+        navigate(`/issues/${result.id}`, { state: { needsReview: true } })
+        return
+      }
 
       if (result.duplicateSuggestions?.length && !mergeIntoId && !result.merged) {
         setServerDupes({ createdId: result.id, dupes: result.duplicateSuggestions })
@@ -224,7 +230,9 @@ export function ReportWizardPage() {
       const token = await user.getIdToken()
       const r = await apiMergeIssue(serverDupes.createdId, targetId, token)
       const pe = r.pointsEarned as { pointsAwarded?: number; badgesEarned?: string[] } | undefined
-      showPoints(pe?.pointsAwarded ?? 15, pe?.badgesEarned?.join(' · ') || 'Merged into existing report')
+      if (pe?.pointsAwarded && pe.pointsAwarded > 0) {
+        showPoints(pe.pointsAwarded, pe.badgesEarned?.join(' · ') || 'Merged into existing report')
+      }
       navigate(`/issues/${targetId}`)
     } catch (e) {
       setError(String(e))
@@ -254,7 +262,7 @@ export function ReportWizardPage() {
   const hasLocation: boolean = form.lat !== 0 && form.lng !== 0
 
   return (
-    <AppShell>
+    <AppShell hideNav>
       <PageHeader
         title="Report an issue"
         subtitle={`Step ${step + 1} of 3 — ${steps[step]}`}
@@ -318,7 +326,7 @@ export function ReportWizardPage() {
               {processingMedia && <p className="flex items-center justify-center gap-2 text-sm text-ink-muted"><Loader2 className="size-4 animate-spin" /> {mediaMode === 'video' ? 'Extracting keyframes…' : 'Optimizing photo…'}</p>}
               {analyzing && <p className="flex items-center justify-center gap-2 text-sm text-coral"><Loader2 className="size-4 animate-spin" /> Analyzing…</p>}
               {file && user && (
-                <button type="button" disabled={!hasLocation && locLoading} onClick={() => setStep(1)} className="w-full py-2 text-xs font-semibold text-coral disabled:opacity-40">
+                <button type="button" disabled={!hasLocation || locLoading} onClick={() => setStep(1)} className="w-full py-2 text-xs font-semibold text-coral disabled:opacity-40">
                   {locLoading ? 'Getting your location…' : 'Continue →'}
                 </button>
               )}

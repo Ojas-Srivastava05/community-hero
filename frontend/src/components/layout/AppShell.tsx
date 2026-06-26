@@ -3,14 +3,20 @@ import { motion } from 'framer-motion'
 import { BottomNav } from './BottomNav'
 import { cn } from '@/lib/utils'
 
+const FULLSCREEN_ROUTES = ['/assistant', '/report']
+
 export function AppShell({
   children,
   className,
   bare,
+  hideNav,
 }: {
   children: ReactNode
   className?: string
+  /** Skip bottom padding (full-bleed layouts). */
   bare?: boolean
+  /** Hide bottom tab bar (chat, wizard). */
+  hideNav?: boolean
 }) {
   return (
     <div className="relative mx-auto min-h-screen w-full max-w-[440px] overflow-x-hidden">
@@ -18,11 +24,11 @@ export function AppShell({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className={cn('relative z-10', bare ? '' : 'safe-bottom', className)}
+        className={cn('relative z-10', bare || hideNav ? '' : 'safe-bottom', className)}
       >
         {children}
       </motion.main>
-      <BottomNav />
+      {!hideNav ? <BottomNav hiddenOn={FULLSCREEN_ROUTES} /> : null}
     </div>
   )
 }

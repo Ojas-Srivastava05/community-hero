@@ -93,6 +93,8 @@ export async function apiCreateReport(
   issue: Issue
   duplicateSuggestions?: { id: string; title: string }[]
   merged?: boolean
+  needsReview?: boolean
+  code?: string
   pointsEarned?: { pointsAwarded: number; badgesEarned?: string[]; streakBonus?: number }
 }> {
   const fd = new FormData()
@@ -106,7 +108,11 @@ export async function apiCreateReport(
     body: fd,
   })
   if (!res.ok) await parseApiError(res)
-  return res.json()
+  const body = await res.json()
+  return {
+    ...body,
+    needsReview: res.status === 202 || body.code === 'NEEDS_REVIEW',
+  }
 }
 
 export async function apiListIssues(

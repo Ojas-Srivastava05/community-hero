@@ -111,14 +111,12 @@ export function DashboardPage() {
       </motion.section>
 
       {summary?.departmentSla && summary.departmentSla.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mt-6 px-5"
-        >
-          <SectionHeader title="Department SLA" hint="Resolved before deadline" />
-          <GlassCard className="overflow-x-auto p-0">
+        <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 px-5">
+          <motion.div variants={fadeUp}>
+            <SectionHeader title="Department SLA" hint="Resolved before deadline" />
+          </motion.div>
+          <motion.div variants={fadeUp}>
+            <GlassCard className="overflow-x-auto p-0">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-ink/10 text-[11px] uppercase tracking-wide text-ink-muted">
@@ -140,18 +138,17 @@ export function DashboardPage() {
               </tbody>
             </table>
           </GlassCard>
+          </motion.div>
         </motion.section>
       )}
 
       {summary?.wardBreakdown && summary.wardBreakdown.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mt-6 px-5"
-        >
-          <SectionHeader title="Ward breakdown" hint="By wardId" />
-          <GlassCard className="overflow-x-auto p-0">
+        <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 px-5">
+          <motion.div variants={fadeUp}>
+            <SectionHeader title="Ward breakdown" hint="By wardId" />
+          </motion.div>
+          <motion.div variants={fadeUp}>
+            <GlassCard className="overflow-x-auto p-0">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-ink/10 text-[11px] uppercase tracking-wide text-ink-muted">
@@ -173,18 +170,16 @@ export function DashboardPage() {
               </tbody>
             </table>
           </GlassCard>
+          </motion.div>
         </motion.section>
       )}
 
       {(reportsLine.length > 0 || upvotesLine.length > 0) && (
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mt-6 px-5"
-        >
-          <SectionHeader title="Citizen engagement" hint="Reports & upvotes per day" />
-          <div className="grid gap-3">
+        <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 px-5">
+          <motion.div variants={fadeUp}>
+            <SectionHeader title="Citizen engagement" hint="Reports & upvotes per day" />
+          </motion.div>
+          <motion.div variants={fadeUp} className="grid gap-3">
             {reportsLine.length > 0 && (
               <GlassCard className="pt-5">
                 <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-muted">Reports / day</p>
@@ -215,35 +210,31 @@ export function DashboardPage() {
                 </div>
               </GlassCard>
             )}
-          </div>
+          </motion.div>
         </motion.section>
       )}
 
       {mapHotspots.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mt-6 px-5"
-        >
-          <SectionHeader title="Hotspot map" hint="Predictive clusters" action={<Link to="/map">Explorer</Link>} />
-          <GlassCard className="overflow-hidden p-0">
+        <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 px-5">
+          <motion.div variants={fadeUp}>
+            <SectionHeader title="Hotspot map" hint="Predictive clusters" action={<Link to="/map">Explorer</Link>} />
+          </motion.div>
+          <motion.div variants={fadeUp}>
+            <GlassCard className="overflow-hidden p-0">
             <div className="h-48">
               <CivicMap center={mapCenter} issues={[]} hotspots={mapHotspots} zoom={13} className="size-full" />
             </div>
           </GlassCard>
+          </motion.div>
         </motion.section>
       )}
 
       {categoryTrendRows.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mt-6 px-5"
-        >
-          <SectionHeader title="Category momentum" hint="7d vs prior week" />
-          <motion.ul variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="space-y-2">
+        <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 px-5">
+          <motion.div variants={fadeUp}>
+            <SectionHeader title="Category momentum" hint="7d vs prior week" />
+          </motion.div>
+          <motion.ul variants={stagger} initial="hidden" animate="show" className="space-y-2">
             {categoryTrendRows.map((row) => (
               <motion.li key={row.category} variants={fadeUp}>
                 <GlassCard className="flex items-center justify-between gap-3 py-3">
@@ -262,14 +253,12 @@ export function DashboardPage() {
       )}
 
       {daily30Line.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mt-6 px-5"
-        >
-          <SectionHeader title="30-day volume" hint="Reports per day" />
-          <GlassCard className="pt-5">
+        <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 px-5">
+          <motion.div variants={fadeUp}>
+            <SectionHeader title="30-day volume" hint="Reports per day" />
+          </motion.div>
+          <motion.div variants={fadeUp}>
+            <GlassCard className="pt-5">
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={daily30Line}>
@@ -281,18 +270,16 @@ export function DashboardPage() {
               </ResponsiveContainer>
             </div>
           </GlassCard>
+          </motion.div>
         </motion.section>
       )}
 
       {preventiveZones.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mt-6 px-5"
-        >
-          <SectionHeader title="Preventive maintenance" hint="High-risk zones" action={<Wrench className="size-4 text-coral" />} />
-          <motion.ul variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="space-y-2">
+        <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 px-5">
+          <motion.div variants={fadeUp}>
+            <SectionHeader title="Preventive maintenance" hint="High-risk zones" action={<Wrench className="size-4 text-coral" />} />
+          </motion.div>
+          <motion.ul variants={stagger} initial="hidden" animate="show" className="space-y-2">
             {preventiveZones.slice(0, 5).map((h) => (
               <motion.li key={h.geohash} variants={fadeUp}>
                 <GlassCard className="flex items-center gap-3 py-3">
@@ -311,14 +298,11 @@ export function DashboardPage() {
       )}
 
       {hotspots.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mt-6 px-5"
-        >
-          <SectionHeader title="Hotspot cells" hint="Predictive clusters" action={<Link to="/admin/analytics">Analytics</Link>} />
-          <motion.ul variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="space-y-2">
+        <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 px-5">
+          <motion.div variants={fadeUp}>
+            <SectionHeader title="Hotspot cells" hint="Predictive clusters" action={<Link to="/admin/analytics">Analytics</Link>} />
+          </motion.div>
+          <motion.ul variants={stagger} initial="hidden" animate="show" className="space-y-2">
             {hotspots.slice(0, 5).map((h) => (
               <motion.li key={h.geohash} variants={fadeUp}>
                 <GlassCard className="flex items-center gap-3 py-3">
@@ -340,14 +324,12 @@ export function DashboardPage() {
       )}
 
       {trendLine.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mt-6 px-5"
-        >
-          <SectionHeader title="7-day trend" hint="Open vs resolved" />
-          <GlassCard className="pt-5">
+        <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 px-5">
+          <motion.div variants={fadeUp}>
+            <SectionHeader title="7-day trend" hint="Open vs resolved" />
+          </motion.div>
+          <motion.div variants={fadeUp}>
+            <GlassCard className="pt-5">
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={trendLine}>
@@ -367,17 +349,16 @@ export function DashboardPage() {
               </ResponsiveContainer>
             </div>
           </GlassCard>
+          </motion.div>
         </motion.section>
       )}
 
-      <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        className="mt-6 px-5"
-      >
-        <SectionHeader title="By category" hint="All reports" />
-        <GlassCard className="pt-5">
+      <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 px-5">
+        <motion.div variants={fadeUp}>
+          <SectionHeader title="By category" hint="All reports" />
+        </motion.div>
+        <motion.div variants={fadeUp}>
+          <GlassCard className="pt-5">
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} barGap={4}>
@@ -398,14 +379,11 @@ export function DashboardPage() {
             </ResponsiveContainer>
           </div>
         </GlassCard>
+        </motion.div>
       </motion.section>
       {(summary?.insight || trends?.narrative || trends?.seasonalWasteSpike) && (
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mt-6 px-5"
-        >
+        <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 px-5">
+          <motion.div variants={fadeUp}>
           <div className="relative overflow-hidden rounded-[28px] border border-ink/10 bg-ink p-5 text-paper">
             <div className="absolute -right-10 -top-10 size-48 rounded-full bg-coral/40 blur-3xl" />
             <div className="relative flex items-start gap-3">
@@ -423,6 +401,7 @@ export function DashboardPage() {
               </div>
             </div>
           </div>
+          </motion.div>
         </motion.section>
       )}
     </AppShell>

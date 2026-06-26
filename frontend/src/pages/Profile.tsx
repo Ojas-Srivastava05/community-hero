@@ -7,6 +7,7 @@ import { GlassCard, Chip } from '@/components/civic/GlassCard'
 import { useAuth } from '../lib/auth'
 import { useLocation } from '../lib/location'
 import { apiGetProfile, apiUpdateProfile } from '../lib/api'
+import { resolveIsAdmin } from '../lib/admin'
 import { fadeUp, stagger } from '../lib/motion'
 import { cn } from '@/lib/utils'
 
@@ -30,8 +31,14 @@ export function ProfilePage() {
   const [savingOptIn, setSavingOptIn] = useState(false)
 
   useEffect(() => {
-    if (!user) return
-    user.getIdTokenResult().then((r) => setAdmin(!!r.claims.admin))
+    if (!user) {
+      setAdmin(false)
+      return
+    }
+    let cancelled = false
+    resolveIsAdmin(user).then((isAdmin) => {
+      if (!cancelled) setAdmin(isAdmin)
+    })
     user.getIdToken().then((t) =>
       apiGetProfile(t).then((p) => {
         if (!p) return
@@ -40,6 +47,9 @@ export function ProfilePage() {
         setLeaderboardOptIn(p.leaderboardOptIn ?? false)
       }),
     )
+    return () => {
+      cancelled = true
+    }
   }, [user])
 
   const toggleLeaderboard = async () => {

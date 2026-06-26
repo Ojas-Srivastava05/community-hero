@@ -22,13 +22,20 @@ function filterDemo(issues: Issue[]): Issue[] {
   return issues.filter((i) => !i.isDemo && i.reporterId !== 'demo-seed')
 }
 
+function isPublicIssue(issue: Issue): boolean {
+  if (issue.status === 'Draft') return false
+  const meta = issue.aiMetadata as { needs_review?: boolean } | undefined
+  if (meta?.needs_review) return false
+  return true
+}
+
 function applyGeoFilter(issues: Issue[], lat?: number, lng?: number, radiusKm?: number): Issue[] {
   if (lat === undefined || lng === undefined || !radiusKm) return issues
   return issues.filter((i) => haversineKm(lat, lng, i.lat, i.lng) <= radiusKm)
 }
 
 export function useLiveIssues(opts: LiveIssuesOpts = {}) {
-  const { lat, lng, radiusKm, excludeDemo = true, fetchLimit = 100 } = opts
+  const { lat, lng, radiusKm, excludeDemo = false, fetchLimit = 100 } = opts
   const { issues, loading, livePulse, setIssues, setLoading, setLivePulse } = useIssueStore()
   const pulseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -41,6 +48,7 @@ export function useLiveIssues(opts: LiveIssuesOpts = {}) {
   const applyFilters = useCallback(
     (raw: Issue[]) => {
       let filtered = excludeDemo ? filterDemo(raw) : raw
+      filtered = filtered.filter(isPublicIssue)
       filtered = applyGeoFilter(filtered, lat, lng, radiusKm)
       return filtered.slice(0, fetchLimit)
     },

@@ -191,8 +191,7 @@ export function LandingPage() {
       <section className="px-5 pt-5">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-40px' }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 220, damping: 24 }}
           className="relative overflow-hidden rounded-[28px] border border-ink/10 bg-ink p-5 text-paper"
         >
@@ -226,24 +225,23 @@ export function LandingPage() {
         <motion.div
           variants={stagger}
           initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: '-60px' }}
+          animate="show"
           className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1"
         >
           {trending.map((issue) => (
             <motion.div key={issue.id} variants={fadeUp} className="w-[78%] shrink-0 snap-start">
               <Link to={`/issues/${issue.id}`} className="block">
                 <div className="paper overflow-hidden p-0">
-                  <div className="relative h-36 overflow-hidden">
-                    <img src={issueImage(issue)} alt={`${issue.title} — civic issue photo`} className="size-full object-cover transition-transform duration-500 hover:scale-105" />
+                  <div className="relative h-36 overflow-hidden bg-surface">
+                    <img
+                      src={issueImage(issue)}
+                      alt={`${issue.title} — civic issue photo`}
+                      className="size-full object-cover transition-transform duration-500 hover:scale-105"
+                      loading="lazy"
+                    />
                     <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/60 to-transparent" />
-                    <div className="absolute left-3 top-3 flex flex-col gap-1">
+                    <div className="absolute left-3 top-3">
                       <SeverityBadge severity={apiSeverityToUi(issue.severity)} />
-                      <VerificationBadges
-                        upvoteCount={issue.upvoteCount}
-                        verificationLevel={issue.verificationLevel}
-                        compact
-                      />
                     </div>
                     <div className="absolute right-3 bottom-3 inline-flex items-center gap-1 rounded-full bg-paper/95 px-2 py-1 text-[11px] font-bold text-ink">
                       <Zap className="size-3 text-coral" /> {issue.upvoteCount}
@@ -254,6 +252,13 @@ export function LandingPage() {
                       {categoryLabel(issue.category)}
                     </div>
                     <div className="mt-1 line-clamp-2 text-sm font-semibold text-ink">{issue.title}</div>
+                    <div className="mt-2">
+                      <VerificationBadges
+                        upvoteCount={issue.upvoteCount}
+                        verificationLevel={issue.verificationLevel}
+                        compact
+                      />
+                    </div>
                   </div>
                 </div>
               </Link>
@@ -265,13 +270,12 @@ export function LandingPage() {
         </motion.div>
       </section>
 
-      <section className="px-5 pt-7 pb-10">
+      <section className="px-5 pt-7 pb-4">
         <SectionHeader title="Recent activity" hint={areaLabel} action={<Link to="/activity">Open</Link>} />
         <motion.ul
           variants={stagger}
           initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
+          animate="show"
           className="paper divide-y divide-rule overflow-hidden"
         >
           {recent.map((issue) => (
@@ -306,9 +310,8 @@ export function LandingPage() {
         <motion.div
           variants={stagger}
           initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          className="mt-6 grid grid-cols-2 gap-2"
+          animate="show"
+          className="mt-6 grid grid-cols-2 gap-2 pb-4"
         >
           <BentoLink to="/dashboard" tone="leaf" label="Impact" sub="Charts & insight" />
           <BentoLink to="/leaderboard" tone="amber" label="Leaderboard" sub="Civic points" />

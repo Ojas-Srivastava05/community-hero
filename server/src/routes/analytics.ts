@@ -10,6 +10,7 @@ import {
   detectSeasonalWasteSpike,
   fetchIssuesAndUpvotes,
   getL3Summary,
+  invalidateL3Summary,
   isAnalyticsDailyStale,
   readAnalyticsDaily,
   setL3Summary,
@@ -27,7 +28,13 @@ function requireAdminSecret(
   res: { status: (n: number) => { json: (b: unknown) => void } },
 ): boolean {
   const secret = process.env.ADMIN_SECRET || process.env.ADMIN_API_SECRET
-  if (!secret) return true
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      res.status(403).json({ error: 'Forbidden' })
+      return false
+    }
+    return true
+  }
   const raw = req.headers['x-admin-secret'] ?? req.headers.authorization
   const header = Array.isArray(raw) ? raw[0] : raw?.toString().replace(/^Bearer\s+/i, '')
   if (header !== secret) {
@@ -104,6 +111,7 @@ analyticsRouter.get('/summary', async (req, res) => {
   try {
     let insightsBatch: Record<string, unknown> | null = null
     if (req.query.refresh === '1') {
+      invalidateL3Summary()
       insightsBatch = (await runInsightsBatch()) as unknown as Record<string, unknown>
     } else {
       const insightsDoc = await db.collection('analytics').doc('insights_latest').get().catch(() => null)
@@ -254,7 +262,8 @@ analyticsRouter.post('/insights-batch', async (req, res) => {
   }
 })
 
-analyticsRouter.get('/export/open311', async (_req, res) => {
+analyticsRouter.get('/export/open311', async (req, res) => {
+  if (!requireAdminSecret(req, res)) return
   try {
     const snap = await db.collection('issues').limit(100).get()
     const { toOpen311Record } = await import('../lib/open311')

@@ -54,7 +54,7 @@ export function AssistantPage() {
 
   if (!user) {
     return (
-      <AppShell>
+      <AppShell hideNav>
         <div className="px-5 py-16 text-center">
           <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-coral-soft"><Sparkles className="size-8 text-coral" /></div>
           <p className="mt-4 text-ink-muted">Sign in to chat with Civic AI</p>
@@ -67,8 +67,8 @@ export function AssistantPage() {
   }
 
   return (
-    <AppShell bare>
-      <div className="flex h-screen flex-col">
+    <AppShell bare hideNav>
+      <div className="flex min-h-[100dvh] max-h-[100dvh] flex-col">
         <header className="glass-strong flex items-center gap-3 px-5 py-4">
           <Link to="/" className="grid size-9 place-items-center rounded-xl border border-rule"><ChevronLeft className="size-4 text-ink" /></Link>
           <div className="grid size-10 place-items-center rounded-xl bg-coral-soft ring-1 ring-coral/30"><Sparkles className="size-5 text-coral" /></div>
@@ -103,7 +103,10 @@ export function AssistantPage() {
             </div>
           )}
         </div>
-        <div className="glass-strong border-t border-rule px-3 pb-3 pt-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}>
+        <div
+          className="glass-strong shrink-0 border-t border-rule px-3 pt-3"
+          style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 0px))' }}
+        >
           <form onSubmit={(e) => { e.preventDefault(); send(input) }} className="flex items-center gap-2 rounded-2xl border border-rule bg-paper px-3 py-2">
             <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about your ward, SLAs, hotspots…" className="flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-muted" />
             <button type="submit" disabled={!input.trim()} className="grid size-9 place-items-center rounded-xl bg-coral text-paper disabled:opacity-40 ink-glow"><Send className="size-4" /></button>

@@ -115,9 +115,9 @@ code=$(http_code "$URL/api/leaderboard")
 code=$(http_code "$URL/assistant")
 [ "$code" = "200" ] && check "11" "Civic Assistant route" "PASS" || check "11" "Civic Assistant route" "HTTP $code"
 
-# Phase 12 — Open311 export
+# Phase 12 — Open311 export (200 with auth or 403 when secured)
 code=$(http_code "$URL/api/analytics/export/open311")
-[ "$code" = "200" ] && check "12" "Open311 export" "PASS" || check "12" "Open311 export" "HTTP $code"
+[ "$code" = "200" ] || [ "$code" = "403" ] && check "12" "Open311 export (auth-gated OK)" "PASS" || check "12" "Open311 export" "HTTP $code"
 
 # Phase 14 — key routes
 for route in "/activity" "/profile" "/login" "/terms" "/privacy" "/admin/analytics"; do

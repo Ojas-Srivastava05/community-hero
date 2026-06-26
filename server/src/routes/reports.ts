@@ -15,7 +15,7 @@ import {
 } from '../lib/agents'
 import { compareBeforeAfter } from '../lib/gemini'
 import { generateEmbedding, issueEmbeddingText } from '../lib/embeddings'
-import { requireAuth, type AuthedRequest } from '../middleware/auth'
+import { requireAuth, requireAdmin, isAdminUser, type AuthedRequest } from '../middleware/auth'
 import { reportLimit, upvoteLimit } from '../middleware/rateLimit'
 import { deriveWardId, haversineKm, reverseGeocodeServer } from '../lib/geo'
 import { validateImageBuffer } from '../lib/media-validation'
@@ -77,6 +77,76 @@ function isPublicIssue(issue: { status?: string; aiMetadata?: { needs_review?: b
   return true
 }
 
+function isDemoIssue(issue: { isDemo?: boolean; reporterId?: string }) {
+  return Boolean(issue.isDemo || issue.reporterId === 'demo-seed')
+}
+
+function isClosedOrMerged(issue: { status?: string; mergedInto?: string }) {
+  return issue.status === 'Closed' || Boolean(issue.mergedInto)
+}
+
+async function userMergedTargetToday(
+  targetRef: FirebaseFirestore.DocumentReference,
+  userId: string,
+): Promise<boolean> {
+  const today = new Date().toISOString().slice(0, 10)
+  const snap = await targetRef.collection('events').where('type', '==', 'merge').limit(50).get()
+  return snap.docs.some((d) => {
+    const data = d.data()
+    return data.actorId === userId && String(data.timestamp || '').startsWith(today)
+  })
+}
+
+async function performMerge(
+  targetId: string,
+  userId: string,
+  options: {
+    sourceId?: string
+    sourceData?: FirebaseFirestore.DocumentData
+    mergePayload: Record<string, unknown>
+  },
+): Promise<{ upvoteCount: number; pointsEarned: AwardResult; idempotent: boolean }> {
+  const targetRef = db.collection('issues').doc(targetId)
+  const targetSnap = await targetRef.get()
+  const targetData = targetSnap.data()!
+  const { sourceId, sourceData, mergePayload } = options
+
+  const sourceAlreadyMerged = Boolean(sourceData?.mergedInto)
+  if (sourceAlreadyMerged) {
+    return {
+      upvoteCount: targetData.upvoteCount ?? 0,
+      pointsEarned: { pointsAwarded: 0, badgesEarned: [] },
+      idempotent: true,
+    }
+  }
+
+  const alreadyMergedToday = await userMergedTargetToday(targetRef, userId)
+  const increment = sourceData ? (sourceData.upvoteCount ?? 0) + 1 : 1
+  const count = (targetData.upvoteCount ?? 0) + increment
+
+  await targetRef.update({ upvoteCount: count, updatedAt: new Date().toISOString() })
+  await targetRef.collection('events').add({
+    type: 'merge',
+    actorId: userId,
+    payload: mergePayload,
+    timestamp: new Date().toISOString(),
+  })
+
+  if (sourceId) {
+    await db.collection('issues').doc(sourceId).update({
+      status: 'Closed',
+      mergedInto: targetId,
+      updatedAt: new Date().toISOString(),
+    })
+  }
+
+  const pointsEarned = alreadyMergedToday
+    ? { pointsAwarded: 0, badgesEarned: [] as string[] }
+    : await awardPoints(userId, 15, 'merge')
+
+  return { upvoteCount: count, pointsEarned, idempotent: alreadyMergedToday }
+}
+
 reportsRouter.post('/analyze', requireAuth, upload.single('image'), async (req: AuthedRequest, res) => {
   try {
     if (!req.file) {
@@ -116,20 +186,20 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
         sendError(res, 404, ErrorCodes.NOT_FOUND, 'Merge target not found')
         return
       }
-      const count = (target.data()?.upvoteCount ?? 0) + 1
-      await target.ref.update({ upvoteCount: count, updatedAt: new Date().toISOString() })
-      await target.ref.collection('events').add({
-        type: 'merge',
-        actorId: req.user!.uid,
-        payload: { mergedFrom: 'new-report', title: data.title },
-        timestamp: new Date().toISOString(),
+      const targetData = target.data()!
+      if (isClosedOrMerged(targetData)) {
+        sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'Merge target is closed or already merged')
+        return
+      }
+      const { upvoteCount, pointsEarned, idempotent } = await performMerge(data.mergeIntoId, req.user!.uid, {
+        mergePayload: { mergedFrom: 'new-report', title: data.title },
       })
-      const mergeAward = await awardPoints(req.user!.uid, 15, 'merge')
       res.status(201).json({
         id: data.mergeIntoId,
         merged: true,
-        issue: { id: data.mergeIntoId, ...target.data(), upvoteCount: count },
-        pointsEarned: mergeAward,
+        idempotent,
+        issue: { id: data.mergeIntoId, ...targetData, upvoteCount },
+        pointsEarned,
       })
       return
     }
@@ -289,19 +359,10 @@ reportsRouter.get('/', async (req, res) => {
     const includeDraft = req.query.include_draft === '1'
     const sortByPriority = req.query.sort === 'priority'
 
-    const includeDemo = req.query.include_demo === '1'
+    const excludeDemo = req.query.exclude_demo === '1' && req.query.include_demo !== '1'
     const fetchLimit = lat !== undefined && lng !== undefined ? Math.min(limit * 4, 100) : limit
 
-    let q = sortByPriority
-      ? db.collection('issues').orderBy('priorityScore', 'desc').limit(fetchLimit)
-      : db.collection('issues').orderBy('createdAt', 'desc').limit(fetchLimit)
-    if (status) {
-      q = sortByPriority
-        ? db.collection('issues').where('status', '==', status).orderBy('priorityScore', 'desc').limit(fetchLimit)
-        : db.collection('issues').where('status', '==', status).orderBy('createdAt', 'desc').limit(fetchLimit)
-    }
-    const snap = await q.get()
-    let issues = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as {
+    type IssueItem = {
       id: string
       lat: number
       lng: number
@@ -312,14 +373,42 @@ reportsRouter.get('/', async (req, res) => {
       slaDeadline?: string
       slaBreached?: boolean
       priorityScore?: number
-    }[]
-
-    if (sortByPriority) {
-      issues = (await enrichIssuesWithSla(issues)) as typeof issues
+      createdAt?: string
     }
 
-    if (!includeDemo) {
-      issues = issues.filter((i) => !i.isDemo && i.reporterId !== 'demo-seed')
+    const buildQuery = (pageLimit: number, startAfter?: FirebaseFirestore.QueryDocumentSnapshot) => {
+      let q = sortByPriority
+        ? db.collection('issues').orderBy('priorityScore', 'desc').limit(pageLimit)
+        : db.collection('issues').orderBy('createdAt', 'desc').limit(pageLimit)
+      if (status) {
+        q = sortByPriority
+          ? db.collection('issues').where('status', '==', status).orderBy('priorityScore', 'desc').limit(pageLimit)
+          : db.collection('issues').where('status', '==', status).orderBy('createdAt', 'desc').limit(pageLimit)
+      }
+      if (startAfter) q = q.startAfter(startAfter)
+      return q
+    }
+
+    let issues: IssueItem[] = []
+    const maxPages = excludeDemo ? 5 : 1
+    const pageSize = excludeDemo ? 100 : fetchLimit
+    let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined
+
+    for (let page = 0; page < maxPages; page++) {
+      const snap = await buildQuery(pageSize, cursor).get()
+      if (snap.empty) break
+      issues.push(...(snap.docs.map((d) => ({ id: d.id, ...d.data() })) as IssueItem[]))
+      cursor = snap.docs[snap.docs.length - 1]
+      if (snap.size < pageSize) break
+      if (!excludeDemo) break
+    }
+
+    if (excludeDemo) {
+      issues = issues.filter((i) => !isDemoIssue(i))
+    }
+
+    if (sortByPriority) {
+      issues = (await enrichIssuesWithSla(issues)) as IssueItem[]
     }
 
     if (!includeDraft) {
@@ -443,23 +532,33 @@ reportsRouter.post('/:id/merge', requireAuth, async (req: AuthedRequest, res) =>
       sendError(res, 404, ErrorCodes.NOT_FOUND, 'Issue not found')
       return
     }
-    const count = (target.data()?.upvoteCount ?? 0) + (source.data()?.upvoteCount ?? 0) + 1
-    await target.ref.update({ upvoteCount: count, updatedAt: new Date().toISOString() })
-    await source.ref.update({ status: 'Closed', mergedInto: targetId, updatedAt: new Date().toISOString() })
-    await target.ref.collection('events').add({
-      type: 'merge',
-      actorId: req.user!.uid,
-      payload: { sourceId },
-      timestamp: new Date().toISOString(),
+    const sourceData = source.data()!
+    const targetData = target.data()!
+    const isOwner = sourceData.reporterId === req.user!.uid
+    if (!isOwner && !isAdminUser(req.user!)) {
+      sendError(res, 403, ErrorCodes.FORBIDDEN, 'Forbidden')
+      return
+    }
+    if (sourceData.status === 'Closed' && !sourceData.mergedInto) {
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'Source issue is closed or already merged')
+      return
+    }
+    if (isClosedOrMerged(targetData)) {
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'Merge target is closed or already merged')
+      return
+    }
+    const { upvoteCount, pointsEarned, idempotent } = await performMerge(targetId, req.user!.uid, {
+      sourceId,
+      sourceData,
+      mergePayload: { sourceId },
     })
-    const mergeAward = await awardPoints(req.user!.uid, 15, 'merge')
-    res.json({ ok: true, targetId, upvoteCount: count, pointsEarned: mergeAward })
+    res.json({ ok: true, targetId, upvoteCount, idempotent, pointsEarned })
   } catch (e) {
     sendServerError(res, e)
   }
 })
 
-reportsRouter.post('/:id/open311/export', requireAuth, async (req: AuthedRequest, res) => {
+reportsRouter.post('/:id/open311/export', requireAuth, requireAdmin, async (req: AuthedRequest, res) => {
   try {
     const doc = await db.collection('issues').doc(String(req.params.id)).get()
     if (!doc.exists) {
@@ -484,10 +583,8 @@ reportsRouter.post('/:id/reopen', requireAuth, async (req: AuthedRequest, res) =
       return
     }
     const data = doc.data()!
-    const admins = (process.env.ADMIN_EMAILS || '').split(',')
     const isReporter = data.reporterId === req.user!.uid
-    const isAdmin = req.user!.email && admins.includes(req.user!.email)
-    if (!isReporter && !isAdmin) {
+    if (!isReporter && !isAdminUser(req.user!)) {
       sendError(res, 403, ErrorCodes.FORBIDDEN, 'Forbidden')
       return
     }
@@ -515,12 +612,7 @@ reportsRouter.post('/bulk-status', requireAuth, async (req: AuthedRequest, res) 
       sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'ids and status required')
       return
     }
-    const admins = (process.env.ADMIN_UIDS || '').split(',')
-    const adminEmails = (process.env.ADMIN_EMAILS || 'srivastavaojas454@gmail.com').split(',')
-    const isAdmin =
-      admins.includes(req.user!.uid) ||
-      (req.user!.email && adminEmails.includes(req.user!.email))
-    if (!isAdmin) {
+    if (!isAdminUser(req.user!)) {
       sendError(res, 403, ErrorCodes.FORBIDDEN, 'Forbidden')
       return
     }
@@ -569,12 +661,7 @@ reportsRouter.patch('/:id/status', requireAuth, (req, res, next) => {
       sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'status field required')
       return
     }
-    const admins = (process.env.ADMIN_UIDS || '').split(',')
-    const adminEmails = (process.env.ADMIN_EMAILS || 'srivastavaojas454@gmail.com').split(',')
-    const isAdmin =
-      admins.includes(req.user!.uid) ||
-      (req.user!.email && adminEmails.includes(req.user!.email))
-    if (!isAdmin) {
+    if (!isAdminUser(req.user!)) {
       sendError(res, 403, ErrorCodes.FORBIDDEN, 'Forbidden')
       return
     }

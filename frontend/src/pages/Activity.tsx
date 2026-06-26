@@ -73,7 +73,7 @@ export function ActivityPage() {
           <section className="mb-6">
             <div className="mb-2 flex items-center justify-between px-1">
               <p className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Thread clusters</p>
-              <Link to="#threads" className="text-[11px] font-bold text-coral">View all</Link>
+              <Link to="/map" className="text-[11px] font-bold text-coral">View all</Link>
             </div>
             <div id="threads" className="space-y-2">
               {threads.map((t) => (

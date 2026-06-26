@@ -52,7 +52,7 @@ service cloud.firestore {
 
       match /events/{eventId} {
         allow read: if true;
-        allow write: if signedIn();
+        allow write: if false;
       }
     }
 

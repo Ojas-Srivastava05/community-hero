@@ -24,7 +24,7 @@ app.use((req, res, next) => {
 const publicDir = path.resolve(__dirname, '../../public')
 app.use('/public', express.static(publicDir))
 
-app.get('/api/health', async (_req, res) => {
+const healthHandler = async (_req: express.Request, res: express.Response) => {
   let firestore = 'unknown'
   try {
     const { db } = await import('./lib/firebase-admin')
@@ -41,7 +41,10 @@ app.get('/api/health', async (_req, res) => {
     timestamp: new Date().toISOString(),
     stack: ['Node.js', 'Express', 'Firebase Admin', 'Gemini', 'Google Maps'],
   })
-})
+}
+
+app.get('/api/health', healthHandler)
+app.get('/health', healthHandler)
 
 app.get('/api', (_req, res) => {
   res.json({ name: 'Community Hero API', version: '1.0.0', docs: '/api/health' })

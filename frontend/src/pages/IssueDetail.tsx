@@ -10,6 +10,7 @@ import { IssueDetailSkeleton } from '@/components/PageSkeleton'
 import { useAuth } from '../lib/auth'
 import { useIssueStore } from '../stores/useIssueStore'
 import { apiExportOpen311Single, apiGetIssue, apiGetIssueVoteStatus, apiReopenIssue, apiUpvote } from '../lib/api'
+import { resolveIsAdmin } from '../lib/admin'
 import { usePointsToast } from '@/components/civic/PointsToast'
 import { apiSeverityToUi, categoryLabel, issueArea, issueImage, issueReportedAt, slaHoursLeft } from '@/lib/issue-ui'
 import { fadeUp, stagger } from '../lib/motion'
@@ -28,13 +29,20 @@ export function IssueDetailPage() {
   const [voted, setVoted] = useState(false)
   const [admin, setAdmin] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [upvoteError, setUpvoteError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) {
       setAdmin(false)
       return
     }
-    user.getIdTokenResult().then((r) => setAdmin(!!r.claims.admin))
+    let cancelled = false
+    resolveIsAdmin(user).then((isAdmin) => {
+      if (!cancelled) setAdmin(isAdmin)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [user])
 
   const { upsertIssue } = useIssueStore()
@@ -65,6 +73,7 @@ export function IssueDetailPage() {
 
   const boost = async () => {
     if (!user || !id || voted) return
+    setUpvoteError(null)
     try {
       const token = await user.getIdToken()
       const r = await apiUpvote(id, token)
@@ -78,15 +87,17 @@ export function IssueDetailPage() {
         setIssue((prev) => prev ? { ...prev, upvoteCount: r.count ?? prev.upvoteCount + 1, verificationLevel: r.verificationLevel } : prev)
       }
       const pe = r.pointsEarned as { pointsAwarded?: number; badgesEarned?: string[] } | undefined
-      const pts = pe?.pointsAwarded ?? 5
-      const msg = pe?.badgesEarned?.length ? pe.badgesEarned.join(' · ') : 'Boost'
-      showPoints(pts, msg)
+      if (pe?.pointsAwarded && pe.pointsAwarded > 0) {
+        const msg = pe.badgesEarned?.length ? pe.badgesEarned.join(' · ') : 'Boost'
+        showPoints(pe.pointsAwarded, msg)
+      }
       setEvents((prev) => [
         ...prev,
         { type: 'upvote', timestamp: new Date().toISOString() },
       ])
-    } catch {
-      /* ignore */
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Could not boost this report'
+      setUpvoteError(msg)
     }
   }
 
@@ -132,11 +143,12 @@ export function IssueDetailPage() {
   }
 
   const sla = slaHoursLeft(issue)
-  const canReopen = user && ['Resolved', 'Closed'].includes(issue.status)
+  const isReporter = user?.uid === issue.reporterId
+  const canReopen = user && (isReporter || admin) && ['Resolved', 'Closed'].includes(issue.status)
   const imageAlt = `${issue.title} — ${categoryLabel(issue.category)} report photo`
 
   return (
-    <AppShell>
+    <AppShell hideNav>
       <div className="relative">
         <img src={issue.proofImageUrl || issueImage(issue)} alt={imageAlt} className="aspect-[5/6] w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-paper/70 via-transparent to-background" />
@@ -235,8 +247,14 @@ export function IssueDetailPage() {
         </motion.div>
       </motion.div>
 
-      <div className="fixed inset-x-0 bottom-24 z-30 mx-auto max-w-[440px] px-5">
-        <div className="paper flex items-center gap-3 p-2">
+      <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-30 mx-auto max-w-[440px] px-5">
+        <div className="paper flex flex-col gap-2 p-2">
+          {upvoteError && (
+            <p className="rounded-xl border border-sev-critical/30 bg-sev-critical/10 px-3 py-2 text-xs text-sev-critical">
+              {upvoteError}
+            </p>
+          )}
+          <div className="flex items-center gap-3">
           {canReopen ? (
             <button type="button" onClick={reopen} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-rule bg-surface py-3 text-sm font-bold text-ink">
               <RotateCcw className="size-4" /> Reopen
@@ -256,6 +274,7 @@ export function IssueDetailPage() {
               {!user ? 'Sign in to boost' : voted ? `Boosted · ${upvotes}` : `Boost · ${upvotes}`}
             </button>
           )}
+          </div>
         </div>
       </div>
     </AppShell>

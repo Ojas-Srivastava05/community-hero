@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Filter, Layers, Search, Sparkles, X } from 'lucide-react'
@@ -21,6 +21,7 @@ import {
   issueReportedAt,
 } from '@/lib/issue-ui'
 import { CATEGORIES } from '../../../shared/types'
+import { cn } from '@/lib/utils'
 
 type MapHotspot = {
   geohash: string
@@ -34,6 +35,8 @@ type MapHotspot = {
 export function MapExplorerPage() {
   const { location } = useLocation()
   const [showHotspots, setShowHotspots] = useState(true)
+  const [showFilters, setShowFilters] = useState(true)
+  const filterPanelRef = useRef<HTMLDivElement>(null)
   const [hotspots, setHotspots] = useState<MapHotspot[]>([])
   const { issues, livePulse, loading } = useLiveIssues({
     lat: location?.lat,
@@ -90,8 +93,20 @@ export function MapExplorerPage() {
       ? { lat: issues[0].lat, lng: issues[0].lng }
       : { lat: 20, lng: 0 }
 
+  const toggleFilters = () => {
+    setShowFilters((open) => {
+      const next = !open
+      if (next) {
+        requestAnimationFrame(() => {
+          filterPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        })
+      }
+      return next
+    })
+  }
+
   return (
-    <AppShell bare>
+    <AppShell bare hideNav>
       <div className="relative h-screen w-full">
         <CivicMap
           center={center}
@@ -136,10 +151,18 @@ export function MapExplorerPage() {
               className="flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-muted"
             />
             <LiveIndicator active={livePulse} />
-            <button type="button" className="grid size-8 place-items-center rounded-lg border border-rule">
+            <button
+              type="button"
+              aria-pressed={showFilters}
+              aria-label={showFilters ? 'Hide filters' : 'Show filters'}
+              onClick={toggleFilters}
+              className={cn('grid size-8 place-items-center rounded-lg border border-rule', showFilters && 'bg-coral-soft text-coral')}
+            >
               <Filter className="size-4 text-ink" />
             </button>
           </div>
+          {showFilters && (
+          <div ref={filterPanelRef}>
           <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto">
             <button type="button" onClick={() => setFilter('all')}><Chip tone={filter === 'all' ? 'coral' : undefined}>All</Chip></button>
             <button type="button" onClick={() => setFilter('critical')}><Chip tone={filter === 'critical' ? 'danger' : undefined}>Critical</Chip></button>
@@ -154,6 +177,8 @@ export function MapExplorerPage() {
               </button>
             ))}
           </div>
+          </div>
+          )}
         </motion.div>
         <motion.button
           type="button"
@@ -176,7 +201,7 @@ export function MapExplorerPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 24 }}
               transition={{ type: 'spring', stiffness: 280, damping: 26 }}
-              className="absolute inset-x-0 bottom-24 z-20 px-3"
+              className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+1.25rem)] z-20 px-3"
             >
               <Link to={`/issues/${issue.id}`} className="paper relative block overflow-hidden">
                 <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-ink/20" />

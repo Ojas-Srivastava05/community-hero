@@ -14,6 +14,8 @@ export type IssueRow = {
   wardId?: string
   departmentId?: string
   slaDeadline?: string
+  isDemo?: boolean
+  reporterId?: string
 }
 
 export type AnalyticsSummary = {
@@ -356,7 +358,11 @@ export async function fetchIssuesAndUpvotes(limit = 500) {
       .get()
       .catch(() => null),
   ])
-  const issues = snap.docs.map((d) => d.data()) as IssueRow[]
+  const issuesRaw = snap.docs.map((d) => d.data()) as IssueRow[]
+  const includeDemoAnalytics = process.env.INCLUDE_DEMO_ANALYTICS === '1'
+  const issues = includeDemoAnalytics
+    ? issuesRaw
+    : issuesRaw.filter((i) => !i.isDemo && i.reporterId !== 'demo-seed')
   const upvoteEvents = (upvoteSnap?.docs ?? []).map((d) => d.data() as { timestamp: string })
   return { issues, upvoteEvents }
 }

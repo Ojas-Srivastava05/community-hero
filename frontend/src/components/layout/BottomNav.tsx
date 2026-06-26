@@ -10,8 +10,11 @@ const tabs = [
   { to: '/profile', label: 'Profile', icon: User },
 ]
 
-export function BottomNav() {
+export function BottomNav({ hiddenOn = [] }: { hiddenOn?: string[] }) {
   const { pathname } = useLocation()
+  if (hiddenOn.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+    return null
+  }
   return (
     <nav
       aria-label="Primary"

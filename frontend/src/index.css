@@ -169,7 +169,8 @@
 }
 
 @utility safe-bottom {
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6rem);
+  /* Clear floating tab bar + center FAB overhang */
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8.5rem);
 }
 
 @utility no-scrollbar {

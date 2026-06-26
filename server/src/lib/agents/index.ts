@@ -344,7 +344,10 @@ export async function processUpvote(issueId: string, userId: string): Promise<Up
 
   const issueRef = db.collection('issues').doc(issueId)
   const issue = await issueRef.get()
+  if (!issue.exists) return { ok: false, forbidden: true }
+
   const data = issue.data()!
+  if (data.reporterId === userId) return { ok: false, forbidden: true }
   const voteRef = issueRef.collection('votes').doc(userId)
   const existing = await voteRef.get()
   if (existing.exists) {
