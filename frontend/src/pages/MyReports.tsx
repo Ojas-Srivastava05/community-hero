@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { Clock } from 'lucide-react'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { Chip } from '@/components/civic/GlassCard'
@@ -7,12 +8,13 @@ import { SeverityBadge } from '@/components/civic/SeverityBadge'
 import { useAuth } from '../lib/auth'
 import { apiMyReports } from '../lib/api'
 import { apiSeverityToUi, issueArea, slaHoursLeft } from '@/lib/issue-ui'
+import { fadeUp, stagger } from '../lib/motion'
 import { cn } from '@/lib/utils'
 import type { Issue } from '../../../shared/types'
 
 function statusTone(s: string) {
   if (s === 'Resolved' || s === 'Closed') return 'ok' as const
-  if (s === 'In Progress') return 'teal' as const
+  if (s === 'In Progress') return 'coral' as const
   if (s === 'Assigned' || s === 'Community Verified') return 'warn' as const
   return 'default' as const
 }
@@ -31,8 +33,8 @@ export function MyReportsPage() {
       <AppShell>
         <PageHeader title="My reports" />
         <div className="px-5 py-16 text-center">
-          <p className="text-muted-foreground">Sign in to track your submissions</p>
-          <button type="button" disabled={signingIn} onClick={() => signInWithGoogle()} className="mt-6 rounded-2xl bg-teal px-8 py-3 text-sm font-bold text-primary-foreground teal-glow">
+          <p className="text-ink-muted">Sign in to track your submissions</p>
+          <button type="button" disabled={signingIn} onClick={() => signInWithGoogle()} className="mt-6 rounded-2xl bg-coral px-8 py-3 text-sm font-bold text-paper ink-glow">
             Sign in with Google
           </button>
         </div>
@@ -43,30 +45,32 @@ export function MyReportsPage() {
   return (
     <AppShell>
       <PageHeader title="My reports" subtitle={`${issues.length} submissions`} />
-      <div className="space-y-3 px-5 pt-4">
+      <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-3 px-5 pt-4">
         {issues.map((i) => {
           const sla = slaHoursLeft(i)
           const resolved = i.status === 'Resolved' || i.status === 'Closed'
           return (
-            <Link key={i.id} to={`/issues/${i.id}`} className="glass block overflow-hidden p-4">
-              <div className="flex items-center justify-between gap-3">
-                <Chip tone={statusTone(i.status)}>{i.status}</Chip>
-                <SeverityBadge severity={apiSeverityToUi(i.severity)} />
-              </div>
-              <p className="mt-3 text-sm font-bold leading-snug">{i.title}</p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">{issueArea(i)}</p>
-              <div className="mt-3 flex items-center justify-between">
-                <div className={cn('flex items-center gap-1.5 text-[11px] font-semibold', resolved ? 'text-sev-low' : sla !== null && sla <= 24 ? 'text-sev-critical' : 'text-muted-foreground')}>
-                  <Clock className="size-3" />
-                  {resolved ? 'Closed' : sla === null ? 'SLA pending' : sla <= 0 ? 'SLA breached' : `${sla}h to SLA`}
+            <motion.div key={i.id} variants={fadeUp}>
+              <Link to={`/issues/${i.id}`} className="paper block overflow-hidden p-4 transition-transform active:scale-[0.99]">
+                <div className="flex items-center justify-between gap-3">
+                  <Chip tone={statusTone(i.status)}>{i.status}</Chip>
+                  <SeverityBadge severity={apiSeverityToUi(i.severity)} />
                 </div>
-                <div className="text-[11px] text-muted-foreground">{i.upvoteCount} boosts</div>
-              </div>
-            </Link>
+                <p className="mt-3 text-sm font-bold leading-snug text-ink">{i.title}</p>
+                <p className="mt-0.5 text-[11px] text-ink-muted">{issueArea(i)}</p>
+                <div className="mt-3 flex items-center justify-between">
+                  <div className={cn('flex items-center gap-1.5 text-[11px] font-semibold', resolved ? 'text-leaf' : sla !== null && sla <= 24 ? 'text-sev-critical' : 'text-ink-muted')}>
+                    <Clock className="size-3" />
+                    {resolved ? 'Closed' : sla === null ? 'SLA pending' : sla <= 0 ? 'SLA breached' : `${sla}h to SLA`}
+                  </div>
+                  <div className="text-[11px] text-ink-muted">{i.upvoteCount} boosts</div>
+                </div>
+              </Link>
+            </motion.div>
           )
         })}
-        {issues.length === 0 && <p className="py-12 text-center text-muted-foreground">No reports yet — <Link to="/report" className="text-teal">report an issue</Link></p>}
-      </div>
+        {issues.length === 0 && <p className="py-12 text-center text-ink-muted">No reports yet — <Link to="/report" className="text-coral">report an issue</Link></p>}
+      </motion.div>
     </AppShell>
   )
 }

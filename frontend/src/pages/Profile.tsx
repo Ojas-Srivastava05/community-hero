@@ -1,23 +1,59 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Award, Bell, ChevronRight, FileText, Settings, Shield, Sparkles } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Award, Bell, ChevronRight, FileText, Lock, Settings, Shield, Sparkles, Trophy } from 'lucide-react'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { GlassCard, Chip } from '@/components/civic/GlassCard'
 import { useAuth } from '../lib/auth'
 import { useLocation } from '../lib/location'
-import { apiGetProfile } from '../lib/api'
+import { apiGetProfile, apiUpdateProfile } from '../lib/api'
+import { fadeUp, stagger } from '../lib/motion'
+import { cn } from '@/lib/utils'
+
+const ALL_BADGES = [
+  { name: 'First Reporter', desc: 'Submit your first civic report' },
+  { name: 'Neighborhood Voice', desc: 'Earn 3 upvotes on a report' },
+  { name: 'Duplicate Hunter', desc: 'Merge into an existing report' },
+  { name: 'Fix Follower', desc: 'Your report gets resolved' },
+  { name: 'Civic Champion', desc: 'Reach 100+ civic points' },
+] as const
 
 export function ProfilePage() {
   const { user, signInWithGoogle, logout, signingIn } = useAuth()
   const { location } = useLocation()
   const [admin, setAdmin] = useState(false)
   const [points, setPoints] = useState(0)
+  const [badges, setBadges] = useState<string[]>([])
+  const [leaderboardOptIn, setLeaderboardOptIn] = useState(false)
+  const [savingOptIn, setSavingOptIn] = useState(false)
 
   useEffect(() => {
     if (!user) return
     user.getIdTokenResult().then((r) => setAdmin(!!r.claims.admin))
-    user.getIdToken().then((t) => apiGetProfile(t).then((p) => setPoints(p?.civicPoints ?? 0)))
+    user.getIdToken().then((t) =>
+      apiGetProfile(t).then((p) => {
+        if (!p) return
+        setPoints(p.civicPoints ?? 0)
+        setBadges(p.badges ?? [])
+        setLeaderboardOptIn(p.leaderboardOptIn ?? false)
+      }),
+    )
   }, [user])
+
+  const toggleLeaderboard = async () => {
+    if (!user || savingOptIn) return
+    const next = !leaderboardOptIn
+    setSavingOptIn(true)
+    try {
+      const token = await user.getIdToken()
+      await apiUpdateProfile(token, { leaderboardOptIn: next })
+      setLeaderboardOptIn(next)
+    } catch {
+      /* ignore */
+    } finally {
+      setSavingOptIn(false)
+    }
+  }
 
   const initials = user?.displayName?.split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase() || 'CH'
   const areaLabel = location?.label || 'Near you'
@@ -25,62 +61,132 @@ export function ProfilePage() {
   return (
     <AppShell>
       <PageHeader title="Profile" />
-      <section className="px-5 pt-4">
-        <GlassCard className="text-center">
-          {user?.photoURL ? (
-            <img src={user.photoURL} alt="" className="mx-auto size-20 rounded-full object-cover ring-2 ring-teal/40" />
-          ) : (
-            <div className="mx-auto grid size-20 place-items-center rounded-full bg-gradient-to-br from-teal/40 to-teal/10 ring-2 ring-teal/40 text-2xl font-extrabold text-teal teal-glow">
-              {initials}
-            </div>
-          )}
-          <p className="mt-3 text-base font-bold">{user?.displayName || 'Guest'}</p>
-          <p className="text-xs text-muted-foreground">{user?.email || areaLabel}</p>
-          {user && (
-            <div className="mt-3 flex justify-center gap-2">
-              <Chip tone="teal"><Award className="size-3" />{points} civic points</Chip>
-            </div>
-          )}
-        </GlassCard>
+      <motion.section variants={stagger} initial="hidden" animate="show" className="px-5 pt-4">
+        <motion.div variants={fadeUp}>
+          <GlassCard className="text-center">
+            {user?.photoURL ? (
+              <img src={user.photoURL} alt="" className="mx-auto size-20 rounded-full object-cover ring-2 ring-coral/40" />
+            ) : (
+              <div className="mx-auto grid size-20 place-items-center rounded-full bg-gradient-to-br from-coral/40 to-coral/10 ring-2 ring-coral/40 text-2xl font-extrabold text-coral">
+                {initials}
+              </div>
+            )}
+            <p className="display mt-3 text-base font-bold text-ink">{user?.displayName || 'Guest'}</p>
+            <p className="text-xs text-ink-muted">{user?.email || areaLabel}</p>
+            {user && (
+              <div className="mt-3 flex justify-center gap-2">
+                <Chip tone="coral"><Award className="size-3" />{points} civic points</Chip>
+              </div>
+            )}
+          </GlassCard>
+        </motion.div>
         {user ? (
-          <button type="button" onClick={() => logout()} className="mt-4 w-full rounded-2xl border border-glass-border bg-glass py-3 text-sm font-bold">
+          <motion.button variants={fadeUp} type="button" onClick={() => logout()} className="mt-4 w-full rounded-2xl border border-rule bg-paper py-3 text-sm font-bold text-ink">
             Sign out
-          </button>
+          </motion.button>
         ) : (
-          <button type="button" disabled={signingIn} onClick={() => signInWithGoogle()} className="mt-4 flex w-full items-center justify-center gap-3 rounded-2xl border border-glass-border bg-glass py-3 text-sm font-bold">
+          <motion.button variants={fadeUp} type="button" disabled={signingIn} onClick={() => signInWithGoogle()} className="mt-4 flex w-full items-center justify-center gap-3 rounded-2xl bg-coral py-3 text-sm font-bold text-paper ink-glow">
             <GoogleIcon />
             {signingIn ? 'Opening Google…' : 'Sign in with Google'}
-          </button>
+          </motion.button>
         )}
-      </section>
-      <section className="mt-6 space-y-2 px-5">
+      </motion.section>
+
+      {user && (
+        <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 space-y-2 px-5">
+          <p className="px-1 text-[11px] font-bold uppercase tracking-wider text-ink-muted">Badges</p>
+          <motion.div variants={fadeUp}>
+            <GlassCard className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Trophy className="size-4 text-coral" />
+                <p className="text-xs font-bold text-ink">Your achievements</p>
+                <Lock className="ml-auto size-3 text-ink-muted" />
+                <span className="text-[10px] text-ink-muted">Private</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {ALL_BADGES.map((b) => {
+                  const earned = badges.includes(b.name)
+                  return (
+                    <div
+                      key={b.name}
+                      className={cn(
+                        'rounded-xl border px-3 py-2.5',
+                        earned ? 'border-coral/30 bg-coral-soft/40' : 'border-rule bg-surface opacity-60',
+                      )}
+                    >
+                      <p className={cn('text-xs font-bold', earned ? 'text-coral' : 'text-ink-muted')}>{b.name}</p>
+                      <p className="mt-0.5 text-[10px] leading-snug text-ink-muted">{b.desc}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </GlassCard>
+          </motion.div>
+        </motion.section>
+      )}
+
+      <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 space-y-2 px-5">
         <Row to="/my-reports" icon={FileText} label="My reports" />
         <Row to="/leaderboard" icon={Award} label="Leaderboard" />
         <Row to="/dashboard" icon={Sparkles} label="Civic dashboard" />
         <Row to="/assistant" icon={Sparkles} label="Civic AI assistant" hint="New" />
         {admin && <Row to="/admin" icon={Shield} label="Admin console" />}
-      </section>
-      <section className="mt-6 space-y-2 px-5">
-        <p className="px-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Settings</p>
+      </motion.section>
+      <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 space-y-2 px-5">
+        <p className="px-1 text-[11px] font-bold uppercase tracking-wider text-ink-muted">Settings</p>
+        {user && (
+          <motion.div variants={fadeUp}>
+            <button
+              type="button"
+              disabled={savingOptIn}
+              onClick={toggleLeaderboard}
+              className="paper w-full text-left transition-transform active:scale-[0.99]"
+            >
+              <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">
+                <div className="grid size-9 place-items-center rounded-lg border border-rule bg-surface">
+                  <Trophy className="size-4 text-ink" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-ink">Show on leaderboard</p>
+                  <p className="truncate text-[11px] text-ink-muted">Opt-in only · ethics-first</p>
+                </div>
+                <div
+                  className={cn(
+                    'relative h-6 w-11 rounded-full transition-colors',
+                    leaderboardOptIn ? 'bg-coral' : 'bg-rule',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'absolute top-0.5 size-5 rounded-full bg-paper shadow transition-transform',
+                      leaderboardOptIn ? 'left-[22px]' : 'left-0.5',
+                    )}
+                  />
+                </div>
+              </div>
+            </button>
+          </motion.div>
+        )}
         <Row to="/terms" icon={FileText} label="Terms & gamification" />
+        <Row to="/privacy" icon={Shield} label="Privacy policy" />
         <Row icon={Bell} label="Notifications" hint="Area alerts" />
         <Row icon={Settings} label="Preferences" />
-      </section>
-      <p className="mt-6 px-5 pb-2 text-center text-[10px] text-muted-foreground">CivicPulse AI · Community Hero · Vibe2Ship</p>
+      </motion.section>
+      <p className="mt-6 px-5 pb-2 text-center text-[10px] text-ink-muted">CivicPulse AI · Community Hero · Vibe2Ship</p>
     </AppShell>
   )
 }
 
 function Row({ icon: Icon, label, hint, to }: { icon: React.ComponentType<{ className?: string }>; label: string; hint?: string; to?: string }) {
   const inner = (
-    <div className="glass grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">
-      <div className="grid size-9 place-items-center rounded-lg border border-glass-border bg-glass"><Icon className="size-4" /></div>
+    <motion.div variants={fadeUp} className="paper grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition-transform active:scale-[0.99]">
+      <div className="grid size-9 place-items-center rounded-lg border border-rule bg-surface"><Icon className="size-4 text-ink" /></div>
       <div className="min-w-0">
-        <p className="truncate text-sm font-semibold">{label}</p>
-        {hint && <p className="truncate text-[11px] text-muted-foreground">{hint}</p>}
+        <p className="truncate text-sm font-semibold text-ink">{label}</p>
+        {hint && <p className="truncate text-[11px] text-ink-muted">{hint}</p>}
       </div>
-      <ChevronRight className="size-4 text-muted-foreground" />
-    </div>
+      <ChevronRight className="size-4 text-ink-muted" />
+    </motion.div>
   )
   return to ? <Link to={to}>{inner}</Link> : <button type="button" className="w-full text-left">{inner}</button>
 }

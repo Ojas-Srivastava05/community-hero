@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { ChevronLeft } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { GlassCard } from '@/components/civic/GlassCard'
 import { apiGetThread } from '../lib/api'
 import { issueArea, issueImage } from '@/lib/issue-ui'
+import { fadeUp, stagger } from '../lib/motion'
 import type { Issue } from '../../../shared/types'
 
 export function ThreadDetailPage() {
@@ -23,7 +25,7 @@ export function ThreadDetailPage() {
   if (!thread) {
     return (
       <AppShell>
-        <div className="px-5 py-20 text-center text-muted-foreground">Loading thread…</div>
+        <div className="px-5 py-20 text-center text-ink-muted">Loading thread…</div>
       </AppShell>
     )
   }
@@ -31,26 +33,32 @@ export function ThreadDetailPage() {
   return (
     <AppShell>
       <div className="flex items-center gap-3 px-5 pt-4">
-        <Link to="/activity" className="grid size-9 place-items-center rounded-xl border border-glass-border"><ChevronLeft className="size-4" /></Link>
+        <Link to="/activity" className="grid size-9 place-items-center rounded-xl border border-rule"><ChevronLeft className="size-4 text-ink" /></Link>
         <div>
-          <h1 className="text-lg font-bold">{thread.title}</h1>
-          <p className="text-xs text-muted-foreground">{thread.count} related reports</p>
+          <h1 className="display text-lg font-bold text-ink">{thread.title}</h1>
+          <p className="text-xs text-ink-muted">{thread.count} related reports</p>
         </div>
       </div>
-      <div className="space-y-4 px-5 pt-4">
-        <GlassCard>
-          <p className="text-sm text-muted-foreground">{thread.summary}</p>
-        </GlassCard>
+      <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-4 px-5 pt-4">
+        <motion.div variants={fadeUp}>
+          <GlassCard>
+            <p className="text-sm text-ink-muted">{thread.summary}</p>
+          </GlassCard>
+        </motion.div>
         {issues.map((issue) => (
-          <Link key={issue.id} to={`/issues/${issue.id}`} className="glass flex gap-3 p-3">
-            <img src={issueImage(issue)} alt="" className="size-14 rounded-lg object-cover" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">{issue.title}</p>
-              <p className="text-[11px] text-muted-foreground">{issueArea(issue)} · {issue.status}</p>
-            </div>
-          </Link>
+          <motion.div key={issue.id} variants={fadeUp}>
+            <Link to={`/issues/${issue.id}`} className="paper flex gap-3 p-3 transition-transform active:scale-[0.99]">
+              <img src={issueImage(issue)} alt="" className="size-14 rounded-lg object-cover" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-ink">{issue.title}</p>
+                <p className="text-[11px] text-ink-muted">
+                  {issueArea(issue)} · {issue.status}
+                </p>
+              </div>
+            </Link>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </AppShell>
   )
 }

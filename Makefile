@@ -1,4 +1,4 @@
-.PHONY: dev build preview install verify seed deploy
+.PHONY: dev build preview install verify seed deploy test lint health
 
 install:
 	cd frontend && npm install
@@ -20,6 +20,15 @@ seed:
 
 deploy:
 	bash scripts/deploy-cloud-run.sh
+
+test:
+	cd server && npm test
+
+lint:
+	cd frontend && npm run lint
+
+health:
+	@curl -sf http://localhost:3001/api/health | head -c 500 && echo ""
 
 verify:
 	@echo "=== Production health ==="

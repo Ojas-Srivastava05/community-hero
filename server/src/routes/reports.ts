@@ -5,15 +5,19 @@ import ngeohash from 'ngeohash'
 import { z } from 'zod'
 import { db, bucket } from '../lib/firebase-admin'
 import { analyzeImage } from '../lib/gemini'
-import { runAgentPipeline } from '../lib/agents'
+import { runAgentPipeline, awardPoints, notifyStatusChange } from '../lib/agents'
 import { requireAuth, type AuthedRequest } from '../middleware/auth'
 import { reportLimit, upvoteLimit } from '../middleware/rateLimit'
 import { deriveWardId, haversineKm, reverseGeocodeServer } from '../lib/geo'
 import { upsertThreadForIssue } from './threads'
-import { CATEGORIES, DEPARTMENTS } from '../types/shared'
+import { CATEGORIES, DEPARTMENTS, type IssueAnalysis } from '../types/shared'
+import { sendError, ErrorCodes, isApiError } from '../lib/errors'
+import { toOpen311Record } from '../lib/open311'
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } })
 export const reportsRouter = Router()
+
+const boolish = z.union([z.boolean(), z.string().transform((s) => s === 'true' || s === '1')])
 
 const createSchema = z.object({
   title: z.string().min(3),
@@ -24,18 +28,58 @@ const createSchema = z.object({
   lng: z.coerce.number(),
   address: z.string().optional(),
   mergeIntoId: z.string().optional(),
+  confidence: z.coerce.number().min(0).max(1).optional(),
+  safety_risk: boolish.optional(),
+  department: z.string().optional(),
+  ai_analyzed: boolish.optional(),
+  analysis: z.string().optional(),
 })
+
+function parseAnalysisFromBody(
+  data: z.infer<typeof createSchema>,
+  body: Record<string, unknown>,
+): IssueAnalysis {
+  if (data.analysis) {
+    try {
+      return JSON.parse(data.analysis) as IssueAnalysis
+    } catch {
+      /* fall through */
+    }
+  }
+  if (body.analysis && typeof body.analysis === 'object') {
+    return body.analysis as IssueAnalysis
+  }
+  return {
+    category: data.category,
+    severity: data.severity,
+    title: data.title,
+    description: data.description,
+    department: data.department || '',
+    safety_risk: data.safety_risk ?? data.severity >= 4,
+    confidence: data.confidence ?? (data.ai_analyzed ? 0.85 : 0.9),
+  }
+}
+
+function isPublicIssue(issue: { status?: string; aiMetadata?: { needs_review?: boolean } }) {
+  if (issue.status === 'Draft') return false
+  if (issue.aiMetadata?.needs_review) return false
+  return true
+}
 
 reportsRouter.post('/analyze', requireAuth, upload.single('image'), async (req: AuthedRequest, res) => {
   try {
     if (!req.file) {
-      res.status(400).json({ error: 'Image required' })
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'Image required')
       return
     }
     const hint = req.body.hint as string | undefined
     const analysis = await analyzeImage(req.file.buffer, req.file.mimetype, hint)
     res.json({ analysis })
   } catch (e) {
+    if (isApiError(e) && e.code === ErrorCodes.INVALID_MEDIA) {
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, e.message)
+      return
+    }
     res.status(500).json({ error: String(e) })
   }
 })
@@ -52,7 +96,7 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
     if (data.mergeIntoId) {
       const target = await db.collection('issues').doc(data.mergeIntoId).get()
       if (!target.exists) {
-        res.status(404).json({ error: 'Merge target not found' })
+        sendError(res, 404, ErrorCodes.NOT_FOUND, 'Merge target not found')
         return
       }
       const count = (target.data()?.upvoteCount ?? 0) + 1
@@ -63,7 +107,6 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
         payload: { mergedFrom: 'new-report', title: data.title },
         timestamp: new Date().toISOString(),
       })
-      const { awardPoints } = await import('../lib/agents')
       await awardPoints(req.user!.uid, 15, 'merge')
       res.status(201).json({ id: data.mergeIntoId, merged: true, issue: { id: data.mergeIntoId, ...target.data(), upvoteCount: count } })
       return
@@ -123,22 +166,25 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
 
     await db.collection('issues').doc(id).set(issue)
 
-    const analysis = {
-      category: data.category,
-      severity: data.severity,
-      title: data.title,
-      description: data.description,
-      department: '',
-      safety_risk: data.severity >= 4,
-      confidence: 0.9,
+    let analysis = parseAnalysisFromBody(data, req.body as Record<string, unknown>)
+    if (files.length > 0 && data.confidence === undefined && !data.analysis && !data.ai_analyzed) {
+      const vision = await analyzeImage(files[0].buffer, files[0].mimetype, data.description)
+      analysis = {
+        ...vision,
+        title: data.title || vision.title,
+        description: data.description || vision.description,
+        category: data.category || vision.category,
+        severity: data.severity || vision.severity,
+      }
     }
+
     try {
       await runAgentPipeline(id, analysis, data.lat, data.lng, req.user!.uid, geo.wardId)
       await upsertThreadForIssue(id, geohash, data.title, data.category)
     } catch (agentErr) {
       console.error('Agent pipeline failed (report saved):', agentErr)
       await db.collection('issues').doc(id).update({
-        departmentId: DEPARTMENTS[data.category]?.name || 'General Civic',
+        departmentId: analysis.department || DEPARTMENTS[data.category]?.name || 'General Civic',
         updatedAt: new Date().toISOString(),
       })
     }
@@ -146,7 +192,17 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
     const saved = await db.collection('issues').doc(id).get()
     const savedData = saved.data()!
     const dupes = (savedData.aiMetadata as { duplicate_suggestions?: { id: string; title: string }[] })?.duplicate_suggestions
-    res.status(201).json({ id, issue: { id, ...savedData }, duplicateSuggestions: dupes || [] })
+
+    const needsReview = analysis.confidence < 0.6
+    const statusCode = needsReview ? 202 : 201
+    const responseBody: Record<string, unknown> = {
+      id,
+      issue: { id, ...savedData },
+      duplicateSuggestions: dupes || [],
+    }
+    if (needsReview) responseBody.code = ErrorCodes.NEEDS_REVIEW
+
+    res.status(statusCode).json(responseBody)
   } catch (e) {
     res.status(500).json({ error: String(e) })
   }
@@ -159,6 +215,7 @@ reportsRouter.get('/', async (req, res) => {
     const lat = req.query.lat ? Number(req.query.lat) : undefined
     const lng = req.query.lng ? Number(req.query.lng) : undefined
     const radiusKm = req.query.radius_km ? Number(req.query.radius_km) : undefined
+    const includeDraft = req.query.include_draft === '1'
 
     const includeDemo = req.query.include_demo === '1'
     const fetchLimit = lat !== undefined && lng !== undefined ? Math.min(limit * 4, 100) : limit
@@ -172,10 +229,16 @@ reportsRouter.get('/', async (req, res) => {
       lng: number
       isDemo?: boolean
       reporterId?: string
+      status?: string
+      aiMetadata?: { needs_review?: boolean }
     }[]
 
     if (!includeDemo) {
       issues = issues.filter((i) => !i.isDemo && i.reporterId !== 'demo-seed')
+    }
+
+    if (!includeDraft) {
+      issues = issues.filter((i) => isPublicIssue(i))
     }
 
     if (lat !== undefined && lng !== undefined && Number.isFinite(lat) && Number.isFinite(lng)) {
@@ -227,7 +290,7 @@ reportsRouter.get('/:id', async (req, res) => {
   try {
     const doc = await db.collection('issues').doc(req.params.id).get()
     if (!doc.exists) {
-      res.status(404).json({ error: 'Not found' })
+      sendError(res, 404, ErrorCodes.NOT_FOUND, 'Not found')
       return
     }
     const events = await db
@@ -250,7 +313,20 @@ reportsRouter.post('/:id/upvote', requireAuth, upvoteLimit, async (req: AuthedRe
     const id = String(req.params.id)
     const { processUpvote } = await import('../lib/agents')
     const result = await processUpvote(id, req.user!.uid)
-    res.json(result)
+    if (!result.ok) {
+      sendError(
+        res,
+        403,
+        ErrorCodes.FORBIDDEN,
+        'Upvoting requires at least one prior report or an account older than 24 hours.',
+      )
+      return
+    }
+    if (result.already) {
+      res.json({ already: true, count: result.count, verificationLevel: result.verificationLevel })
+      return
+    }
+    res.json({ count: result.count, verificationLevel: result.verificationLevel })
   } catch (e) {
     res.status(500).json({ error: String(e) })
   }
@@ -269,7 +345,7 @@ reportsRouter.post('/:id/merge', requireAuth, async (req: AuthedRequest, res) =>
       db.collection('issues').doc(targetId).get(),
     ])
     if (!source.exists || !target.exists) {
-      res.status(404).json({ error: 'Issue not found' })
+      sendError(res, 404, ErrorCodes.NOT_FOUND, 'Issue not found')
       return
     }
     const count = (target.data()?.upvoteCount ?? 0) + (source.data()?.upvoteCount ?? 0) + 1
@@ -281,9 +357,24 @@ reportsRouter.post('/:id/merge', requireAuth, async (req: AuthedRequest, res) =>
       payload: { sourceId },
       timestamp: new Date().toISOString(),
     })
-    const { awardPoints } = await import('../lib/agents')
     await awardPoints(req.user!.uid, 15, 'merge')
     res.json({ ok: true, targetId, upvoteCount: count })
+  } catch (e) {
+    res.status(500).json({ error: String(e) })
+  }
+})
+
+reportsRouter.post('/:id/open311/export', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const doc = await db.collection('issues').doc(String(req.params.id)).get()
+    if (!doc.exists) {
+      sendError(res, 404, ErrorCodes.NOT_FOUND, 'Issue not found')
+      return
+    }
+    const record = toOpen311Record(doc.id, doc.data()!)
+    res.setHeader('Content-Type', 'application/json')
+    res.setHeader('Content-Disposition', `attachment; filename=open311-${doc.id}.json`)
+    res.json(record)
   } catch (e) {
     res.status(500).json({ error: String(e) })
   }
@@ -294,7 +385,7 @@ reportsRouter.post('/:id/reopen', requireAuth, async (req: AuthedRequest, res) =
     const id = String(req.params.id)
     const doc = await db.collection('issues').doc(id).get()
     if (!doc.exists) {
-      res.status(404).json({ error: 'Not found' })
+      sendError(res, 404, ErrorCodes.NOT_FOUND, 'Not found')
       return
     }
     const data = doc.data()!
@@ -302,7 +393,7 @@ reportsRouter.post('/:id/reopen', requireAuth, async (req: AuthedRequest, res) =
     const isReporter = data.reporterId === req.user!.uid
     const isAdmin = req.user!.email && admins.includes(req.user!.email)
     if (!isReporter && !isAdmin) {
-      res.status(403).json({ error: 'Forbidden' })
+      sendError(res, 403, ErrorCodes.FORBIDDEN, 'Forbidden')
       return
     }
     if (!['Resolved', 'Closed'].includes(data.status)) {
@@ -322,27 +413,46 @@ reportsRouter.post('/:id/reopen', requireAuth, async (req: AuthedRequest, res) =
   }
 })
 
-reportsRouter.patch('/:id/status', requireAuth, upload.single('proof'), async (req: AuthedRequest, res) => {
+reportsRouter.patch('/:id/status', requireAuth, (req, res, next) => {
+  upload.single('proof')(req, res, (err) => {
+    if (err) {
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, err.message || 'Invalid proof upload')
+      return
+    }
+    next()
+  })
+}, async (req: AuthedRequest, res) => {
   try {
     const id = String(req.params.id)
-    const { status } = req.body
+    const status = typeof req.body?.status === 'string' ? req.body.status.trim() : ''
+    if (!status) {
+      res.status(400).json({ error: 'status field required' })
+      return
+    }
     const admins = (process.env.ADMIN_UIDS || '').split(',')
     const adminEmails = (process.env.ADMIN_EMAILS || 'srivastavaojas454@gmail.com').split(',')
     const isAdmin =
       admins.includes(req.user!.uid) ||
       (req.user!.email && adminEmails.includes(req.user!.email))
     if (!isAdmin) {
-      res.status(403).json({ error: 'Forbidden' })
+      sendError(res, 403, ErrorCodes.FORBIDDEN, 'Forbidden')
       return
     }
+
+    const issueDoc = await db.collection('issues').doc(id).get()
+    if (!issueDoc.exists) {
+      sendError(res, 404, ErrorCodes.NOT_FOUND, 'Not found')
+      return
+    }
+    const issueData = issueDoc.data()!
+
     const updates: Record<string, unknown> = {
       status,
       updatedAt: new Date().toISOString(),
     }
     if (status === 'Resolved' || status === 'Closed') {
       updates.resolvedAt = new Date().toISOString()
-      const issue = await db.collection('issues').doc(id).get()
-      const reporterId = issue.data()?.reporterId
+      const reporterId = issueData.reporterId
       if (reporterId) {
         const { awardPoints } = await import('../lib/agents')
         await awardPoints(reporterId, 25, 'resolved')
@@ -377,6 +487,11 @@ reportsRouter.patch('/:id/status', requireAuth, upload.single('proof'), async (r
       payload: { status, hasProof: !!req.file },
       timestamp: new Date().toISOString(),
     })
+
+    if (issueData.reporterId && issueData.status !== status) {
+      await notifyStatusChange(id, issueData.reporterId, status, issueData.title || 'Your report')
+    }
+
     res.json({ ok: true })
   } catch (e) {
     res.status(500).json({ error: String(e) })

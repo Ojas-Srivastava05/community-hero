@@ -64,6 +64,19 @@ export type Issue = {
   isDemo?: boolean
 }
 
+/** Appendix M — Open311 GeoReport v2 service codes */
+export const OPEN311_SERVICE_CODES: Record<Category, string> = {
+  pothole: '001',
+  road_damage: '002',
+  water_leak: '010',
+  drainage: '011',
+  streetlight: '020',
+  waste: '030',
+  signage: '040',
+  encroachment: '050',
+  other: '099',
+}
+
 export const DEPARTMENTS: Record<Category, { name: string; slaHours: Record<number, number> }> = {
   pothole: { name: 'Roads & Infrastructure', slaHours: { 1: 168, 2: 120, 3: 96, 4: 72, 5: 48 } },
   water_leak: { name: 'Water Board', slaHours: { 1: 120, 2: 96, 3: 72, 4: 48, 5: 24 } },

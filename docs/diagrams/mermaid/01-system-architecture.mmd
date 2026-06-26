@@ -1,0 +1,29 @@
+flowchart TB
+  subgraph client["Client (React PWA)"]
+    UI[Civic Glass UI]
+    Auth[Firebase Auth SDK]
+    Maps[Google Maps JS]
+  end
+
+  subgraph cloudrun["Cloud Run — community-hero"]
+    API[Express API :8080]
+    Agents[Agent Pipeline]
+    Gemini[Gemini Client]
+  end
+
+  subgraph firebase["Firebase — community-hero-vibe2ship"]
+    FS[(Firestore)]
+    ST[(Cloud Storage)]
+    FAuth[Firebase Auth]
+  end
+
+  UI -->|REST /api/*| API
+  Auth -->|ID token Bearer| API
+  Auth --> FAuth
+  Maps -->|tiles| MapsAPI[Google Maps API]
+
+  API --> Agents
+  Agents --> Gemini
+  API --> FS
+  API --> ST
+  API --> FAuth

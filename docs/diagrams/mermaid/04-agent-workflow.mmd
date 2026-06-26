@@ -1,0 +1,39 @@
+flowchart TB
+  START([New report saved to Firestore]) --> INTAKE
+
+  subgraph agents["6-Agent Pipeline — server/src/lib/agents.ts"]
+    INTAKE[Intake Agent<br/>geohash + wardId + status Submitted]
+    VISION[Vision Agent<br/>Gemini image classify<br/>category, severity, confidence]
+    ROUTING[Routing Agent<br/>category → DEPARTMENTS map]
+    SLA[SLA Agent<br/>severity-tiered slaDeadline]
+    DEDUP[Dedup Agent<br/>geohash range query<br/>same-category neighbors]
+    PRIORITY[Priority Agent<br/>computePriorityScore<br/>severity + safety + age]
+  end
+
+  INTAKE --> VISION
+  VISION --> ROUTING
+  ROUTING --> SLA
+  SLA --> DEDUP
+  DEDUP --> PRIORITY
+
+  VISION --> CONF{confidence<br/>&lt; 0.6?}
+  CONF -->|yes| REVIEW[Set status Draft<br/>aiMetadata.needs_review]
+  CONF -->|no| ROUTING
+
+  DEDUP --> DUPES{duplicates<br/>found?}
+  DUPES -->|yes| SUGGEST[aiMetadata.duplicate_suggestions]
+  DUPES -->|no| PRIORITY
+  SUGGEST --> PRIORITY
+
+  PRIORITY --> WRITE[Update issues doc<br/>+ events subcollection]
+  WRITE --> POINTS[Gamification Agent<br/>awardPoints +10 report]
+  REVIEW --> WRITE
+
+  subgraph post["Post-submit agents"]
+    UPVOTE[Verification Agent<br/>processUpvote tiers 1/2/3]
+    NOTIFY[Notify Agent<br/>status_change notifications]
+  end
+
+  WRITE --> DONE([Issue ready on map])
+  DONE -.-> UPVOTE
+  DONE -.-> NOTIFY

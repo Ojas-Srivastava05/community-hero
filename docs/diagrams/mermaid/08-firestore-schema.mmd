@@ -1,0 +1,85 @@
+erDiagram
+  users ||--o{ issues : reports
+  users ||--o{ notifications : receives
+  issues ||--o{ events : timeline
+  issues ||--o{ votes : upvotes
+  issues }o--o| threads : clustered_by_geohash
+
+  users {
+    string uid PK
+    string displayName
+    string email
+    string photoURL
+    number civicPoints
+    string[] badges
+    string createdAt
+    string updatedAt
+  }
+
+  issues {
+    string id PK
+    string title
+    string description
+    string category
+    number severity
+    string status
+    number lat
+    number lng
+    string geohash
+    string wardId
+    string address
+    string reporterId FK
+    string departmentId
+    number upvoteCount
+    number verificationLevel
+    number priorityScore
+    string slaDeadline
+    string[] imageUrls
+    string proofImageUrl
+    object aiMetadata
+    string mergedInto
+    boolean isDemo
+    string createdAt
+    string updatedAt
+    string resolvedAt
+  }
+
+  events {
+    string id PK
+    string type
+    string actorId
+    object payload
+    string timestamp
+  }
+
+  votes {
+    string uid PK
+    string createdAt
+  }
+
+  threads {
+    string id PK
+    string title
+    string summary
+    string[] issueIds
+    number count
+    string geohashPrefix
+    string updatedAt
+  }
+
+  notifications {
+    string id PK
+    string userId FK
+    string issueId
+    string type
+    string title
+    string body
+    boolean read
+    string createdAt
+  }
+
+  health_checks {
+    string id PK
+    string status
+    string timestamp
+  }

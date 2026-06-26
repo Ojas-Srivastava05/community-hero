@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { GlassCard } from '@/components/civic/GlassCard'
+import { fadeUp, stagger } from '../lib/motion'
 
 const RULES = [
   { action: 'Submit a report', points: '+10' },
@@ -14,32 +16,39 @@ export function TermsPage() {
   return (
     <AppShell>
       <PageHeader title="Terms & points" subtitle="How Community Hero works" />
-      <div className="space-y-4 px-5 pt-4">
-        <GlassCard>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Community Hero is a location-based civic reporting app. Reports use your device GPS and reverse geocoding — not a fixed city.
-            You can report issues anywhere the app is available.
-          </p>
-        </GlassCard>
-        <GlassCard>
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Civic points</p>
-          <ul className="mt-3 space-y-2">
-            {RULES.map((r) => (
-              <li key={r.action} className="flex items-center justify-between text-sm">
-                <span>{r.action}</span>
-                <span className="font-bold text-teal">{r.points}</span>
-              </li>
-            ))}
-          </ul>
-        </GlassCard>
-        <GlassCard>
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Privacy</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Location is used only to attach reports to real coordinates and show nearby issues. Photos may be analyzed by AI for category and severity.
-          </p>
-        </GlassCard>
-        <Link to="/" className="block py-4 text-center text-sm font-semibold text-teal">Back to home</Link>
-      </div>
+      <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-4 px-5 pt-4">
+        <motion.div variants={fadeUp}>
+          <GlassCard>
+            <p className="text-sm leading-relaxed text-ink-muted">
+              Community Hero is a location-based civic reporting app. Reports use your device GPS and reverse geocoding — not a fixed city.
+              You can report issues anywhere the app is available.
+            </p>
+          </GlassCard>
+        </motion.div>
+        <motion.div variants={fadeUp}>
+          <GlassCard>
+            <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">Civic points</p>
+            <ul className="mt-3 space-y-2">
+              {RULES.map((r) => (
+                <li key={r.action} className="flex items-center justify-between text-sm text-ink">
+                  <span>{r.action}</span>
+                  <span className="font-bold text-coral">{r.points}</span>
+                </li>
+              ))}
+            </ul>
+          </GlassCard>
+        </motion.div>
+        <motion.div variants={fadeUp}>
+          <GlassCard>
+            <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">Privacy</p>
+            <p className="mt-2 text-sm text-ink-muted">
+              Location is used only to attach reports to real coordinates and show nearby issues. Photos may be analyzed by AI for category and severity.
+            </p>
+            <Link to="/privacy" className="mt-3 inline-block text-sm font-bold text-coral">Read full privacy policy</Link>
+          </GlassCard>
+        </motion.div>
+        <Link to="/" className="block py-4 text-center text-sm font-semibold text-coral">Back to home</Link>
+      </motion.div>
     </AppShell>
   )
 }

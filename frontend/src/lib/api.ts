@@ -2,6 +2,17 @@ import type { Issue, IssueAnalysis } from '../../../shared/types'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
+function redirectToWaiting(retryAfterHeader: string | null) {
+  if (typeof window === 'undefined' || window.location.pathname.startsWith('/waiting')) return
+  let retry = 30
+  if (retryAfterHeader) {
+    const parsed = parseInt(retryAfterHeader, 10)
+    if (!Number.isNaN(parsed)) retry = Math.max(5, parsed)
+  }
+  const returnTo = encodeURIComponent(window.location.pathname + window.location.search)
+  window.location.assign(`/waiting?retry=${retry}&return=${returnTo}`)
+}
+
 async function apiFetch(path: string, init?: RequestInit, retries = 3): Promise<Response> {
   const url = path.startsWith('http') ? path : `${API_BASE}${path}`
   let lastError: unknown
@@ -9,6 +20,10 @@ async function apiFetch(path: string, init?: RequestInit, retries = 3): Promise<
     try {
       const res = await fetch(url, init)
       if (res.ok) return res
+      if (res.status === 429) {
+        redirectToWaiting(res.headers.get('Retry-After'))
+        throw new Error('Rate limited — please wait a moment')
+      }
       if (res.status < 500) return res
       const body = await res.text().catch(() => '')
       lastError = new Error(body || `HTTP ${res.status}`)
@@ -67,6 +82,9 @@ export async function apiCreateReport(
     lng: number
     address?: string
     mergeIntoId?: string
+    confidence?: number
+    safety_risk?: boolean
+    department?: string
   },
   images: File[],
   token: string,
@@ -87,13 +105,14 @@ export async function apiCreateReport(
 
 export async function apiListIssues(
   limit = 50,
-  opts?: { lat?: number; lng?: number; radiusKm?: number; status?: string },
+  opts?: { lat?: number; lng?: number; radiusKm?: number; status?: string; includeDemo?: boolean },
 ): Promise<{ issues: Issue[] }> {
   const q = new URLSearchParams({ limit: String(limit) })
   if (opts?.lat !== undefined) q.set('lat', String(opts.lat))
   if (opts?.lng !== undefined) q.set('lng', String(opts.lng))
   if (opts?.radiusKm !== undefined) q.set('radius_km', String(opts.radiusKm))
   if (opts?.status) q.set('status', opts.status)
+  if (opts?.includeDemo) q.set('include_demo', '1')
   const res = await apiFetch(`/api/reports?${q}`)
   if (!res.ok) await parseApiError(res)
   return res.json()
@@ -164,9 +183,49 @@ export async function apiAnalyticsSummary() {
   return res.json()
 }
 
-export async function apiHotspots(wardId?: string) {
+export async function apiHotspots(wardId?: string): Promise<{
+  hotspots: {
+    geohash: string
+    count: number
+    recent: number
+    lat: number
+    lng: number
+    severity: number
+    score: number
+    predictive?: boolean
+  }[]
+}> {
   const q = wardId ? `?ward_id=${encodeURIComponent(wardId)}` : ''
   const res = await apiFetch(`/api/analytics/hotspots${q}`)
+  if (!res.ok) await parseApiError(res)
+  return res.json()
+}
+
+export async function apiTrends(wardId?: string): Promise<{
+  narrative?: string
+  avgResolutionHours?: number
+  byCategory?: Record<string, number>
+  daily?: { date: string; open: number; resolved: number }[]
+}> {
+  const q = wardId ? `?ward_id=${encodeURIComponent(wardId)}` : ''
+  const res = await apiFetch(`/api/analytics/trends${q}`)
+  if (!res.ok) await parseApiError(res)
+  return res.json()
+}
+
+export async function apiDepartments(): Promise<{
+  departments: { id: string; name: string; categories?: string[]; slaHoursBySeverity?: Record<number, number> }[]
+}> {
+  const res = await apiFetch('/api/departments')
+  if (!res.ok) await parseApiError(res)
+  return res.json()
+}
+
+export async function apiExportOpen311Single(id: string, token: string) {
+  const res = await apiFetch(`/api/open311/export/${id}`, {
+    method: 'POST',
+    headers: await authHeaders(token),
+  })
   if (!res.ok) await parseApiError(res)
   return res.json()
 }
@@ -205,11 +264,31 @@ export async function apiReverseGeocode(lat: number, lng: number) {
   return res.json()
 }
 
-export async function apiGetProfile(token: string) {
+export type UserProfile = {
+  id?: string
+  civicPoints?: number
+  badges?: string[]
+  leaderboardOptIn?: boolean
+  displayName?: string
+  email?: string
+  photoURL?: string
+}
+
+export async function apiGetProfile(token: string): Promise<UserProfile | null> {
   const res = await apiFetch('/api/users/me', { headers: await authHeaders(token) })
   if (!res.ok) return null
   const data = await res.json()
-  return data.user as { civicPoints?: number; badges?: string[] } | null
+  return data.user as UserProfile | null
+}
+
+export async function apiUpdateProfile(token: string, patch: { leaderboardOptIn?: boolean }) {
+  const res = await apiFetch('/api/users/me', {
+    method: 'PATCH',
+    headers: { ...(await authHeaders(token)), 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
+  if (!res.ok) await parseApiError(res)
+  return res.json() as Promise<{ ok: boolean; leaderboardOptIn?: boolean }>
 }
 
 export async function apiEnsureUser(token: string, profile: { displayName?: string; email?: string; photoURL?: string }) {

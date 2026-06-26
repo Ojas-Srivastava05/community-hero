@@ -8,7 +8,10 @@
     "dev:frontend": "npm run dev --prefix frontend",
     "dev:server": "npm run dev --prefix server",
     "build": "npm run build --prefix frontend",
-    "preview": "npm run preview --prefix frontend"
+    "preview": "npm run preview --prefix frontend",
+    "test": "npm test --prefix server",
+    "lint": "npm run lint --prefix frontend",
+    "build:server": "npm run build --prefix server"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

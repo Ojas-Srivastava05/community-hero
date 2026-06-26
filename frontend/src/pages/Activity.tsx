@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowUp, Check, FilePlus, Loader2 } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { ArrowUp, Check, FilePlus, Loader2, MessageSquare } from 'lucide-react'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { apiListIssues } from '../lib/api'
 import { useLocation } from '../lib/location'
 import { haversineKm } from '../lib/geo'
+import { fadeUp, stagger } from '../lib/motion'
 import { issueArea, issueReportedAt } from '@/lib/issue-ui'
 import type { Issue } from '../../../shared/types'
 
@@ -60,10 +62,10 @@ export function ActivityPage() {
 
         {loading ? (
           <div className="flex justify-center py-12">
-            <Loader2 className="size-6 animate-spin text-teal" />
+            <Loader2 className="size-6 animate-spin text-coral" />
           </div>
         ) : filtered.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
+          <p className="py-8 text-center text-sm text-ink-muted">
             {tab === 'resolved'
               ? 'No resolved issues near you yet.'
               : tab === 'ward'
@@ -73,30 +75,47 @@ export function ActivityPage() {
                   : 'Enable location to see nearby activity, or report an issue to get started.'}
           </p>
         ) : (
-          <ol className="relative space-y-3 border-l border-glass-border pl-4">
+          <motion.ol
+            variants={stagger}
+            initial="hidden"
+            animate="show"
+            className="relative space-y-3 border-l border-rule pl-4"
+          >
             {filtered.map((issue) => {
               const Icon = issue.status === 'Resolved' || issue.status === 'Closed' ? Check : issue.upvoteCount > 5 ? ArrowUp : FilePlus
-              const tone = issue.status === 'Resolved' || issue.status === 'Closed' ? 'text-sev-low bg-sev-low/15' : 'text-teal bg-teal/15'
-              const action = issue.status === 'Resolved' || issue.status === 'Closed' ? 'resolved' : 'reported'
+              const resolved = issue.status === 'Resolved' || issue.status === 'Closed'
+              const tone = resolved ? 'text-leaf bg-leaf-soft' : 'text-coral bg-coral-soft'
+              const action = resolved ? 'resolved' : 'reported'
+              const threadId = issue.geohash ? `thread-${issue.geohash.slice(0, 5)}` : null
               return (
-                <li key={issue.id} className="relative">
-                  <span className={`absolute -left-[1.4rem] grid size-7 place-items-center rounded-full border border-glass-border ${tone}`}>
+                <motion.li key={issue.id} variants={fadeUp} className="relative">
+                  <span className={`absolute -left-[1.4rem] grid size-7 place-items-center rounded-full border border-rule ${tone}`}>
                     <Icon className="size-3.5" />
                   </span>
-                  <Link to={`/issues/${issue.id}`} className="glass block px-4 py-3">
-                    <p className="text-sm">
-                      <b>Community</b>{' '}
-                      <span className="text-muted-foreground">{action}</span>{' '}
-                      <b className="text-teal">{issue.title}</b>
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      {issueArea(issue)} · {issueReportedAt(issue)} · {issue.upvoteCount} boosts
-                    </p>
-                  </Link>
-                </li>
+                  <div className="paper px-4 py-3 transition-transform active:scale-[0.99]">
+                    <Link to={`/issues/${issue.id}`} className="block">
+                      <p className="text-sm text-ink">
+                        <span className="font-bold">Community</span>{' '}
+                        <span className="text-ink-muted">{action}</span>{' '}
+                        <span className="font-semibold text-coral">{issue.title}</span>
+                      </p>
+                      <p className="mt-0.5 text-[11px] font-semibold text-ink-muted">
+                        {issueArea(issue)} · {issueReportedAt(issue)} · {issue.upvoteCount} boosts
+                      </p>
+                    </Link>
+                    {threadId && (
+                      <Link
+                        to={`/threads/${threadId}`}
+                        className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-indigo"
+                      >
+                        <MessageSquare className="size-3" /> View thread cluster
+                      </Link>
+                    )}
+                  </div>
+                </motion.li>
               )
             })}
-          </ol>
+          </motion.ol>
         )}
       </div>
     </AppShell>
@@ -108,7 +127,7 @@ function Tab({ children, active, onClick }: { children: React.ReactNode; active?
     <button
       type="button"
       onClick={onClick}
-      className={`chip whitespace-nowrap ${active ? 'bg-teal/15 text-teal border-teal/40' : ''}`}
+      className={`chip whitespace-nowrap ${active ? 'bg-coral-soft text-coral border-coral/30' : ''}`}
     >
       {children}
     </button>

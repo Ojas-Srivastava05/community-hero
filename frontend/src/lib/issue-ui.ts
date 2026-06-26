@@ -18,10 +18,10 @@ export function severityLabel(s: Severity) {
 
 export function severityClass(s: Severity) {
   return {
-    low: 'bg-sev-low/15 text-sev-low border-sev-low/30',
-    med: 'bg-sev-med/15 text-sev-med border-sev-med/30',
-    high: 'bg-sev-high/15 text-sev-high border-sev-high/30',
-    critical: 'bg-sev-critical/15 text-sev-critical border-sev-critical/40',
+    low: 'bg-leaf-soft text-leaf border-leaf/30',
+    med: 'bg-amber-soft text-amber border-amber/40',
+    high: 'bg-coral-soft text-coral border-coral/30',
+    critical: 'bg-[oklch(0.94_0.06_25)] text-[oklch(0.5_0.22_25)] border-[oklch(0.5_0.22_25/0.35)]',
   }[s]
 }
 

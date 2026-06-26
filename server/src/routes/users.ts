@@ -21,12 +21,29 @@ usersRouter.post('/me', requireAuth, async (req: AuthedRequest, res) => {
         photoURL: photoURL || '',
         civicPoints: existing.data()?.civicPoints ?? 0,
         badges: existing.data()?.badges ?? [],
+        leaderboardOptIn: existing.data()?.leaderboardOptIn ?? false,
         updatedAt: now,
         createdAt: existing.data()?.createdAt ?? now,
       },
       { merge: true },
     )
     res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: String(e) })
+  }
+})
+
+usersRouter.patch('/me', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const { leaderboardOptIn } = req.body as { leaderboardOptIn?: boolean }
+    if (typeof leaderboardOptIn !== 'boolean') {
+      res.status(400).json({ error: 'leaderboardOptIn must be a boolean' })
+      return
+    }
+    const ref = db.collection('users').doc(req.user!.uid)
+    const now = new Date().toISOString()
+    await ref.set({ leaderboardOptIn, updatedAt: now }, { merge: true })
+    res.json({ ok: true, leaderboardOptIn })
   } catch (e) {
     res.status(500).json({ error: String(e) })
   }

@@ -83,6 +83,10 @@ code=$(http_code "$URL/dashboard")
 [ "$code" = "200" ] && check "8" "Dashboard route" "PASS" || check "8" "Dashboard route" "HTTP $code"
 open=$(json_field "$URL/api/analytics/summary" "['open']" 2>/dev/null || echo -1)
 [ "${open:-0}" -ge 0 ] 2>/dev/null && check "8" "Analytics summary API" "PASS" || check "8" "Analytics summary API" "failed"
+code=$(http_code "$URL/api/analytics/trends")
+[ "$code" = "200" ] && check "8" "GET /api/analytics/trends" "PASS" || check "8" "GET /api/analytics/trends" "HTTP $code"
+code=$(http_code "$URL/api/departments")
+[ "$code" = "200" ] && check "8" "GET /api/departments" "PASS" || check "8" "GET /api/departments" "HTTP $code"
 
 # Phase 9 — hotspots
 code=$(http_code "$URL/api/analytics/hotspots")
@@ -103,7 +107,7 @@ code=$(http_code "$URL/api/analytics/export/open311")
 [ "$code" = "200" ] && check "12" "Open311 export" "PASS" || check "12" "Open311 export" "HTTP $code"
 
 # Phase 14 — key routes
-for route in "/activity" "/profile" "/login" "/terms"; do
+for route in "/activity" "/profile" "/login" "/terms" "/privacy" "/admin/analytics"; do
   code=$(http_code "$URL$route")
   [ "$code" = "200" ] && check "14" "Route $route" "PASS" || check "14" "Route $route" "HTTP $code"
 done

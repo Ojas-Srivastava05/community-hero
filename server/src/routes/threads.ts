@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { db } from '../lib/firebase-admin'
+import { generateInsight } from '../lib/gemini'
 
 export const threadsRouter = Router()
 
@@ -34,22 +35,47 @@ threadsRouter.get('/:id', async (req, res) => {
   }
 })
 
+async function buildThreadSummary(category: string, count: number, latestTitle: string): Promise<string> {
+  const label = category.replace(/_/g, ' ')
+  const template = `${count} related ${label} report${count === 1 ? '' : 's'} in this area`
+  if (!process.env.GEMINI_API_KEY) return template
+  try {
+    const text = await generateInsight({
+      category,
+      count,
+      latestTitle,
+      open: count,
+      resolved: 0,
+    })
+    const oneLine = text.split('\n').map((s) => s.trim()).find(Boolean)
+    return oneLine || template
+  } catch {
+    return template
+  }
+}
+
 export async function upsertThreadForIssue(issueId: string, geohash: string, title: string, category: string) {
   const prefix = geohash.slice(0, 5)
   const threadId = `thread-${prefix}`
   const ref = db.collection('threads').doc(threadId)
   const existing = await ref.get()
   const now = new Date().toISOString()
+  let issueIds: string[]
   if (existing.exists) {
-    const issueIds: string[] = existing.data()?.issueIds || []
+    issueIds = existing.data()?.issueIds || []
     if (!issueIds.includes(issueId)) issueIds.push(issueId)
-    await ref.update({ issueIds, updatedAt: now, count: issueIds.length })
+  } else {
+    issueIds = [issueId]
+  }
+  const summary = await buildThreadSummary(category, issueIds.length, title)
+  if (existing.exists) {
+    await ref.update({ issueIds, updatedAt: now, count: issueIds.length, summary })
   } else {
     await ref.set({
       geohash: prefix,
-      title: `${category.replace('_', ' ')} cluster`,
-      summary: `Related ${category} reports in this area`,
-      issueIds: [issueId],
+      title: `${category.replace(/_/g, ' ')} cluster`,
+      summary,
+      issueIds,
       count: 1,
       createdAt: now,
       updatedAt: now,
