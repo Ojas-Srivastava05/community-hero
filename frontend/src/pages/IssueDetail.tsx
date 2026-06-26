@@ -6,7 +6,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { GlassCard, Chip } from '@/components/civic/GlassCard'
 import { SeverityBadge } from '@/components/civic/SeverityBadge'
 import { useAuth } from '../lib/auth'
-import { apiGetIssue, apiReopenIssue, apiUpvote } from '../lib/api'
+import { apiGetIssue, apiGetIssueVoteStatus, apiReopenIssue, apiUpvote } from '../lib/api'
 import { apiSeverityToUi, categoryLabel, issueArea, issueImage, issueReportedAt, slaHoursLeft } from '@/lib/issue-ui'
 import { cn } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
@@ -29,13 +29,31 @@ export function IssueDetailPage() {
     }).catch(() => {})
   }, [id])
 
+  useEffect(() => {
+    if (!user || !id) {
+      setVoted(false)
+      return
+    }
+    user.getIdToken().then((token) => apiGetIssueVoteStatus(id, token))
+      .then((r) => setVoted(r.voted))
+      .catch(() => setVoted(false))
+  }, [user, id])
+
   const boost = async () => {
-    if (!user || !id) return
+    if (!user || !id || voted) return
     try {
       const token = await user.getIdToken()
       const r = await apiUpvote(id, token)
+      if (r.already) {
+        setVoted(true)
+        return
+      }
       setUpvotes(r.count ?? upvotes + 1)
       setVoted(true)
+      setEvents((prev) => [
+        ...prev,
+        { type: 'upvote', timestamp: new Date().toISOString() },
+      ])
     } catch {
       /* ignore */
     }
@@ -83,7 +101,7 @@ export function IssueDetailPage() {
         </div>
       </div>
 
-      <div className="space-y-5 px-5 pt-5">
+      <div className="space-y-5 px-5 pt-5 pb-40">
         <div className="flex flex-wrap items-center gap-2">
           <Chip tone="teal">#{issue.id.slice(0, 8)}</Chip>
           <Chip>{categoryLabel(issue.category)}</Chip>
@@ -132,15 +150,16 @@ export function IssueDetailPage() {
           ) : (
             <button
               type="button"
-              disabled={!user}
+              disabled={!user || voted}
               onClick={boost}
               className={cn(
                 'flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition-colors',
                 voted ? 'bg-teal text-primary-foreground teal-glow' : 'bg-glass text-foreground',
+                !user && 'opacity-60',
               )}
             >
               <motion.span animate={{ y: voted ? -2 : 0 }}><ArrowUp className="size-4" /></motion.span>
-              Boost · {upvotes}
+              {!user ? 'Sign in to boost' : voted ? `Boosted · ${upvotes}` : `Boost · ${upvotes}`}
             </button>
           )}
         </div>

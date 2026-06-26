@@ -160,10 +160,23 @@ reportsRouter.get('/', async (req, res) => {
     const lng = req.query.lng ? Number(req.query.lng) : undefined
     const radiusKm = req.query.radius_km ? Number(req.query.radius_km) : undefined
 
-    let q = db.collection('issues').orderBy('createdAt', 'desc').limit(limit)
-    if (status) q = db.collection('issues').where('status', '==', status).orderBy('createdAt', 'desc').limit(limit)
+    const includeDemo = req.query.include_demo === '1'
+    const fetchLimit = lat !== undefined && lng !== undefined ? Math.min(limit * 4, 100) : limit
+
+    let q = db.collection('issues').orderBy('createdAt', 'desc').limit(fetchLimit)
+    if (status) q = db.collection('issues').where('status', '==', status).orderBy('createdAt', 'desc').limit(fetchLimit)
     const snap = await q.get()
-    let issues = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as { id: string; lat: number; lng: number }[]
+    let issues = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as {
+      id: string
+      lat: number
+      lng: number
+      isDemo?: boolean
+      reporterId?: string
+    }[]
+
+    if (!includeDemo) {
+      issues = issues.filter((i) => !i.isDemo && i.reporterId !== 'demo-seed')
+    }
 
     if (lat !== undefined && lng !== undefined && Number.isFinite(lat) && Number.isFinite(lng)) {
       const radius = radiusKm && Number.isFinite(radiusKm) ? radiusKm : 25
@@ -173,6 +186,8 @@ reportsRouter.get('/', async (req, res) => {
         .sort((a, b) => a._dist - b._dist)
         .map(({ _dist, ...rest }) => rest)
     }
+
+    issues = issues.slice(0, limit)
 
     res.json({ issues })
   } catch (e) {
@@ -189,6 +204,20 @@ reportsRouter.get('/mine', requireAuth, async (req: AuthedRequest, res) => {
       .limit(50)
       .get()
     res.json({ issues: snap.docs.map((d) => ({ id: d.id, ...d.data() })) })
+  } catch (e) {
+    res.status(500).json({ error: String(e) })
+  }
+})
+
+reportsRouter.get('/:id/vote', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const vote = await db
+      .collection('issues')
+      .doc(String(req.params.id))
+      .collection('votes')
+      .doc(req.user!.uid)
+      .get()
+    res.json({ voted: vote.exists })
   } catch (e) {
     res.status(500).json({ error: String(e) })
   }

@@ -36,9 +36,7 @@ export async function chatWithTools(
   messages: { role: string; content: string }[],
   toolHandler: (name: string, args: Record<string, unknown>) => Promise<unknown>,
 ): Promise<string> {
-  if (!genAI) return 'AI assistant requires GEMINI_API_KEY on the server. Try browsing the map or my reports instead.'
-
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
+  const model = genAI?.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
   const system = `You are Civic Assistant for Community Hero — a hyperlocal civic reporting app. NEVER invent issue data. Use tools for facts. Be concise.`
   const last = messages[messages.length - 1]?.content?.toLowerCase() || ''
 
@@ -69,11 +67,23 @@ export async function chatWithTools(
     return 'Tap Report in the bottom nav → photograph the issue → AI pre-fills details → confirm location → submit. Takes under 30 seconds.'
   }
 
-  const result = await model.generateContent([
-    system,
-    ...messages.map((m) => `${m.role}: ${m.content}`),
-  ])
-  return result.response.text()
+  if (!model) {
+    return 'AI assistant requires GEMINI_API_KEY on the server. Try asking about issues near me, my reports, or hotspots — those work without full AI.'
+  }
+
+  try {
+    const result = await model.generateContent([
+      system,
+      ...messages.map((m) => `${m.role}: ${m.content}`),
+    ])
+    return result.response.text()
+  } catch (e) {
+    const msg = String(e)
+    if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('depleted')) {
+      return 'Gemini API credits are depleted on this project. Try asking about issues near me, my reports, or hotspots — those still work. Top up at https://ai.studio'
+    }
+    return 'The AI assistant is temporarily unavailable. Try browsing the map or my reports instead.'
+  }
 }
 
 export async function generateInsight(summary: Record<string, unknown>): Promise<string> {

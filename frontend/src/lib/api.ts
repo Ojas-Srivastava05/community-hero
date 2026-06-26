@@ -111,6 +111,12 @@ export async function apiGetIssue(id: string): Promise<{ issue: Issue; events: u
   return res.json()
 }
 
+export async function apiGetIssueVoteStatus(id: string, token: string): Promise<{ voted: boolean }> {
+  const res = await apiFetch(`/api/reports/${id}/vote`, { headers: await authHeaders(token) })
+  if (!res.ok) return { voted: false }
+  return res.json()
+}
+
 export async function apiUpvote(id: string, token: string) {
   const res = await apiFetch(`/api/reports/${id}/upvote`, {
     method: 'POST',
