@@ -1,0 +1,29 @@
+flowchart TB
+  START([POST /api/reports/:id/upvote]) --> AUTH{Authenticated?}
+  AUTH -->|no| E401[401 Unauthorized]
+  AUTH -->|yes| RATE{Rate limit OK?}
+  RATE -->|no| E429[429 Retry-After]
+  RATE -->|yes| ELIG{canUserUpvote?}
+  ELIG -->|no| E403[403 — account too new<br/>and no prior report]
+  ELIG -->|yes| VOTED{Already voted?}
+  VOTED -->|yes| IDEM[200 idempotent — same count]
+  VOTED -->|no| INC[Increment upvoteCount]
+
+  INC --> T1{count ≥ 1?}
+  T1 -->|yes| L1[verificationLevel = 1]
+  T1 --> INC2[count +1]
+
+  INC --> T3{count ≥ 3?}
+  T3 -->|yes| L2[verificationLevel = 2<br/>status → Community Verified]
+  T3 --> L1
+
+  INC --> T10{count ≥ 10?}
+  T10 -->|yes| L3[verificationLevel = 3<br/>Neighborhood Voice badge]
+  T10 --> L2
+
+  L1 --> PRIO[Recompute priorityScore]
+  L2 --> PRIO
+  L3 --> PRIO
+  PRIO --> EVT[Add events/upvote]
+  EVT --> PTS[+5 pts voter<br/>+15 pts reporter at tier 3]
+  PTS --> OK["200 OK — count + verificationLevel"]

@@ -1,0 +1,37 @@
+flowchart TB
+  START([User opens /report]) --> AUTH{Signed in?}
+  AUTH -->|no| LOGIN[Redirect /login]
+  LOGIN --> STEP1
+  AUTH -->|yes| STEP1
+
+  subgraph step1["Step 1 — Capture"]
+    STEP1[Photo or gallery upload]
+    STEP1 --> COMPRESS[Compress WebP max 1280px]
+    COMPRESS --> GPS{GPS available?}
+    GPS -->|yes| LOC[Auto lat/lng + reverse geocode]
+    GPS -->|no| PIN[Manual pin on map]
+    PIN --> LOC
+  end
+
+  subgraph step2["Step 2 — AI analyze"]
+    LOC --> ANALYZE[POST /api/reports/analyze]
+    ANALYZE --> GEMINI[Gemini 2.0 Flash structured JSON]
+    GEMINI --> VALID{Valid civic image?}
+    VALID -->|no| INVALID[InvalidMediaCard — retake]
+    INVALID --> STEP1
+    VALID -->|yes| PREFILL[Prefill title, category, severity]
+    PREFILL --> CONF{confidence ≥ 0.6?}
+    CONF -->|no| WARN[Needs review badge]
+    CONF -->|yes| OK[High confidence chip]
+  end
+
+  subgraph step3["Step 3 — Confirm & submit"]
+    WARN --> EDIT[User edits fields]
+    OK --> EDIT
+    EDIT --> DUPES{Duplicate suggestions?}
+    DUPES -->|yes| MERGE[Offer merge into existing]
+    DUPES -->|no| POST[POST /api/reports]
+    MERGE --> POST
+    POST --> AGENTS[Agent pipeline]
+    AGENTS --> SUCCESS[201 Created → /issues/:id]
+  end

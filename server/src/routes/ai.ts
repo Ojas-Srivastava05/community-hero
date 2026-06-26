@@ -1,11 +1,12 @@
 import { Router } from 'express'
+import { sendError, ErrorCodes, sendServerError } from '../lib/errors'
 import { z } from 'zod'
 import { db } from '../lib/firebase-admin'
 import { chatWithTools } from '../lib/gemini'
 import { requireAuth, type AuthedRequest } from '../middleware/auth'
 import { chatLimit } from '../middleware/rateLimit'
 import { haversineKm } from '../lib/geo'
-import { DEPARTMENTS } from '../types/shared'
+import { CATEGORIES, DEPARTMENTS } from '../types/shared'
 
 export const aiRouter = Router()
 
@@ -15,11 +16,43 @@ const chatSchema = z.object({
   lng: z.number().optional(),
 })
 
+function resolveDepartment(departmentId: string) {
+  const key = departmentId.toLowerCase().replace(/\s+/g, '_') as keyof typeof DEPARTMENTS
+  if (DEPARTMENTS[key]) {
+    const dept = DEPARTMENTS[key]
+    return {
+      department_id: key,
+      name: dept.name,
+      sla_hours: dept.slaHours,
+      contact: `${dept.name} helpline (demo)`,
+      categories: [key],
+    }
+  }
+  const match = CATEGORIES.find((c) => DEPARTMENTS[c].name.toLowerCase().includes(departmentId.toLowerCase()))
+  if (match) {
+    const dept = DEPARTMENTS[match]
+    return {
+      department_id: match,
+      name: dept.name,
+      sla_hours: dept.slaHours,
+      contact: `${dept.name} helpline (demo)`,
+      categories: [match],
+    }
+  }
+  return {
+    department_id: 'other',
+    name: DEPARTMENTS.other.name,
+    sla_hours: DEPARTMENTS.other.slaHours,
+    contact: 'General civic helpline (demo)',
+    categories: ['other'],
+  }
+}
+
 aiRouter.post('/chat', requireAuth, chatLimit, async (req: AuthedRequest, res) => {
   try {
     const parsed = chatSchema.safeParse(req.body)
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() })
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'Invalid chat request')
       return
     }
     const { messages, lat, lng } = parsed.data
@@ -34,17 +67,22 @@ aiRouter.post('/chat', requireAuth, chatLimit, async (req: AuthedRequest, res) =
           title: string
           status: string
           category: string
+          wardId?: string
         }[]
-        if (lat && lng) {
+        const searchLat = (args.lat as number) ?? lat
+        const searchLng = (args.lng as number) ?? lng
+        const statusFilter = args.status as string | undefined
+        if (statusFilter) issues = issues.filter((i) => i.status === statusFilter)
+        if (searchLat && searchLng) {
           const radius = (args.radius_km as number) || 5
           issues = issues
-            .map((i) => ({ ...i, dist: haversineKm(lat, lng, i.lat, i.lng) }))
+            .map((i) => ({ ...i, dist: haversineKm(searchLat, searchLng, i.lat, i.lng) }))
             .filter((i) => i.dist <= radius)
             .sort((a, b) => a.dist - b.dist)
-            .slice(0, 8)
+            .slice(0, 10)
             .map(({ dist: _d, ...rest }) => rest)
         } else {
-          issues = issues.slice(0, 8)
+          issues = issues.slice(0, 10)
         }
         return issues
       }
@@ -53,40 +91,51 @@ aiRouter.post('/chat', requireAuth, chatLimit, async (req: AuthedRequest, res) =
         return snap.docs.map((d) => ({ id: d.id, title: d.data().title, status: d.data().status }))
       }
       if (name === 'getIssueById') {
-        const doc = await db.collection('issues').doc(String(args.id)).get()
-        return doc.exists ? { id: doc.id, ...doc.data() } : null
+        const id = String(args.issue_id || args.id || '')
+        const doc = await db.collection('issues').doc(id).get()
+        if (!doc.exists) return { error: 'NOT_FOUND', id }
+        const votes = await doc.ref.collection('votes').count().get()
+        const events = await doc.ref.collection('events').orderBy('timestamp', 'desc').limit(5).get()
+        return {
+          id: doc.id,
+          ...doc.data(),
+          vote_count: votes.data().count,
+          recent_events: events.docs.map((e) => ({ id: e.id, ...e.data() })),
+        }
       }
       if (name === 'searchIssues') {
         const q = String(args.query || '').toLowerCase()
-        const snap = await db.collection('issues').limit(30).get()
-        return snap.docs
+        const wardId = args.ward_id as string | undefined
+        const snap = await db.collection('issues').limit(50).get()
+        const ranked = snap.docs
           .map((d) => ({ id: d.id, ...d.data() }))
           .filter((i) => {
-            const data = i as { title?: string; description?: string; category?: string }
-            return (
-              data.title?.toLowerCase().includes(q) ||
-              data.description?.toLowerCase().includes(q) ||
-              data.category?.toLowerCase().includes(q)
-            )
+            const data = i as { title?: string; description?: string; category?: string; wardId?: string }
+            if (wardId && data.wardId !== wardId) return false
+            if (!q) return true
+            const hay = `${data.title || ''} ${data.description || ''} ${data.category || ''}`.toLowerCase()
+            return hay.includes(q)
           })
-          .slice(0, 8)
+          .slice(0, 10)
+        return ranked
       }
       if (name === 'getHotspots') {
+        const wardFilter = args.ward_id as string | undefined
         const snap = await db.collection('issues').limit(100).get()
         const grid: Record<string, number> = {}
         for (const d of snap.docs) {
-          const gh = (d.data().geohash || '').slice(0, 5)
+          const data = d.data()
+          if (wardFilter && data.wardId !== wardFilter) continue
+          const gh = (data.geohash || '').slice(0, 5)
           if (gh) grid[gh] = (grid[gh] || 0) + 1
         }
         return Object.entries(grid)
-          .map(([geohash, count]) => ({ geohash, count }))
+          .map(([geohash, count]) => ({ geohash, count, risk_score: Math.min(100, count * 12) }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 5)
       }
       if (name === 'getDepartmentInfo') {
-        const cat = String(args.category || 'other')
-        const dept = DEPARTMENTS[cat as keyof typeof DEPARTMENTS]
-        return dept || DEPARTMENTS.other
+        return resolveDepartment(String(args.department_id || 'other'))
       }
       if (name === 'explainStatus') {
         const status = String(args.status || 'Submitted')
@@ -106,6 +155,6 @@ aiRouter.post('/chat', requireAuth, chatLimit, async (req: AuthedRequest, res) =
     const reply = await chatWithTools(messages, toolHandler)
     res.json({ reply })
   } catch (e) {
-    res.status(500).json({ error: String(e) })
+    sendServerError(res, e)
   }
 })

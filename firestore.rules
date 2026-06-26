@@ -10,14 +10,37 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    function userSelfWritableKeys() {
+      return ['displayName', 'leaderboardOptIn', 'email', 'photoURL', 'createdAt', 'updatedAt'];
+    }
+
+    function userGamificationUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny([
+          'civicPoints',
+          'badges',
+          'weeklyPoints',
+          'weeklyPointsWeek',
+          'reportDates',
+          'streakBonusDates',
+          'wardReportCounts',
+          'upvotesGiven',
+        ]);
+    }
+
     match /issues/{issueId} {
+      // Guest / anonymous read — map, issue detail, share links
       allow read: if true;
       allow create: if signedIn()
         && request.resource.data.reporterId == request.auth.uid
         && request.resource.data.keys().hasAll(['title', 'category', 'status', 'createdAt']);
       allow update: if signedIn() && (
         resource.data.reporterId == request.auth.uid
-        || request.auth.token.email in ['srivastavaojas454@gmail.com']
+        || isAdmin()
       );
       allow delete: if false;
 
@@ -35,8 +58,26 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if true;
-      allow create, update: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && !request.resource.data.keys().hasAny([
+          'civicPoints',
+          'badges',
+          'weeklyPoints',
+          'weeklyPointsWeek',
+          'reportDates',
+          'streakBonusDates',
+          'wardReportCounts',
+          'upvotesGiven',
+        ]);
+      allow update: if isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(userSelfWritableKeys())
+        && userGamificationUnchanged();
       allow delete: if false;
+    }
+
+    match /departments/{deptId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     match /threads/{threadId} {

@@ -44,7 +44,8 @@ export function TermsPage() {
             <p className="mt-2 text-sm text-ink-muted">
               Location is used only to attach reports to real coordinates and show nearby issues. Photos may be analyzed by AI for category and severity.
             </p>
-            <Link to="/privacy" className="mt-3 inline-block text-sm font-bold text-coral">Read full privacy policy</Link>
+            <Link to="/gamification-rules" className="mt-3 inline-block text-sm font-bold text-coral">Full gamification rules</Link>
+            <Link to="/privacy" className="mt-2 block text-sm font-semibold text-ink-muted">Privacy policy</Link>
           </GlassCard>
         </motion.div>
         <Link to="/" className="block py-4 text-center text-sm font-semibold text-coral">Back to home</Link>

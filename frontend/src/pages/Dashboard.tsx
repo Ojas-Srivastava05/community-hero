@@ -1,52 +1,45 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Flame, Sparkles, TrendingUp, ArrowRight } from 'lucide-react'
+import { Flame, Sparkles, TrendingUp, ArrowRight, Shield, Wrench } from 'lucide-react'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { GlassCard, SectionHeader } from '@/components/civic/GlassCard'
-import { apiAnalyticsSummary, apiHotspots, apiTrends } from '../lib/api'
+import { CivicMap } from '@/components/civic/CivicMap'
+import { DashboardSkeleton } from '@/components/PageSkeleton'
 import { useLocation } from '../lib/location'
+import { useDashboardStore } from '../stores/useDashboardStore'
 import { fadeUp, stagger } from '../lib/motion'
-
-type Hotspot = {
-  geohash: string
-  count: number
-  recent: number
-  score: number
-  predictive?: boolean
-}
 
 export function DashboardPage() {
   const { location } = useLocation()
-  const [summary, setSummary] = useState<{
-    total: number
-    open: number
-    resolved: number
-    byCategory: Record<string, number>
-    insight?: string
-    avgResolutionHours?: number
-  } | null>(null)
-  const [hotspots, setHotspots] = useState<Hotspot[]>([])
-  const [trends, setTrends] = useState<{
-    narrative?: string
-    avgResolutionHours?: number
-    daily?: { date: string; open: number; resolved: number }[]
-  } | null>(null)
+  const { summary, hotspots, trends, loading, loadAll } = useDashboardStore()
 
   useEffect(() => {
-    Promise.all([
-      apiAnalyticsSummary(),
-      apiHotspots().catch(() => ({ hotspots: [] })),
-      apiTrends().catch(() => null),
-    ])
-      .then(([s, h, t]) => {
-        setSummary(s)
-        setHotspots(h.hotspots ?? [])
-        setTrends(t)
-      })
-      .catch(() => {})
-  }, [location])
+    void loadAll()
+  }, [location, loadAll])
+
+  const categoryTrendRows = useMemo(
+    () =>
+      Object.entries(trends?.categoryTrends ?? {})
+        .map(([category, t]) => ({
+          category,
+          ...t,
+          delta: t.last7 - t.prev7,
+        }))
+        .sort((a, b) => b.last7 - a.last7)
+        .slice(0, 6),
+    [trends?.categoryTrends],
+  )
+
+  if (loading && !summary) {
+    return (
+      <AppShell>
+        <PageHeader title="Civic dashboard" subtitle="Loading…" />
+        <DashboardSkeleton />
+      </AppShell>
+    )
+  }
 
   const avgHours = trends?.avgResolutionHours ?? summary?.avgResolutionHours
   const chartData = summary
@@ -57,6 +50,32 @@ export function DashboardPage() {
     open: d.open,
     resolved: d.resolved,
   })) ?? []
+  const daily30Line = trends?.daily30?.map((d) => ({ label: d.date.slice(5), count: d.count })) ?? []
+  const reportsLine = summary?.reportsPerDay?.map((d) => ({ label: d.date.slice(5), count: d.count })) ?? []
+  const upvotesLine = summary?.upvotesPerDay?.map((d) => ({ label: d.date.slice(5), count: d.count })) ?? []
+  const preventiveZones = trends?.preventiveZones ?? hotspots.filter((h) => h.predictive)
+  const mapHotspots = hotspots
+    .filter((h) => h.lat && h.lng)
+    .map((h) => ({
+      geohash: h.geohash,
+      lat: h.lat!,
+      lng: h.lng!,
+      count: h.count,
+      score: h.score,
+      predictive: h.predictive,
+    }))
+  const mapCenter = location
+    ? { lat: location.lat, lng: location.lng }
+    : mapHotspots[0]
+      ? { lat: mapHotspots[0].lat, lng: mapHotspots[0].lng }
+      : { lat: 20, lng: 0 }
+  const overallSla =
+    summary?.departmentSla && summary.departmentSla.length > 0
+      ? Math.round(
+          summary.departmentSla.reduce((s, d) => s + (d.compliancePct ?? 0), 0) /
+            summary.departmentSla.filter((d) => d.compliancePct !== null).length,
+        )
+      : null
 
   return (
     <AppShell>
@@ -71,8 +90,225 @@ export function DashboardPage() {
           <Kpi label="Open" value={String(summary?.open ?? '—')} delta="active" />
           <Kpi label="Resolved" value={String(summary?.resolved ?? '—')} delta="done" good />
           <Kpi label="Avg resolve" value={avgHours ? `${Math.round(avgHours)}h` : '—'} delta="SLA" good />
+          <Kpi
+            label="SLA breaches"
+            value={String(summary?.slaBreached ?? '—')}
+            delta="open past deadline"
+            good={summary?.slaBreached === 0}
+          />
         </div>
+        {overallSla !== null && !Number.isNaN(overallSla) && (
+          <motion.div variants={fadeUp} className="mt-3 paper flex items-center gap-3 p-4">
+            <div className="grid size-9 place-items-center rounded-lg bg-leaf/15 text-leaf">
+              <Shield className="size-4" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-ink-muted">Dept SLA compliance</p>
+              <p className="display text-xl font-bold text-ink">{overallSla}%</p>
+            </div>
+          </motion.div>
+        )}
       </motion.section>
+
+      {summary?.departmentSla && summary.departmentSla.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-6 px-5"
+        >
+          <SectionHeader title="Department SLA" hint="Resolved before deadline" />
+          <GlassCard className="overflow-x-auto p-0">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-ink/10 text-[11px] uppercase tracking-wide text-ink-muted">
+                  <th className="px-4 py-3 font-semibold">Department</th>
+                  <th className="px-4 py-3 font-semibold">Resolved</th>
+                  <th className="px-4 py-3 font-semibold">On time</th>
+                  <th className="px-4 py-3 font-semibold">%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {summary.departmentSla.map((d) => (
+                  <tr key={d.departmentId} className="border-b border-ink/5 last:border-0">
+                    <td className="px-4 py-2.5 font-medium text-ink">{d.departmentId}</td>
+                    <td className="px-4 py-2.5 text-ink-muted">{d.total}</td>
+                    <td className="px-4 py-2.5 text-ink-muted">{d.compliant}</td>
+                    <td className="px-4 py-2.5 font-bold text-leaf">{d.compliancePct ?? '—'}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </GlassCard>
+        </motion.section>
+      )}
+
+      {summary?.wardBreakdown && summary.wardBreakdown.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-6 px-5"
+        >
+          <SectionHeader title="Ward breakdown" hint="By wardId" />
+          <GlassCard className="overflow-x-auto p-0">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-ink/10 text-[11px] uppercase tracking-wide text-ink-muted">
+                  <th className="px-4 py-3 font-semibold">Ward</th>
+                  <th className="px-4 py-3 font-semibold">Total</th>
+                  <th className="px-4 py-3 font-semibold">Open</th>
+                  <th className="px-4 py-3 font-semibold">Resolved</th>
+                </tr>
+              </thead>
+              <tbody>
+                {summary.wardBreakdown.map((w) => (
+                  <tr key={w.wardId} className="border-b border-ink/5 last:border-0">
+                    <td className="px-4 py-2.5 font-medium text-ink">{w.wardId}</td>
+                    <td className="px-4 py-2.5 text-ink-muted">{w.total}</td>
+                    <td className="px-4 py-2.5 text-coral">{w.open}</td>
+                    <td className="px-4 py-2.5 text-leaf">{w.resolved}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </GlassCard>
+        </motion.section>
+      )}
+
+      {(reportsLine.length > 0 || upvotesLine.length > 0) && (
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-6 px-5"
+        >
+          <SectionHeader title="Citizen engagement" hint="Reports & upvotes per day" />
+          <div className="grid gap-3">
+            {reportsLine.length > 0 && (
+              <GlassCard className="pt-5">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-muted">Reports / day</p>
+                <div className="h-36">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={reportsLine}>
+                      <XAxis dataKey="label" stroke="oklch(0.48 0.03 265)" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="oklch(0.48 0.03 265)" fontSize={11} tickLine={false} axisLine={false} width={28} />
+                      <Tooltip contentStyle={{ background: 'oklch(0.99 0.005 80)', borderRadius: 12, fontSize: 12 }} />
+                      <Line type="monotone" dataKey="count" stroke="oklch(0.66 0.21 36)" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </GlassCard>
+            )}
+            {upvotesLine.length > 0 && (
+              <GlassCard className="pt-5">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-muted">Upvotes / day</p>
+                <div className="h-36">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={upvotesLine}>
+                      <XAxis dataKey="label" stroke="oklch(0.48 0.03 265)" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="oklch(0.48 0.03 265)" fontSize={11} tickLine={false} axisLine={false} width={28} />
+                      <Tooltip contentStyle={{ background: 'oklch(0.99 0.005 80)', borderRadius: 12, fontSize: 12 }} />
+                      <Line type="monotone" dataKey="count" stroke="oklch(0.52 0.22 275)" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </GlassCard>
+            )}
+          </div>
+        </motion.section>
+      )}
+
+      {mapHotspots.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-6 px-5"
+        >
+          <SectionHeader title="Hotspot map" hint="Predictive clusters" action={<Link to="/map">Explorer</Link>} />
+          <GlassCard className="overflow-hidden p-0">
+            <div className="h-48">
+              <CivicMap center={mapCenter} issues={[]} hotspots={mapHotspots} zoom={13} className="size-full" />
+            </div>
+          </GlassCard>
+        </motion.section>
+      )}
+
+      {categoryTrendRows.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-6 px-5"
+        >
+          <SectionHeader title="Category momentum" hint="7d vs prior week" />
+          <motion.ul variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="space-y-2">
+            {categoryTrendRows.map((row) => (
+              <motion.li key={row.category} variants={fadeUp}>
+                <GlassCard className="flex items-center justify-between gap-3 py-3">
+                  <div>
+                    <p className="text-sm font-bold text-ink">{row.category.replace(/_/g, ' ')}</p>
+                    <p className="text-[11px] text-ink-muted">{row.last7} last 7d · {row.last30} last 30d</p>
+                  </div>
+                  <span className={`text-xs font-bold ${row.delta > 0 ? 'text-coral' : row.delta < 0 ? 'text-leaf' : 'text-ink-muted'}`}>
+                    {row.delta > 0 ? `+${row.delta}` : row.delta}
+                  </span>
+                </GlassCard>
+              </motion.li>
+            ))}
+          </motion.ul>
+        </motion.section>
+      )}
+
+      {daily30Line.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-6 px-5"
+        >
+          <SectionHeader title="30-day volume" hint="Reports per day" />
+          <GlassCard className="pt-5">
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={daily30Line}>
+                  <XAxis dataKey="label" stroke="oklch(0.48 0.03 265)" fontSize={10} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                  <YAxis stroke="oklch(0.48 0.03 265)" fontSize={11} tickLine={false} axisLine={false} width={28} />
+                  <Tooltip contentStyle={{ background: 'oklch(0.99 0.005 80)', borderRadius: 12, fontSize: 12 }} />
+                  <Line type="monotone" dataKey="count" stroke="oklch(0.52 0.22 275)" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </GlassCard>
+        </motion.section>
+      )}
+
+      {preventiveZones.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-6 px-5"
+        >
+          <SectionHeader title="Preventive maintenance" hint="High-risk zones" action={<Wrench className="size-4 text-coral" />} />
+          <motion.ul variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="space-y-2">
+            {preventiveZones.slice(0, 5).map((h) => (
+              <motion.li key={h.geohash} variants={fadeUp}>
+                <GlassCard className="flex items-center gap-3 py-3">
+                  <div className="grid size-9 place-items-center rounded-lg bg-coral-soft text-coral">
+                    <Wrench className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-ink">{h.geohash}</p>
+                    <p className="text-[11px] text-ink-muted">{h.count} open · score {h.score} — schedule sweep</p>
+                  </div>
+                </GlassCard>
+              </motion.li>
+            ))}
+          </motion.ul>
+        </motion.section>
+      )}
 
       {hotspots.length > 0 && (
         <motion.section
@@ -163,7 +399,7 @@ export function DashboardPage() {
           </div>
         </GlassCard>
       </motion.section>
-      {(summary?.insight || trends?.narrative) && (
+      {(summary?.insight || trends?.narrative || trends?.seasonalWasteSpike) && (
         <motion.section
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -177,6 +413,9 @@ export function DashboardPage() {
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-paper/70">AI insight</p>
                 <p className="display mt-1 text-sm font-semibold leading-snug">{trends?.narrative || summary?.insight}</p>
+                {trends?.seasonalWasteSpike?.message && (
+                  <p className="mt-2 text-xs font-medium text-coral">{trends.seasonalWasteSpike.message}</p>
+                )}
                 <Link to="/admin/analytics" className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-coral">
                   View analytics <ArrowRight className="size-3.5" />
                 </Link>

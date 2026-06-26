@@ -1,0 +1,31 @@
+flowchart LR
+  subgraph discover["Discover"]
+    LAND[Landing /]
+    SIGN[Google Sign-In]
+  end
+
+  subgraph report["Report"]
+    CAM[Camera / gallery photo]
+    GPS[GPS or manual pin]
+    AI[Gemini Vision analyze]
+    SUB[Submit issue]
+  end
+
+  subgraph verify["Community verify"]
+    MAP[Map pin visible]
+    UP[Neighbors upvote]
+    TIER[Verification tiers 1 / 3 / 10]
+  end
+
+  subgraph resolve["Resolution"]
+    ROUTE[Department assigned]
+    PROG[In Progress]
+    PROOF[Admin proof photo]
+    DONE[Resolved + points]
+  end
+
+  LAND --> SIGN --> CAM --> GPS --> AI --> SUB
+  SUB --> MAP --> UP --> TIER --> ROUTE --> PROG --> PROOF --> DONE
+
+  SUB -.->|confidence < 0.6| REVIEW[Draft review queue]
+  REVIEW -.->|admin / user edit| SUB

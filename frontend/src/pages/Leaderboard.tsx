@@ -4,59 +4,112 @@ import { motion } from 'framer-motion'
 import { Crown, Trophy } from 'lucide-react'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { GlassCard } from '@/components/civic/GlassCard'
+import { LeaderboardSkeleton } from '@/components/PageSkeleton'
 import { apiLeaderboard } from '../lib/api'
 import { fadeUp, stagger } from '../lib/motion'
 import { cn } from '@/lib/utils'
 
-type User = { uid: string; civicPoints: number; displayName: string; badges: string[] }
+type Period = 'weekly' | 'alltime'
+
+type User = {
+  uid: string
+  civicPoints: number
+  weeklyPoints?: number
+  displayName: string
+  badges: string[]
+}
 
 export function LeaderboardPage() {
   const [users, setUsers] = useState<User[]>([])
+  const [period, setPeriod] = useState<Period>('alltime')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    apiLeaderboard().then((r) => setUsers(r.users)).catch(() => {})
-  }, [])
+    setLoading(true)
+    apiLeaderboard(period)
+      .then((r) => setUsers(r.users))
+      .catch(() => setUsers([]))
+      .finally(() => setLoading(false))
+  }, [period])
 
-  const ranked = users.map((u, i) => ({ ...u, rank: i + 1, name: u.displayName, points: u.civicPoints, ward: u.badges?.length ? `${u.badges.length} badges` : 'Civic reporter', reports: 0 }))
+  const ranked = users.map((u, i) => ({
+    ...u,
+    rank: i + 1,
+    name: u.displayName,
+    points: period === 'weekly' ? (u.weeklyPoints ?? 0) : u.civicPoints,
+    ward: u.badges?.length ? `${u.badges.length} badges` : 'Civic reporter',
+    reports: 0,
+  }))
   const [first, second, third, ...rest] = ranked
 
   return (
     <AppShell>
-      <PageHeader title="Leaderboard" subtitle="Top citizens · opt-in only" />
-      {ranked.length >= 3 && (
-        <motion.section
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="px-5 pt-6"
-        >
-          <div className="grid grid-cols-3 items-end gap-3">
-            <Podium person={second} height="h-24" rank={2} />
-            <Podium person={first} height="h-32" rank={1} highlight />
-            <Podium person={third} height="h-20" rank={3} />
-          </div>
-        </motion.section>
-      )}
-      <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 space-y-2 px-5">
-        {rest.map((p) => (
-          <motion.div key={p.uid} variants={fadeUp}>
-            <GlassCard className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-3 py-3">
-              <span className="grid size-7 place-items-center rounded-lg border border-rule bg-surface text-xs font-bold text-ink-muted">{p.rank}</span>
-              <span className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-coral/30 to-coral/5 text-xs font-bold text-coral">{initials(p.name)}</span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-ink">{p.name}</p>
-                <p className="truncate text-[11px] text-ink-muted">{p.ward}</p>
+      <PageHeader
+        title="Leaderboard"
+        subtitle={period === 'weekly' ? 'This week · opt-in only' : 'All-time · opt-in only'}
+      />
+      <div className="flex gap-2 px-5 pt-4">
+        <button type="button" onClick={() => setPeriod('weekly')}>
+          <span
+            className={cn(
+              'inline-block rounded-full px-4 py-1.5 text-xs font-bold transition-colors',
+              period === 'weekly' ? 'bg-coral text-paper' : 'border border-rule text-ink-muted',
+            )}
+          >
+            Weekly
+          </span>
+        </button>
+        <button type="button" onClick={() => setPeriod('alltime')}>
+          <span
+            className={cn(
+              'inline-block rounded-full px-4 py-1.5 text-xs font-bold transition-colors',
+              period === 'alltime' ? 'bg-coral text-paper' : 'border border-rule text-ink-muted',
+            )}
+          >
+            All-time
+          </span>
+        </button>
+      </div>
+      {loading ? (
+        <LeaderboardSkeleton />
+      ) : (
+        <>
+          {ranked.length >= 3 && (
+            <motion.section
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="px-5 pt-6"
+            >
+              <div className="grid grid-cols-3 items-end gap-3">
+                <Podium person={second} height="h-24" rank={2} />
+                <Podium person={first} height="h-32" rank={1} highlight />
+                <Podium person={third} height="h-20" rank={3} />
               </div>
-              <span className="text-sm font-extrabold text-coral">{p.points.toLocaleString()}</span>
-            </GlassCard>
-          </motion.div>
-        ))}
-        {users.length === 0 && (
-          <p className="py-12 text-center text-sm text-ink-muted">
-            No opt-in champions yet — earn points and enable leaderboard visibility in{' '}
-            <Link to="/profile" className="text-coral">Profile</Link>.
-          </p>
-        )}
-      </motion.section>
+            </motion.section>
+          )}
+          <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 space-y-2 px-5">
+            {rest.map((p) => (
+              <motion.div key={p.uid} variants={fadeUp}>
+                <GlassCard className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-3 py-3">
+                  <span className="grid size-7 place-items-center rounded-lg border border-rule bg-surface text-xs font-bold text-ink-muted">{p.rank}</span>
+                  <span className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-coral/30 to-coral/5 text-xs font-bold text-coral">{initials(p.name)}</span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-ink">{p.name}</p>
+                    <p className="truncate text-[11px] text-ink-muted">{p.ward}</p>
+                  </div>
+                  <span className="text-sm font-extrabold text-coral">{p.points.toLocaleString()}</span>
+                </GlassCard>
+              </motion.div>
+            ))}
+            {users.length === 0 && (
+              <p className="py-12 text-center text-sm text-ink-muted">
+                No opt-in champions yet — earn points and enable leaderboard visibility in{' '}
+                <Link to="/profile" className="text-coral">Profile</Link>.
+              </p>
+            )}
+          </motion.section>
+        </>
+      )}
     </AppShell>
   )
 }

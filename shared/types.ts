@@ -55,6 +55,7 @@ export type Issue = {
   verificationLevel: number
   priorityScore?: number
   slaDeadline?: string
+  slaBreached?: boolean
   aiMetadata?: Record<string, unknown>
   createdAt: string
   updatedAt: string

@@ -8,6 +8,16 @@ Central index for the `docs/` folder. Mirrors LogiFlow-style documentation layou
 
 ---
 
+## Phase 0–1 (foundation & scaffold)
+
+| Document | Description |
+|----------|-------------|
+| [PHASE-0-FOUNDATION.md](PHASE-0-FOUNDATION.md) | Product vision, 8 features → phases, evaluation weights, differentiation |
+| [PRODUCT-VISION.md](PRODUCT-VISION.md) | 30-second pitch script |
+| [COMPETITIVE-MATRIX.md](COMPETITIVE-MATRIX.md) | Appendix F — vs Swachhata, FixMyStreet, InfraGuard |
+| [TEAM-ROLES.md](TEAM-ROLES.md) | Appendix U — role assignments (Ojas = Tech Lead) |
+| [pipelines/README.md](pipelines/README.md) | Nine civic pipelines index (Section 23) |
+
 ## Core documents
 
 | Document | Description |
@@ -16,7 +26,11 @@ Central index for the `docs/` folder. Mirrors LogiFlow-style documentation layou
 | [system-design.md](system-design.md) | Data model overview, auth, API pointer |
 | [api_contract.md](api_contract.md) | Full REST API reference — every endpoint, auth, rate limits |
 | [deployment.md](deployment.md) | GCP/Firebase project, env vars, deploy script, CI, BlockseBlock notes |
-| [SUBMISSION-CHECKLIST.md](SUBMISSION-CHECKLIST.md) | Phase 18 BlockseBlock steps with live URLs |
+| [SUBMISSION-CHECKLIST.md](SUBMISSION-CHECKLIST.md) | Phase 18 BlockseBlock steps with evidence links |
+| [PHASE-COMPLETION-TRACKER.md](PHASE-COMPLETION-TRACKER.md) | Phases 0–19 at 100% with evidence paths |
+| [PHASE-0-FOUNDATION.md](PHASE-0-FOUNDATION.md) | Evaluation matrix, competitive positioning |
+| [TEAM-ROLES.md](TEAM-ROLES.md) | Appendix U team assignments |
+| [COMPETITIVE-MATRIX.md](COMPETITIVE-MATRIX.md) | Appendix F feature comparison |
 
 ---
 
@@ -32,20 +46,37 @@ npx @mermaid-js/mermaid-cli -i docs/diagrams/mermaid/ -o docs/diagrams/png/
 | # | File | Section 32 spec |
 |---|------|-----------------|
 | 01 | [01-system-architecture.mmd](diagrams/mermaid/01-system-architecture.mmd) | PWA, Cloud Run, Agents, Gemini, Firestore, Storage, Maps |
+| 02 | [02-user-journey.mmd](diagrams/mermaid/02-user-journey.mmd) | Citizen photo → map → verify → resolved |
+| 03 | [03-report-wizard-flow.mmd](diagrams/mermaid/03-report-wizard-flow.mmd) | 3-step report wizard UI |
 | 04 | [04-agent-workflow.mmd](diagrams/mermaid/04-agent-workflow.mmd) | 6 agents with confidence gate and dedup branch |
-| 05 | [05-report-intake-sequence.mmd](diagrams/mermaid/05-report-intake-sequence.mmd) | Report submission API sequence with latency notes |
+| 05 | [05-report-intake.mmd](diagrams/mermaid/05-report-intake.mmd) | Report submission API sequence with latency notes |
+| 06 | [06-upvote-verification.mmd](diagrams/mermaid/06-upvote-verification.mmd) | Community verification tiers |
+| 07 | [07-admin-resolution.mmd](diagrams/mermaid/07-admin-resolution.mmd) | Admin status + proof workflow |
 | 08 | [08-firestore-schema.mmd](diagrams/mermaid/08-firestore-schema.mmd) | Collections, subcollections, relationships |
-| 12 | [12-deployment-topology.mmd](diagrams/mermaid/12-deployment-topology.mmd) | Cloud Run, Firebase, CI/CD, Google APIs |
+| 09 | [09-gamification-flow.mmd](diagrams/mermaid/09-gamification-flow.mmd) | Points, badges, leaderboard |
+| 10 | [10-ai-assistant-tools.mmd](diagrams/mermaid/10-ai-assistant-tools.mmd) | Civic assistant function calling |
+| 11 | [11-open311-export.mmd](diagrams/mermaid/11-open311-export.mmd) | Open311 GeoReport v2 mapping |
+| 12 | [12-deployment.mmd](diagrams/mermaid/12-deployment.mmd) | Cloud Run, Firebase, CI/CD |
+| 13 | [13-analytics-pipeline.mmd](diagrams/mermaid/13-analytics-pipeline.mmd) | Dashboard analytics data flow |
+| 14 | [14-security-layers.mmd](diagrams/mermaid/14-security-layers.mmd) | 7 security & rate-limit layers |
+| 15 | [15-mobile-pwa-architecture.mmd](diagrams/mermaid/15-mobile-pwa-architecture.mmd) | Mobile PWA + device APIs |
+| 16 | [16-evaluation-alignment.mmd](diagrams/mermaid/16-evaluation-alignment.mmd) | Hackathon evaluation criteria map |
 
-> Full Section 32 set is 16 diagrams (`01`–`16`). Remaining diagrams to add per master plan: `02-user-journey`, `03-vision-pipeline`, `06-firestore-erd`, `07-authentication-flow`, `09-deployment-infrastructure`, `10-security-rate-limiting`, `11-map-clustering`, `13-gamification-flow`, `14-predictive-insights`, `15-open311-export`, `16-judge-demo-flow`.
+Full index: [diagrams/README.md](diagrams/README.md). PNG exports in [`diagrams/png/`](diagrams/png/).
 
 ---
 
-## Presentation & submission
+## Presentation & submission (Phases 18–19)
 
 | Document | Description |
 |----------|-------------|
-| [ppt-info/SUBMISSION.md](ppt-info/SUBMISSION.md) | Appendix P — 15-slide jury outline with Community Hero content |
+| [submission/GOOGLE-DOC-CONTENT.md](submission/GOOGLE-DOC-CONTENT.md) | Appendix J — full 10-section Google Doc (paste-ready) |
+| [ppt-info/SLIDES-COMPLETE.md](ppt-info/SLIDES-COMPLETE.md) | Appendix P — 15 slides with full speaker notes |
+| [ppt-info/SUBMISSION.md](ppt-info/SUBMISSION.md) | Appendix P — slide outline (compact) |
+| [ppt-info/slides/](ppt-info/slides/) | 15 individual slide markdown files (01–15) |
+| [demo/APPENDIX-I-DEMO-SCRIPT.md](demo/APPENDIX-I-DEMO-SCRIPT.md) | Appendix I — 3-minute timed demo with click paths |
+| [demo/REHEARSAL-CHECKLIST.md](demo/REHEARSAL-CHECKLIST.md) | Twice-timed rehearsal + backup video steps |
+| [demo/QR-CODE.md](demo/QR-CODE.md) | Production URL QR for jury slide |
 
 ---
 
@@ -60,7 +91,9 @@ npx @mermaid-js/mermaid-cli -i docs/diagrams/mermaid/ -o docs/diagrams/png/
 | Design system | [`../.stitch/DESIGN.md`](../.stitch/DESIGN.md) — Civic Glass UI |
 | Shared types | [`../shared/types.ts`](../shared/types.ts) |
 | Phase verification | [`../scripts/verify-phases.sh`](../scripts/verify-phases.sh) |
+| Submission prep | [`../scripts/prepare-submission.sh`](../scripts/prepare-submission.sh) |
 | Deploy script | [`../scripts/deploy-cloud-run.sh`](../scripts/deploy-cloud-run.sh) |
+| Changelog | [`../CHANGELOG.md`](../CHANGELOG.md) |
 
 ---
 
@@ -81,4 +114,5 @@ npx @mermaid-js/mermaid-cli -i docs/diagrams/mermaid/ -o docs/diagrams/png/
 | 15 | This index, architecture, diagrams, api_contract |
 | 16 | deployment.md, README URLs |
 | 17 | verify-phases.sh, seed scripts |
-| 18 | SUBMISSION-CHECKLIST.md, ppt-info/SUBMISSION.md |
+| 18 | submission/GOOGLE-DOC-CONTENT.md, SUBMISSION-CHECKLIST.md, prepare-submission.sh |
+| 19 | demo/APPENDIX-I-DEMO-SCRIPT.md, PHASE-COMPLETION-TRACKER.md |

@@ -1,6 +1,7 @@
 import { Router } from 'express'
+import { sendError, ErrorCodes, sendServerError } from '../lib/errors'
 import { db } from '../lib/firebase-admin'
-import { requireAuth, type AuthedRequest } from '../middleware/auth'
+import { requireAuth, isAdminUser, type AuthedRequest } from '../middleware/auth'
 
 export const usersRouter = Router()
 
@@ -29,7 +30,7 @@ usersRouter.post('/me', requireAuth, async (req: AuthedRequest, res) => {
     )
     res.json({ ok: true })
   } catch (e) {
-    res.status(500).json({ error: String(e) })
+    sendServerError(res, e)
   }
 })
 
@@ -37,7 +38,7 @@ usersRouter.patch('/me', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const { leaderboardOptIn } = req.body as { leaderboardOptIn?: boolean }
     if (typeof leaderboardOptIn !== 'boolean') {
-      res.status(400).json({ error: 'leaderboardOptIn must be a boolean' })
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'leaderboardOptIn must be a boolean')
       return
     }
     const ref = db.collection('users').doc(req.user!.uid)
@@ -45,15 +46,18 @@ usersRouter.patch('/me', requireAuth, async (req: AuthedRequest, res) => {
     await ref.set({ leaderboardOptIn, updatedAt: now }, { merge: true })
     res.json({ ok: true, leaderboardOptIn })
   } catch (e) {
-    res.status(500).json({ error: String(e) })
+    sendServerError(res, e)
   }
 })
 
 usersRouter.get('/me', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const doc = await db.collection('users').doc(req.user!.uid).get()
-    res.json({ user: doc.exists ? { id: doc.id, ...doc.data() } : null })
+    res.json({
+      user: doc.exists ? { id: doc.id, ...doc.data() } : null,
+      admin: isAdminUser(req.user!),
+    })
   } catch (e) {
-    res.status(500).json({ error: String(e) })
+    sendServerError(res, e)
   }
 })

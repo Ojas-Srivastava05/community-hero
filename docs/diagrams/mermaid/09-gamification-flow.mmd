@@ -1,0 +1,42 @@
+flowchart LR
+  subgraph earn["Earn points"]
+    R[+10 report submitted]
+    U[+5 upvote cast]
+    M[+15 duplicate merge]
+    N[+15 neighborhood voice<br/>at 3 upvotes on your report]
+    V[+25 issue resolved]
+  end
+
+  subgraph badges["Badges"]
+    FR[First Reporter]
+    NV[Neighborhood Voice]
+    DH[Duplicate Hunter]
+    VV[Verified Voice]
+  end
+
+  subgraph store["Firestore users/{uid}"]
+    CP[civicPoints total]
+    BD[badges array]
+  end
+
+  R --> CP
+  U --> CP
+  M --> CP
+  N --> CP
+  V --> CP
+
+  R --> FR
+  N --> NV
+  M --> DH
+  V --> VV
+
+  CP --> LB[GET /api/leaderboard]
+  BD --> LB
+
+  subgraph ethics["Ethics guardrails"]
+    OPT[leaderboardOptIn default false]
+    NOREP[No points for fake reports<br/>rate limits + verification tiers]
+    DEMO[isDemo issues excluded<br/>from leaderboard stretch]
+  end
+
+  LB --> OPT

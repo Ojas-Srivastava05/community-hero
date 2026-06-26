@@ -1,0 +1,26 @@
+{
+  "type": "FeatureCollection",
+  "name": "demo-ward",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "wardId": "Demo Ward",
+        "name": "Community Hero Demo Ward",
+        "city": "Bengaluru"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [77.5940, 12.9710],
+            [77.6040, 12.9710],
+            [77.6040, 12.9810],
+            [77.5940, 12.9810],
+            [77.5940, 12.9710]
+          ]
+        ]
+      }
+    }
+  ]
+}

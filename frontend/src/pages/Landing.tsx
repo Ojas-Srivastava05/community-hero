@@ -6,6 +6,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { SectionHeader } from '@/components/civic/GlassCard'
 import { LiveIndicator } from '@/components/civic/LiveIndicator'
 import { SeverityBadge } from '@/components/civic/SeverityBadge'
+import { VerificationBadges } from '@/components/civic/VerificationBadges'
 import { apiAnalyticsSummary, apiHotspots } from '../lib/api'
 import { useLocation } from '../lib/location'
 import { useLiveIssues } from '../lib/use-live-issues'
@@ -234,10 +235,15 @@ export function LandingPage() {
               <Link to={`/issues/${issue.id}`} className="block">
                 <div className="paper overflow-hidden p-0">
                   <div className="relative h-36 overflow-hidden">
-                    <img src={issueImage(issue)} alt="" className="size-full object-cover transition-transform duration-500 hover:scale-105" />
+                    <img src={issueImage(issue)} alt={`${issue.title} — civic issue photo`} className="size-full object-cover transition-transform duration-500 hover:scale-105" />
                     <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/60 to-transparent" />
-                    <div className="absolute left-3 top-3">
+                    <div className="absolute left-3 top-3 flex flex-col gap-1">
                       <SeverityBadge severity={apiSeverityToUi(issue.severity)} />
+                      <VerificationBadges
+                        upvoteCount={issue.upvoteCount}
+                        verificationLevel={issue.verificationLevel}
+                        compact
+                      />
                     </div>
                     <div className="absolute right-3 bottom-3 inline-flex items-center gap-1 rounded-full bg-paper/95 px-2 py-1 text-[11px] font-bold text-ink">
                       <Zap className="size-3 text-coral" /> {issue.upvoteCount}
@@ -280,9 +286,16 @@ export function LandingPage() {
                     <span className="text-ink-muted">reported</span>{' '}
                     <span className="font-semibold text-coral">{issue.title}</span>
                   </p>
-                  <p className="mt-0.5 text-[11px] font-semibold text-ink-muted">
-                    {issueArea(issue)} · {issueReportedAt(issue)}
-                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <p className="text-[11px] font-semibold text-ink-muted">
+                      {issueArea(issue)} · {issueReportedAt(issue)}
+                    </p>
+                    <VerificationBadges
+                      upvoteCount={issue.upvoteCount}
+                      verificationLevel={issue.verificationLevel}
+                      compact
+                    />
+                  </div>
                 </div>
                 <SeverityBadge severity={apiSeverityToUi(issue.severity)} />
               </Link>

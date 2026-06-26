@@ -1,0 +1,53 @@
+flowchart TB
+  subgraph L1["Layer 1 — Cloud Run edge"]
+    HTTPS[HTTPS TLS termination]
+    DDOS[Google DDoS mitigation]
+  end
+
+  subgraph L2["Layer 2 — Rate limiting"]
+    RL[express-rate-limit in-memory]
+    R10[POST /reports 10/day per user]
+    U30[POST upvote 30/hour]
+    C20[POST /ai/chat 20/min]
+  end
+
+  subgraph L3["Layer 3 — Auth & identity"]
+    FB[Firebase Auth ID token]
+    VERIFY[requireAuth middleware]
+    ADMIN[ADMIN_EMAILS / ADMIN_UIDS]
+  end
+
+  subgraph L4["Layer 4 — Content moderation"]
+    SS[Vision SafeSearch stretch]
+    CONF["Confidence gate below 0.6 → Draft"]
+    CIVIC[is_civic_issue Gemini check]
+  end
+
+  subgraph L5["Layer 5 — Firestore rules"]
+    RULES[firestore.rules]
+    READ[Public read non-draft issues]
+    WRITE[Auth required for creates/votes]
+  end
+
+  subgraph L6["Layer 6 — Anti-gaming"]
+    UPAGE[Upvote: account age 24h OR 1 report]
+    IDEM[Idempotent vote doc id = uid]
+    DEMO[isDemo labeled seed data]
+  end
+
+  subgraph L7["Layer 7 — Secrets"]
+    SEC[GEMINI + MAPS server-side only]
+    ENV[Cloud Run env / AI Studio Secrets]
+  end
+
+  CLIENT[Client PWA] --> HTTPS --> DDOS --> RL
+  RL --> R10 & U30 & C20
+  RL --> VERIFY --> FB
+  VERIFY --> ADMIN
+  VERIFY --> CONF --> CIVIC
+  VERIFY --> RULES
+  RULES --> READ & WRITE
+  VERIFY --> UPAGE --> IDEM
+  SEC --> ENV
+
+  RL -->|429| WAIT["/waiting retry page"]

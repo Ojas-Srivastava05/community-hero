@@ -25,7 +25,7 @@ export function rateLimit(limit: number, windowMs: number, keyFn: (req: Request)
     const result = check(key, limit, windowMs)
     if (!result.ok) {
       if (result.retryAfterSec) res.setHeader('Retry-After', String(result.retryAfterSec))
-      sendError(res, 429, ErrorCodes.RATE_LIMIT, 'Rate limit exceeded. Try again later.')
+      sendError(res, 429, ErrorCodes.RATE_LIMITED, 'Rate limit exceeded. Try again later.')
       return
     }
     next()

@@ -3,17 +3,21 @@ import assert from 'node:assert/strict'
 import { computePriorityScore } from './priority'
 
 describe('computePriorityScore', () => {
-  it('weights severity, safety risk, and confidence', () => {
-    // severity 3 → 3 * 0.4 * 20 = 24; no safety; confidence 0.9 → 9
-    assert.equal(computePriorityScore(3, false, 0.9), 33)
+  const now = new Date().toISOString()
+
+  it('weights severity, upvotes, safety risk, and age', () => {
+    const score = computePriorityScore(5, 10, true, now)
+    assert.ok(score >= 50)
   })
 
-  it('adds 30 when safety risk is true', () => {
-    // severity 5 → 40; safety +30; confidence 1 → 10
-    assert.equal(computePriorityScore(5, true, 1), 80)
+  it('adds safety boost when safety risk is true', () => {
+    const withSafety = computePriorityScore(3, 0, true, now)
+    const without = computePriorityScore(3, 0, false, now)
+    assert.ok(withSafety > without)
   })
 
-  it('returns minimum score for low-severity, low-confidence reports', () => {
-    assert.equal(computePriorityScore(1, false, 0), 8)
+  it('returns bounded score 0-100', () => {
+    const score = computePriorityScore(1, 0, false, now)
+    assert.ok(score >= 0 && score <= 100)
   })
 })

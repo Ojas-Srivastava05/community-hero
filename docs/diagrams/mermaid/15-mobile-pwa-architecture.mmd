@@ -1,0 +1,50 @@
+flowchart TB
+  subgraph client["Mobile PWA — React 19"]
+    UI[Civic Glass UI<br/>Tailwind + Framer Motion]
+    ROUTER[React Router 18 routes]
+    AUTH[Firebase Auth SDK]
+    MAPS[Google Maps JS<br/>@react-google-maps/api]
+    SW[Service Worker stretch]
+    IDB[IndexedDB offline draft stretch]
+  end
+
+  subgraph manifest["PWA assets"]
+    MAN[manifest.webmanifest]
+    ICONS[192/512 icons]
+    META[viewport-fit=cover<br/>theme-color #14B8A6]
+  end
+
+  subgraph capabilities["Device capabilities"]
+    CAM[getUserMedia camera]
+    GEO[Geolocation API]
+    SHARE[Web Share API]
+    INSTALL[beforeinstallprompt]
+  end
+
+  subgraph network["Network"]
+    HTTPS[HTTPS Cloud Run same-origin]
+    TOKEN[Bearer Firebase ID token]
+    PROXY[Vite dev proxy /api → :3001]
+  end
+
+  UI --> ROUTER
+  ROUTER --> AUTH
+  ROUTER --> MAPS
+  UI --> MAN
+  UI --> SW
+  SW --> IDB
+
+  UI --> CAM & GEO & SHARE
+  SW --> INSTALL
+
+  AUTH --> TOKEN --> HTTPS
+  MAPS --> HTTPS
+  HTTPS --> CR[Cloud Run Express]
+
+  subgraph responsive["Mobile-first breakpoints"]
+    M375[375px iPhone Safari QA]
+    M768[768px tablet split]
+    D1024[1024px+ dashboard grids]
+  end
+
+  UI --> M375 & M768 & D1024

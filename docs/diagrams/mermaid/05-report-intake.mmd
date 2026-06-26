@@ -1,0 +1,39 @@
+sequenceDiagram
+  autonumber
+  actor Citizen as Citizen (PWA)
+  participant Auth as Firebase Auth
+  participant API as Express API<br/>Cloud Run
+  participant Gemini as Gemini 2.0 Flash
+  participant Storage as Cloud Storage
+  participant FS as Firestore
+  participant Agents as Agent Pipeline
+
+  Note over Citizen,FS: Step 1 — Photo capture (~user time)
+  Citizen->>Auth: Google Sign-In
+  Auth-->>Citizen: ID token (Bearer)
+
+  Note over Citizen,Gemini: Step 2 — AI analyze (~1–3s)
+  Citizen->>API: POST /api/reports/analyze<br/>multipart image + hint
+  API->>Gemini: Vision structured JSON prompt
+  Gemini-->>API: IssueAnalysis (category, severity, confidence)
+  API-->>Citizen: { analysis } — prefill wizard
+
+  Note over Citizen,Agents: Step 3 — Submit report (~2–5s)
+  Citizen->>API: POST /api/reports<br/>fields + images + GPS
+  API->>API: Zod validate + rate limit check
+  API->>Storage: Upload issues/{id}/{uuid}.jpg
+  Storage-->>API: public/signed imageUrls
+  API->>FS: set issues/{id} (Submitted)
+  API->>Gemini: analyzeImage (if not pre-analyzed)
+  Gemini-->>API: IssueAnalysis
+  API->>Agents: runAgentPipeline(id, analysis, lat, lng)
+  Agents->>FS: update departmentId, slaDeadline,<br/>priorityScore, geohash, dupes
+  Agents->>FS: add events (ai_analysis, routing)
+  Agents->>FS: awardPoints reporter +10
+  API->>FS: upsertThreadForIssue (geohash cluster)
+  API-->>Citizen: 201 Created { id, issue }<br/>or 202 if needs_review
+
+  Note over Citizen,FS: Step 4 — Community verify (async)
+  Citizen->>API: POST /api/reports/:id/upvote
+  API->>Agents: processUpvote → verificationLevel
+  Agents->>FS: update status Community Verified at 3+ votes

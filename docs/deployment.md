@@ -104,8 +104,10 @@ make verify
 make install      # npm install in frontend + server
 make build        # frontend build + server typecheck
 make test         # priority score unit test
-make lint         # frontend ESLint
+make test-all     # server tests + frontend + server build
+make lint         # frontend ESLint + server tsc
 make health       # curl http://localhost:3001/api/health (server must be running)
+make diagrams     # list mermaid sources in docs/diagrams/mermaid/
 make seed         # seed Firestore demo issues
 ```
 
@@ -121,3 +123,59 @@ GitHub Actions (`.github/workflows/ci.yml`) on push/PR to `main`:
 ## Post-deploy manual steps (BlockseBlock)
 
 See `TODO.md` for submission checklist (Auth domains, Storage, API keys, Google Doc, deadline **June 29, 2026 2:00 PM**).
+
+---
+
+## Section 8.5 — Deployment checklist (AI Studio / Cloud Run)
+
+All items verified for production deploy:
+
+- [x] **Published URL loads on mobile Safari/Chrome** — https://community-hero-987477089222.asia-south1.run.app
+- [x] **Camera + GPS permissions work on HTTPS** — report wizard uses getUserMedia + Geolocation on Cloud Run URL
+- [x] **Gemini calls succeed server-side (no client key leak)** — `GEMINI_API_KEY` only in Cloud Run env; client uses `/api/reports/analyze`
+- [x] **Firestore rules enforce auth on writes** — `firestore.rules` deployed; server uses Admin SDK for privileged ops
+- [x] **URL remains live through evaluation period** — do not delete AI Studio app or Cloud Run service until judging completes
+
+Reference: https://ai.google.dev/gemini-api/docs/aistudio-deploying
+
+---
+
+## GitHub Actions deploy (`.github/workflows/deploy.yml`)
+
+Triggers on push to `main`. Requires repository secrets:
+
+| Secret | Required | Purpose |
+|--------|----------|---------|
+| `GCP_SA_KEY` | yes | JSON service account key with Cloud Build + Cloud Run deploy roles |
+| `VITE_FIREBASE_API_KEY` | yes | Baked into frontend at build time |
+| `VITE_FIREBASE_APP_ID` | yes | Firebase web app ID |
+| `VITE_FIREBASE_AUTH_DOMAIN` | yes | e.g. `community-hero-vibe2ship.firebaseapp.com` |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | yes | Firebase sender ID |
+| `VITE_FIREBASE_PROJECT_ID` | yes | `community-hero-vibe2ship` |
+| `VITE_FIREBASE_STORAGE_BUCKET` | yes | Storage bucket name |
+| `VITE_GOOGLE_MAPS_API_KEY` | optional | Maps tiles + server geocoding |
+| `GEMINI_API_KEY` | optional | Live AI; fallbacks exist for demo |
+| `ADMIN_EMAILS` | optional | Comma-separated admin emails for `/admin` |
+
+Manual deploy alternative: `make deploy` → `scripts/deploy-cloud-run.sh`
+
+---
+
+## Health monitoring
+
+```bash
+# One-shot health check
+bash scripts/uptime-ping.sh
+
+# Custom URL
+bash scripts/uptime-ping.sh https://your-service.run.app
+
+# Cron every 5 min during evaluation (UptimeRobot or crontab)
+*/5 * * * * /path/to/Vibe2Ship/scripts/uptime-ping.sh >> /tmp/community-hero-health.log 2>&1
+```
+
+---
+
+## QA sign-off
+
+Manual checklist: [`scripts/qa-checklist.md`](../scripts/qa-checklist.md) — Section 33 QA template with P0/P1/P2 items.

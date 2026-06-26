@@ -1,18 +1,21 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Camera, Check, ChevronLeft, Loader2, LogIn, MapPin, RefreshCw, Sparkles, Zap } from 'lucide-react'
+import { Camera, Check, ChevronLeft, Film, Loader2, LogIn, MapPin, RefreshCw, Sparkles, Video, Zap } from 'lucide-react'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { GlassCard, Chip } from '@/components/civic/GlassCard'
 import { CivicMap } from '@/components/civic/CivicMap'
 import { InvalidMediaCard, type InvalidMediaReason } from '@/components/civic/InvalidMediaCard'
+import { PlacesAutocomplete } from '@/components/civic/PlacesAutocomplete'
 import { useAuth } from '../lib/auth'
 import { useLocation } from '../lib/location'
-import { apiAnalyzeImage, apiCreateReport, apiListIssues } from '../lib/api'
-import { preprocessImageForUpload, validateImageFile } from '../lib/image-media'
+import { apiAnalyzeImage, apiCreateReport, apiListIssues, apiMergeIssue, apiReverseGeocode } from '../lib/api'
+import { validateAndPreprocessImage } from '../lib/image-media'
+import { extractVideoKeyframes, validateVideoFile } from '../lib/video-media'
 import { usePointsToast } from '@/components/civic/PointsToast'
 import { cn } from '@/lib/utils'
-import type { IssueAnalysis, Issue } from '../../../shared/types'
+import { clearReportDraft, loadReportDraft, saveReportDraft } from '../lib/offline-drafts'
+import type { IssueAnalysis } from '../../../shared/types'
 
 const CATEGORIES = ['pothole', 'water_leak', 'streetlight', 'waste', 'road_damage', 'drainage', 'signage', 'encroachment', 'other']
 
@@ -24,11 +27,16 @@ export function ReportWizardPage() {
   const [step, setStep] = useState(0)
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
+  const [videoPreview, setVideoPreview] = useState<string | null>(null)
+  const [mediaMode, setMediaMode] = useState<'photo' | 'video'>('photo')
   const [analyzing, setAnalyzing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [analysis, setAnalysis] = useState<IssueAnalysis | null>(null)
   const [duplicates, setDuplicates] = useState<{ id: string; title: string }[]>([])
+  const [serverDupes, setServerDupes] = useState<{ createdId: string; dupes: { id: string; title: string }[] } | null>(null)
   const [mergeIntoId, setMergeIntoId] = useState<string | undefined>()
+  const [pinAdjusted, setPinAdjusted] = useState(false)
+  const [geocodingPin, setGeocodingPin] = useState(false)
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -42,7 +50,27 @@ export function ReportWizardPage() {
   const [invalidMedia, setInvalidMedia] = useState<InvalidMediaReason | null>(null)
   const [processingMedia, setProcessingMedia] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLInputElement>(null)
   const steps = ['Capture', 'Describe', 'Confirm']
+
+  useEffect(() => {
+    loadReportDraft()
+      .then((draft) => {
+        if (!draft) return
+        setStep(draft.step)
+        setForm(draft.form)
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    void saveReportDraft({
+      id: 'current',
+      step,
+      form,
+      updatedAt: new Date().toISOString(),
+    }).catch(() => {})
+  }, [step, form])
 
   useEffect(() => {
     if (location) {
@@ -55,33 +83,12 @@ export function ReportWizardPage() {
     }
   }, [location])
 
-  const onFile = async (raw: File) => {
-    setError('')
-    const validation = validateImageFile(raw)
-    if (validation !== 'ok') {
-      setInvalidMedia(validation)
-      setFile(null)
-      setPreview(null)
-      setAnalysis(null)
-      return
-    }
-    setInvalidMedia(null)
-    setProcessingMedia(true)
-    let f: File
-    try {
-      f = await preprocessImageForUpload(raw)
-    } catch {
-      f = raw
-    } finally {
-      setProcessingMedia(false)
-    }
-    setFile(f)
-    setPreview(URL.createObjectURL(f))
+  const runAnalysis = async (imageFile: File) => {
     if (!user) return
     setAnalyzing(true)
     try {
       const token = await user.getIdToken()
-      const { analysis: a } = await apiAnalyzeImage(f, token)
+      const { analysis: a } = await apiAnalyzeImage(imageFile, token)
       setAnalysis(a)
       setForm((prev) => ({ ...prev, title: a.title, description: a.description, category: a.category, severity: a.severity }))
     } catch (e) {
@@ -91,13 +98,77 @@ export function ReportWizardPage() {
     }
   }
 
+  const onImageFile = async (raw: File) => {
+    setError('')
+    setMediaMode('photo')
+    setVideoPreview(null)
+    setProcessingMedia(true)
+    const result = await validateAndPreprocessImage(raw)
+    setProcessingMedia(false)
+    if (!result.ok) {
+      setInvalidMedia(result.reason)
+      setFile(null)
+      setPreview(null)
+      setAnalysis(null)
+      return
+    }
+    setInvalidMedia(null)
+    const f = result.file
+    setFile(f)
+    setPreview(URL.createObjectURL(f))
+    await runAnalysis(f)
+  }
+
+  const onVideoFile = async (raw: File) => {
+    setError('')
+    const validation = validateVideoFile(raw)
+    if (validation !== 'ok') {
+      setInvalidMedia(validation === 'not-video' ? 'not-image' : 'too-large')
+      return
+    }
+    setInvalidMedia(null)
+    setMediaMode('video')
+    setVideoPreview(URL.createObjectURL(raw))
+    setProcessingMedia(true)
+    try {
+      const frames = await extractVideoKeyframes(raw)
+      const primary = frames[0]
+      if (!primary) throw new Error('Could not extract video frames')
+      setFile(primary)
+      setPreview(URL.createObjectURL(primary))
+      await runAnalysis(primary)
+    } catch (e) {
+      setError(String(e))
+      setFile(null)
+      setPreview(null)
+    } finally {
+      setProcessingMedia(false)
+    }
+  }
+
   const retakePhoto = () => {
     setInvalidMedia(null)
     setFile(null)
     setPreview(null)
+    setVideoPreview(null)
     setAnalysis(null)
     if (fileRef.current) fileRef.current.value = ''
+    if (videoRef.current) videoRef.current.value = ''
     fileRef.current?.click()
+  }
+
+  const handleMapPin = async (lat: number, lng: number) => {
+    setPinAdjusted(true)
+    setForm((prev) => ({ ...prev, lat, lng }))
+    setGeocodingPin(true)
+    try {
+      const place = await apiReverseGeocode(lat, lng)
+      setForm((prev) => ({ ...prev, lat, lng, address: place.address || prev.address }))
+    } catch {
+      setForm((prev) => ({ ...prev, lat, lng, address: `${lat.toFixed(4)}, ${lng.toFixed(4)}` }))
+    } finally {
+      setGeocodingPin(false)
+    }
   }
 
   const submit = async () => {
@@ -121,13 +192,50 @@ export function ReportWizardPage() {
         [file],
         token,
       )
-      showPoints(mergeIntoId ? 15 : 10, mergeIntoId ? 'Duplicate Hunter' : 'Report submitted')
+      const pe = result.pointsEarned
+      const pts = pe?.pointsAwarded ?? (mergeIntoId ? 15 : 10)
+      const parts = [
+        mergeIntoId ? 'Duplicate Hunter' : 'Report submitted',
+        pe?.streakBonus ? `${pe.streakBonus} streak bonus` : '',
+        ...(pe?.badgesEarned ?? []),
+      ].filter(Boolean)
+      showPoints(pts, parts.join(' · ') || undefined)
+      await clearReportDraft()
+
+      if (result.duplicateSuggestions?.length && !mergeIntoId && !result.merged) {
+        setServerDupes({ createdId: result.id, dupes: result.duplicateSuggestions })
+        setSubmitting(false)
+        return
+      }
+
       navigate(`/issues/${result.id}`)
     } catch (e) {
       setError(String(e))
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const mergeServerDupe = async (targetId: string) => {
+    if (!user || !serverDupes) return
+    setSubmitting(true)
+    setError('')
+    try {
+      const token = await user.getIdToken()
+      const r = await apiMergeIssue(serverDupes.createdId, targetId, token)
+      const pe = r.pointsEarned as { pointsAwarded?: number; badgesEarned?: string[] } | undefined
+      showPoints(pe?.pointsAwarded ?? 15, pe?.badgesEarned?.join(' · ') || 'Merged into existing report')
+      navigate(`/issues/${targetId}`)
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const viewCreatedReport = () => {
+    if (!serverDupes) return
+    navigate(`/issues/${serverDupes.createdId}`)
   }
 
   useEffect(() => {
@@ -168,7 +276,9 @@ export function ReportWizardPage() {
           {step === 0 && (
             <div className="space-y-4">
               <div className="relative aspect-[3/4] overflow-hidden rounded-3xl border border-rule bg-surface">
-                {preview ? (
+                {videoPreview && mediaMode === 'video' ? (
+                  <video src={videoPreview} className="size-full object-cover" controls muted playsInline />
+                ) : preview ? (
                   <img src={preview} alt="Preview" className="size-full object-cover" />
                 ) : (
                   <>
@@ -178,11 +288,12 @@ export function ReportWizardPage() {
                     <div className="absolute inset-4 rounded-2xl border-2 border-dashed border-coral/40" />
                   </>
                 )}
-                <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+                <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => e.target.files?.[0] && onImageFile(e.target.files[0])} />
+                <input ref={videoRef} type="file" accept="video/*" capture="environment" className="hidden" onChange={(e) => e.target.files?.[0] && onVideoFile(e.target.files[0])} />
               </div>
               <GlassCard className="flex items-start gap-3">
                 <Sparkles className="size-5 shrink-0 text-coral" />
-                <p className="text-xs text-ink-muted">AI auto-detects category, severity, and drafts your report at your current location.</p>
+                <p className="text-xs text-ink-muted">Photo or short video (≤15s). AI extracts keyframes and auto-detects category, severity, and location.</p>
               </GlassCard>
               {invalidMedia && (
                 <InvalidMediaCard reason={invalidMedia} onRetake={retakePhoto} />
@@ -192,11 +303,19 @@ export function ReportWizardPage() {
                   <LogIn className="size-4" /> {signingIn ? 'Opening Google…' : 'Sign in to submit'}
                 </button>
               ) : (
-                <button type="button" onClick={() => fileRef.current?.click()} className="grid w-full place-items-center rounded-2xl bg-coral py-4 text-sm font-bold text-paper ink-glow">
-                  <span className="flex items-center gap-2"><Camera className="size-4" /> {preview ? 'Retake photo' : 'Capture photo'}</span>
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => fileRef.current?.click()} className="grid place-items-center rounded-2xl bg-coral py-4 text-sm font-bold text-paper ink-glow">
+                    <span className="flex items-center gap-2"><Camera className="size-4" /> {preview && mediaMode === 'photo' ? 'Retake' : 'Photo'}</span>
+                  </button>
+                  <button type="button" onClick={() => videoRef.current?.click()} className="grid place-items-center rounded-2xl border border-coral/40 bg-coral-soft py-4 text-sm font-bold text-coral">
+                    <span className="flex items-center gap-2"><Video className="size-4" /> {videoPreview ? 'New video' : 'Video'}</span>
+                  </button>
+                </div>
               )}
-              {processingMedia && <p className="flex items-center justify-center gap-2 text-sm text-ink-muted"><Loader2 className="size-4 animate-spin" /> Optimizing photo…</p>}
+              {mediaMode === 'video' && file && (
+                <p className="flex items-center justify-center gap-2 text-[11px] text-ink-muted"><Film className="size-3.5" /> Using middle keyframe for AI analysis</p>
+              )}
+              {processingMedia && <p className="flex items-center justify-center gap-2 text-sm text-ink-muted"><Loader2 className="size-4 animate-spin" /> {mediaMode === 'video' ? 'Extracting keyframes…' : 'Optimizing photo…'}</p>}
               {analyzing && <p className="flex items-center justify-center gap-2 text-sm text-coral"><Loader2 className="size-4 animate-spin" /> Analyzing…</p>}
               {file && user && (
                 <button type="button" disabled={!hasLocation && locLoading} onClick={() => setStep(1)} className="w-full py-2 text-xs font-semibold text-coral disabled:opacity-40">
@@ -239,62 +358,94 @@ export function ReportWizardPage() {
               <GlassCard>
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold text-ink-muted">Location</p>
-                  <button type="button" onClick={() => refresh()} className="flex items-center gap-1 text-[11px] font-semibold text-coral">
+                  <button type="button" onClick={() => { setPinAdjusted(false); refresh() }} className="flex items-center gap-1 text-[11px] font-semibold text-coral">
                     <RefreshCw className="size-3" /> Refresh GPS
                   </button>
                 </div>
-                <p className="mt-1 text-sm font-bold text-ink">{form.address || 'Getting address…'}</p>
-                <p className="text-[11px] text-ink-muted">{hasLocation ? `${form.lat.toFixed(4)}, ${form.lng.toFixed(4)}` : 'Waiting for location…'}</p>
-                <div className="mt-3 flex items-center gap-2"><MapPin className="size-4 text-coral" /><Chip tone="coral">Your location</Chip></div>
+                <PlacesAutocomplete
+                  value={form.address}
+                  onChange={(address) => setForm((prev) => ({ ...prev, address }))}
+                  onPlaceSelect={({ lat, lng, address }) => {
+                    setPinAdjusted(true)
+                    setForm((prev) => ({ ...prev, lat, lng, address }))
+                  }}
+                  placeholder="Search address or tap map to drop pin"
+                  className="mt-2 w-full rounded-2xl border border-rule bg-paper p-3 text-sm text-ink outline-none focus:ring-2 focus:ring-coral/30"
+                />
+                <p className="mt-2 text-[11px] text-ink-muted">
+                  {hasLocation ? `${form.lat.toFixed(4)}, ${form.lng.toFixed(4)}` : 'Waiting for location…'}
+                  {geocodingPin && ' · Updating address…'}
+                </p>
+                <div className="mt-3 flex items-center gap-2">
+                  <MapPin className="size-4 text-coral" />
+                  <Chip tone="coral">{pinAdjusted ? 'Pin adjusted' : 'Your location'}</Chip>
+                </div>
               </GlassCard>
               {hasLocation && (
-                <div className="h-40 overflow-hidden rounded-2xl border border-rule">
+                <div className="h-48 overflow-hidden rounded-2xl border border-rule">
                   <CivicMap
                     center={{ lat: form.lat, lng: form.lng }}
-                    issues={[{
-                      id: 'draft',
-                      title: form.title,
-                      description: form.description,
-                      category: form.category as Issue['category'],
-                      severity: form.severity,
-                      status: 'Draft',
-                      lat: form.lat,
-                      lng: form.lng,
-                      address: form.address,
-                      imageUrls: [],
-                      reporterId: '',
-                      upvoteCount: 0,
-                      verificationLevel: 0,
-                      createdAt: new Date().toISOString(),
-                      updatedAt: new Date().toISOString(),
-                    }]}
+                    pinPosition={{ lat: form.lat, lng: form.lng }}
+                    onMapClick={handleMapPin}
+                    issues={[]}
                     zoom={16}
                     className="size-full"
                   />
                 </div>
               )}
-              {duplicates.length > 0 && (
+              <p className="text-center text-[11px] text-ink-muted">Tap the map to adjust the pin if GPS is inaccurate</p>
+              {serverDupes ? (
                 <GlassCard className="border-amber/30 bg-amber-soft/30">
-                  <p className="text-xs font-bold text-amber">Similar reports nearby</p>
-                  <p className="mt-1 text-[11px] text-ink-muted">Merge into an existing issue instead of creating a duplicate?</p>
+                  <p className="text-xs font-bold text-amber">AI found similar reports</p>
+                  <p className="mt-1 text-[11px] text-ink-muted">Your report was saved. Merge it into an existing issue to avoid duplicates?</p>
                   <div className="mt-3 space-y-2">
-                    {duplicates.map((d) => (
+                    {serverDupes.dupes.map((d) => (
                       <button
                         key={d.id}
                         type="button"
-                        onClick={() => setMergeIntoId(mergeIntoId === d.id ? undefined : d.id)}
-                        className={cn('w-full rounded-xl border px-3 py-2 text-left text-sm', mergeIntoId === d.id ? 'border-coral bg-coral-soft text-coral' : 'border-rule text-ink')}
+                        disabled={submitting}
+                        onClick={() => mergeServerDupe(d.id)}
+                        className="w-full rounded-xl border border-rule px-3 py-2 text-left text-sm text-ink hover:border-coral hover:bg-coral-soft"
                       >
                         {d.title}
                       </button>
                     ))}
                   </div>
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={viewCreatedReport}
+                    className="mt-3 w-full rounded-xl border border-coral/40 py-2 text-sm font-semibold text-coral"
+                  >
+                    Keep my new report
+                  </button>
                 </GlassCard>
+              ) : (
+                <>
+                  {duplicates.length > 0 && (
+                    <GlassCard className="border-amber/30 bg-amber-soft/30">
+                      <p className="text-xs font-bold text-amber">Similar reports nearby</p>
+                      <p className="mt-1 text-[11px] text-ink-muted">Merge into an existing issue instead of creating a duplicate?</p>
+                      <div className="mt-3 space-y-2">
+                        {duplicates.map((d) => (
+                          <button
+                            key={d.id}
+                            type="button"
+                            onClick={() => setMergeIntoId(mergeIntoId === d.id ? undefined : d.id)}
+                            className={cn('w-full rounded-xl border px-3 py-2 text-left text-sm', mergeIntoId === d.id ? 'border-coral bg-coral-soft text-coral' : 'border-rule text-ink')}
+                          >
+                            {d.title}
+                          </button>
+                        ))}
+                      </div>
+                    </GlassCard>
+                  )}
+                  <button type="button" disabled={submitting || !hasLocation} onClick={submit} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-coral py-4 text-sm font-bold text-paper ink-glow disabled:opacity-50">
+                    {submitting ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+                    {mergeIntoId ? 'Merge into existing report' : 'Submit report'}
+                  </button>
+                </>
               )}
-              <button type="button" disabled={submitting || !hasLocation} onClick={submit} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-coral py-4 text-sm font-bold text-paper ink-glow disabled:opacity-50">
-                {submitting ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-                {mergeIntoId ? 'Merge into existing report' : 'Submit report'}
-              </button>
             </div>
           )}
           {error && <p className="mt-4 rounded-xl border border-sev-critical/30 bg-sev-critical/10 px-4 py-3 text-sm text-sev-critical">{error}</p>}

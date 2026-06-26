@@ -15,6 +15,7 @@ import {
   type User,
 } from 'firebase/auth'
 import { getFirebaseAuth, googleProvider, isFirebaseConfigured } from './firebase'
+import { useAuthStore } from '../stores/useAuthStore'
 
 type AuthContextValue = {
   user: User | null
@@ -34,14 +35,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInLock = useRef(false)
 
   useEffect(() => {
+    useAuthStore.getState().setConfigured(isFirebaseConfigured)
     const auth = getFirebaseAuth()
     if (!auth) {
       setLoading(false)
+      useAuthStore.getState().setLoading(false)
       return
     }
     return onAuthStateChanged(auth, async (next) => {
       setUser(next)
       setLoading(false)
+      useAuthStore.getState().setUser(next)
+      useAuthStore.getState().setLoading(false)
       if (next) {
         try {
           const token = await next.getIdToken()
@@ -62,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (signInLock.current) return
     signInLock.current = true
     setSigningIn(true)
+    useAuthStore.getState().setSigningIn(true)
     try {
       const auth = getFirebaseAuth()
       if (!auth) throw new Error('Firebase is not configured')
@@ -69,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       signInLock.current = false
       setSigningIn(false)
+      useAuthStore.getState().setSigningIn(false)
     }
   }, [])
 

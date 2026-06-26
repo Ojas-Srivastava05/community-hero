@@ -1,13 +1,16 @@
 import { cn } from '@/lib/utils'
 import { apiSeverityToUi, type MapPoint } from '@/lib/issue-ui'
+import type { MapHotspot } from './CivicMap'
 
 export function MapMock({
   issues,
+  hotspots = [],
   className,
   selectedId,
   onSelect,
 }: {
   issues: MapPoint[]
+  hotspots?: MapHotspot[]
   className?: string
   selectedId?: string
   onSelect?: (id: string) => void
@@ -31,6 +34,24 @@ export function MapMock({
         <path d="M25 0 Q35 50 22 100" stroke="#cfc6b8" strokeWidth="1.2" fill="none" />
         <path d="M70 0 Q60 50 78 100" stroke="#cfc6b8" strokeWidth="1.4" fill="none" />
       </svg>
+      {hotspots.map((h, idx) => (
+        <span
+          key={h.geohash}
+          className="absolute -translate-x-1/2 -translate-y-1/2"
+          style={{
+            left: `${20 + (idx * 17) % 60}%`,
+            top: `${25 + (idx * 23) % 50}%`,
+          }}
+          title={`${h.geohash}: ${h.count} open`}
+        >
+          <span
+            className={cn(
+              'grid size-6 place-items-center rounded-full ring-2 ring-paper',
+              h.predictive ? 'bg-coral/60' : 'bg-indigo/50',
+            )}
+          />
+        </span>
+      ))}
       {issues.map((i) => {
         const sev = apiSeverityToUi(i.severity)
         const color =

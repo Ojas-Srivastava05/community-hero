@@ -1,0 +1,40 @@
+flowchart TB
+  subgraph sources["Data sources"]
+    ISSUES[(issues collection)]
+    EVENTS[(issues/id/events)]
+    VOTES[(issues/id/votes)]
+  end
+
+  subgraph batch["Scheduled / on-demand aggregation"]
+    CRON[Cloud Function stretch<br/>or server cron]
+    DAILY["analytics_daily date doc"]
+    HOT[hotspots collection]
+  end
+
+  subgraph api["Analytics API"]
+    SUM[GET /api/analytics/summary<br/>L3 cache 15 min]
+    HOTAPI[GET /api/analytics/hotspots<br/>Model D HotspotScorer]
+    TREND[GET /api/analytics/trends<br/>Model B Gemini lite narrative]
+    DEPT[GET /api/departments]
+  end
+
+  subgraph ui["Dashboard UI"]
+    KPI[KPI cards open/resolved]
+    PIE[Category pie — Recharts]
+    LINE[7-day trend line]
+    CARD[Hotspot cards + AI insight]
+  end
+
+  ISSUES --> CRON
+  EVENTS --> CRON
+  CRON --> DAILY
+  ISSUES --> HOTAPI
+  HOTAPI --> HOT
+
+  DAILY --> SUM
+  HOT --> HOTAPI
+  ISSUES --> TREND
+  SUM --> KPI
+  SUM --> PIE
+  TREND --> LINE
+  HOTAPI --> CARD

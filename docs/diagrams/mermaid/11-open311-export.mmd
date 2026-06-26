@@ -1,0 +1,41 @@
+flowchart LR
+  subgraph internal["Internal Firestore issue"]
+    ID[id]
+    CAT[category]
+    STATUS[status]
+    LAT[lat / lng]
+    ADDR[address]
+    DEPT[departmentId]
+    IMG[imageUrls]
+    CREATED[createdAt / updatedAt]
+  end
+
+  subgraph mapper["server/lib/open311.ts"]
+    MAP[toOpen311Record]
+    SC[OPEN311_SERVICE_CODES]
+    SM[STATUS_MAP open/closed]
+  end
+
+  subgraph open311["Open311 GeoReport v2"]
+    SRID[service_request_id]
+    CODE[service_code]
+    NAME[service_name]
+    SRS[service_request_status]
+    DESC[description]
+    GEO[lat / long]
+    MEDIA[media_url]
+    AGENCY[agency_responsible]
+  end
+
+  ID --> MAP
+  CAT --> SC --> CODE
+  STATUS --> SM --> SRS
+  LAT --> GEO
+  ADDR --> open311
+  DEPT --> AGENCY
+  IMG --> MEDIA
+  CREATED --> open311
+
+  MAP --> EXPORT[GET /api/analytics/export/open311]
+  EXPORT --> JSON[JSON array of service requests]
+  JSON --> MUNI[Municipal CRM / Open311 endpoint stretch]

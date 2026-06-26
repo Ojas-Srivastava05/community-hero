@@ -1,0 +1,37 @@
+flowchart TB
+  subgraph criteria["Hackathon evaluation matrix — Appendix A"]
+    IMP[Problem Solving & Impact 20%]
+    AGT[Agentic Depth 20%]
+    INN[Innovation & Creativity 20%]
+    GGL[Google Technologies 15%]
+    UX[Product Experience 10%]
+    TECH[Technical Implementation 10%]
+    COMP[Completeness 5%]
+  end
+
+  subgraph features["Community Hero evidence"]
+    F1[Photo → AI triage → map]
+    F2[6-agent pipeline + tools]
+    F3[Verification tiers + hotspots]
+    F4[AI Studio + Gemini + Firebase + Cloud Run]
+    F5[Civic Glass PWA 18 routes]
+    F6[Firestore rules + rate limits + tests]
+    F7[End-to-end demo on Cloud Run]
+  end
+
+  IMP --> F1 & F3 & F7
+  AGT --> F2
+  INN --> F3
+  GGL --> F4
+  UX --> F5
+  TECH --> F6
+  COMP --> F7
+
+  subgraph docs["Documentation parity — Section 19"]
+    D16[16 mermaid diagrams]
+    API[api_contract.md]
+    DEP[deployment runbook]
+    SEED[25 demo issues Appendix R]
+  end
+
+  F7 --> docs

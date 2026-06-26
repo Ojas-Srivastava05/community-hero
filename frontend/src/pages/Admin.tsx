@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiListIssues, apiUpdateStatus } from '../lib/api'
-import { useAuth } from '../lib/auth'
+import { apiBulkUpdateStatus, apiListIssues, apiUpdateStatus } from '../lib/api'
+import { useRequireAdmin } from '../lib/admin'
 import { GlassCard } from '@/components/civic/GlassCard'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { fadeUp, stagger } from '../lib/motion'
 import { motion } from 'framer-motion'
-import { Camera } from 'lucide-react'
+import { AlertTriangle, Camera, Download } from 'lucide-react'
 import type { Issue } from '../../../shared/types'
 
 const STATUSES = ['Submitted', 'Community Verified', 'Assigned', 'In Progress', 'Resolved', 'Closed']
@@ -15,14 +15,36 @@ function needsProof(status: string) {
   return status === 'Resolved' || status === 'Closed'
 }
 
+function exportCsv(issues: Issue[]) {
+  const headers = ['id', 'title', 'category', 'severity', 'status', 'priorityScore', 'slaBreached', 'departmentId', 'createdAt']
+  const rows = issues.map((i) =>
+    headers.map((h) => {
+      const val = i[h as keyof Issue]
+      const str = val === undefined || val === null ? '' : String(val)
+      return `"${str.replace(/"/g, '""')}"`
+    }).join(','),
+  )
+  const csv = [headers.join(','), ...rows].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `community-hero-issues-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function AdminPage() {
-  const { user, signInWithGoogle, signingIn } = useAuth()
+  const { user, loading, isAdmin, signInWithGoogle, signingIn } = useRequireAdmin()
   const [issues, setIssues] = useState<Issue[]>([])
   const [filter, setFilter] = useState('open')
   const [proofFiles, setProofFiles] = useState<Record<string, File>>({})
   const [pendingStatus, setPendingStatus] = useState<Record<string, string>>({})
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkStatus, setBulkStatus] = useState('In Progress')
 
-  const load = () => apiListIssues(100, { includeDemo: true }).then((r) => setIssues(r.issues))
+  const load = () =>
+    apiListIssues(100, { includeDemo: true, sortByPriority: true }).then((r) => setIssues(r.issues))
 
   useEffect(() => {
     load()
@@ -53,9 +75,39 @@ export function AdminPage() {
     updateStatus(issue.id, status)
   }
 
-  const displayed = issues.filter((i) =>
-    filter === 'open' ? !['Resolved', 'Closed'].includes(i.status) : true,
-  )
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const runBulkUpdate = async () => {
+    if (!user || selected.size === 0) return
+    const token = await user.getIdToken()
+    await apiBulkUpdateStatus([...selected], bulkStatus, token)
+    setSelected(new Set())
+    load()
+  }
+
+  const displayed = useMemo(() => {
+    const filtered = issues.filter((i) =>
+      filter === 'open' ? !['Resolved', 'Closed'].includes(i.status) : true,
+    )
+    return [...filtered].sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0))
+  }, [issues, filter])
+
+  const breachCount = displayed.filter((i) => i.slaBreached).length
+
+  if (loading) {
+    return (
+      <AppShell>
+        <PageHeader title="Admin" subtitle="Loading…" />
+      </AppShell>
+    )
+  }
 
   if (!user) {
     return (
@@ -71,15 +123,17 @@ export function AdminPage() {
     )
   }
 
+  if (!isAdmin) return null
+
   return (
     <AppShell>
       <PageHeader
         title="Admin panel"
-        subtitle="SLA queue · status updates"
+        subtitle={`SLA queue · ${breachCount} breached`}
         right={<Link to="/admin/analytics" className="text-xs font-bold text-coral">Analytics</Link>}
       />
       <main className="space-y-3 px-5 pt-4">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {['open', 'all'].map((f) => (
             <button
               key={f}
@@ -90,17 +144,63 @@ export function AdminPage() {
               {f}
             </button>
           ))}
+          <button
+            type="button"
+            className="ml-auto flex items-center gap-1 rounded-full border border-rule px-3 py-1 text-xs font-semibold text-ink"
+            onClick={() => exportCsv(displayed)}
+          >
+            <Download className="size-3" /> Export CSV
+          </button>
         </div>
+
+        {selected.size > 0 && (
+          <GlassCard className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-ink">{selected.size} selected</span>
+            <select
+              className="rounded-lg border border-rule bg-paper px-2 py-1 text-xs"
+              value={bulkStatus}
+              onChange={(e) => setBulkStatus(e.target.value)}
+            >
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <button type="button" className="rounded-lg bg-coral px-3 py-1 text-xs font-bold text-paper" onClick={runBulkUpdate}>
+              Apply bulk
+            </button>
+          </GlassCard>
+        )}
+
         <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-3">
           {displayed.map((issue) => {
             const pending = pendingStatus[issue.id]
             const showProof = pending && needsProof(pending)
             return (
               <motion.div key={issue.id} variants={fadeUp}>
-                <GlassCard className="space-y-2">
-                  <p className="text-sm font-medium text-ink">{issue.title}</p>
-                  <p className="text-xs text-ink-muted">{issue.category} · severity {issue.severity}</p>
-                  <p className="text-xs text-ink">Status: <span className="text-coral">{issue.status}</span></p>
+                <GlassCard className={`space-y-2 ${issue.slaBreached ? 'border border-[oklch(0.5_0.22_25/0.4)]' : ''}`}>
+                  <div className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(issue.id)}
+                      onChange={() => toggleSelect(issue.id)}
+                      className="mt-1"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-ink">{issue.title}</p>
+                      <p className="text-xs text-ink-muted">
+                        {issue.category} · severity {issue.severity}
+                        {issue.priorityScore != null && ` · priority ${issue.priorityScore}`}
+                      </p>
+                      <p className="text-xs text-ink">
+                        Status: <span className="text-coral">{issue.status}</span>
+                        {issue.slaBreached && (
+                          <span className="ml-2 inline-flex items-center gap-0.5 font-bold text-[oklch(0.5_0.22_25)]">
+                            <AlertTriangle className="size-3" /> SLA breached
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
                   <select
                     className="w-full rounded-lg border border-rule bg-paper p-2 text-xs text-ink"
                     value={pending || issue.status}

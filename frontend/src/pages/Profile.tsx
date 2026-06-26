@@ -14,7 +14,9 @@ const ALL_BADGES = [
   { name: 'First Reporter', desc: 'Submit your first civic report' },
   { name: 'Neighborhood Voice', desc: 'Earn 3 upvotes on a report' },
   { name: 'Duplicate Hunter', desc: 'Merge into an existing report' },
+  { name: 'Verified Voice', desc: 'Give 50 community boosts' },
   { name: 'Fix Follower', desc: 'Your report gets resolved' },
+  { name: 'Ward Guardian', desc: '5 reports in the same ward' },
   { name: 'Civic Champion', desc: 'Reach 100+ civic points' },
 ] as const
 
@@ -65,7 +67,7 @@ export function ProfilePage() {
         <motion.div variants={fadeUp}>
           <GlassCard className="text-center">
             {user?.photoURL ? (
-              <img src={user.photoURL} alt="" className="mx-auto size-20 rounded-full object-cover ring-2 ring-coral/40" />
+              <img src={user.photoURL} alt={user.displayName || 'Profile photo'} className="mx-auto size-20 rounded-full object-cover ring-2 ring-coral/40" />
             ) : (
               <div className="mx-auto grid size-20 place-items-center rounded-full bg-gradient-to-br from-coral/40 to-coral/10 ring-2 ring-coral/40 text-2xl font-extrabold text-coral">
                 {initials}
@@ -167,7 +169,8 @@ export function ProfilePage() {
             </button>
           </motion.div>
         )}
-        <Row to="/terms" icon={FileText} label="Terms & gamification" />
+        <Row to="/gamification-rules" icon={Award} label="Gamification rules" hint="Points & badges" />
+        <Row to="/terms" icon={FileText} label="Terms of use" />
         <Row to="/privacy" icon={Shield} label="Privacy policy" />
         <Row icon={Bell} label="Notifications" hint="Area alerts" />
         <Row icon={Settings} label="Preferences" />

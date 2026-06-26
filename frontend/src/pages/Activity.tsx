@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowUp, Check, FilePlus, Loader2, MessageSquare } from 'lucide-react'
+import { ArrowUp, Check, FilePlus, MessageSquare } from 'lucide-react'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
-import { apiListIssues } from '../lib/api'
+import { PageSkeleton } from '@/components/PageSkeleton'
+import { apiListIssues, apiListThreads } from '../lib/api'
 import { useLocation } from '../lib/location'
 import { haversineKm } from '../lib/geo'
 import { fadeUp, stagger } from '../lib/motion'
@@ -12,9 +13,12 @@ import type { Issue } from '../../../shared/types'
 
 type ActivityTab = 'all' | 'ward' | 'resolved'
 
+type ThreadRow = { id: string; title: string; summary: string; count: number; category?: string }
+
 export function ActivityPage() {
   const { location, loading: locLoading } = useLocation()
   const [issues, setIssues] = useState<Issue[]>([])
+  const [threads, setThreads] = useState<ThreadRow[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<ActivityTab>('all')
 
@@ -23,9 +27,14 @@ export function ActivityPage() {
     const opts = location
       ? { lat: location.lat, lng: location.lng, radiusKm: 25 }
       : undefined
-    apiListIssues(50, opts)
-      .then((r) => setIssues(r.issues))
-      .catch(() => setIssues([]))
+    Promise.all([
+      apiListIssues(50, opts).then((r) => r.issues).catch(() => [] as Issue[]),
+      apiListThreads().then((r) => r.threads as ThreadRow[]).catch(() => [] as ThreadRow[]),
+    ])
+      .then(([issueList, threadList]) => {
+        setIssues(issueList)
+        setThreads(threadList.slice(0, 8))
+      })
       .finally(() => setLoading(false))
   }, [location])
 
@@ -60,10 +69,37 @@ export function ActivityPage() {
           <Tab active={tab === 'resolved'} onClick={() => setTab('resolved')}>Resolved</Tab>
         </div>
 
+        {threads.length > 0 && (
+          <section className="mb-6">
+            <div className="mb-2 flex items-center justify-between px-1">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Thread clusters</p>
+              <Link to="#threads" className="text-[11px] font-bold text-coral">View all</Link>
+            </div>
+            <div id="threads" className="space-y-2">
+              {threads.map((t) => (
+                <Link
+                  key={t.id}
+                  to={`/threads/${t.id}`}
+                  className="paper block px-4 py-3 transition-transform active:scale-[0.99]"
+                >
+                  <div className="flex items-start gap-2">
+                    <MessageSquare className="mt-0.5 size-4 shrink-0 text-indigo" />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-ink">{t.title}</p>
+                      <p className="mt-0.5 line-clamp-2 text-[11px] text-ink-muted">{t.summary}</p>
+                      <p className="mt-1 text-[10px] font-bold text-indigo">{t.count} related reports</p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-ink-muted">Recent activity</p>
+
         {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="size-6 animate-spin text-coral" />
-          </div>
+          <PageSkeleton rows={5} />
         ) : filtered.length === 0 ? (
           <p className="py-8 text-center text-sm text-ink-muted">
             {tab === 'resolved'

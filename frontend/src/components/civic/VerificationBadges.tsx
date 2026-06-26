@@ -15,10 +15,39 @@ function tierUnlocked(upvoteCount: number, verificationLevel: number, threshold:
 export function VerificationBadges({
   upvoteCount,
   verificationLevel,
+  compact = false,
 }: {
   upvoteCount: number
   verificationLevel: number
+  compact?: boolean
 }) {
+  if (compact) {
+    const unlocked = TIERS.filter((tier) =>
+      tierUnlocked(upvoteCount, verificationLevel, tier.threshold, tier.level),
+    )
+    if (unlocked.length === 0) return null
+    return (
+      <div className="flex flex-wrap gap-1">
+        {unlocked.map((tier) => {
+          const toneClass = {
+            indigo: 'bg-indigo-soft text-indigo border-indigo/30',
+            leaf: 'bg-leaf-soft text-leaf border-leaf/30',
+            coral: 'bg-coral-soft text-coral border-coral/30',
+          }[tier.tone]
+          return (
+            <span
+              key={tier.label}
+              className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold', toneClass)}
+            >
+              <tier.icon className="size-3" />
+              {tier.label}
+            </span>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
     <GlassCard>
       <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">Community verification</p>

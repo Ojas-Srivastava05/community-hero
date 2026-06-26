@@ -1,0 +1,60 @@
+flowchart TB
+  subgraph users["Users"]
+    MOBILE[Mobile browser PWA]
+    DESKTOP[Desktop browser]
+  end
+
+  subgraph gcp["GCP — community-hero-vibe2ship"]
+    subgraph run["Cloud Run — asia-south1"]
+      CR[community-hero service<br/>:8080 PORT]
+      CR --> API[Express API /api/*]
+      CR --> SPA[Static frontend/dist SPA]
+    end
+
+    subgraph artifact["Artifact Registry / GCR"]
+      IMG[gcr.io/community-hero-vibe2ship/community-hero:latest]
+    end
+
+    subgraph build["CI/CD"]
+      GH[GitHub Actions ci.yml + deploy.yml]
+      CB[cloudbuild.yaml]
+      DEPLOY[scripts/deploy-cloud-run.sh]
+    end
+  end
+
+  subgraph firebase["Firebase — community-hero-vibe2ship"]
+    FS[(Cloud Firestore)]
+    ST[(Cloud Storage<br/>community-hero-vibe2ship-uploads)]
+    FAUTH[Firebase Auth<br/>Google Sign-In]
+    RULES[firestore.rules + indexes]
+  end
+
+  subgraph google["Google APIs"]
+    GEMINI[Gemini API<br/>vision + chat]
+    MAPS[Maps Geocoding API]
+  end
+
+  subgraph preview["Optional preview"]
+    VERCEL[Vercel<br/>community-hero-eight.vercel.app]
+  end
+
+  MOBILE -->|HTTPS| CR
+  DESKTOP -->|HTTPS| CR
+  MOBILE -.->|preview| VERCEL
+
+  GH --> CB
+  CB --> IMG
+  DEPLOY --> CR
+  IMG --> CR
+
+  API --> FS
+  API --> ST
+  API --> FAUTH
+  API --> GEMINI
+  API --> MAPS
+  MOBILE --> FAUTH
+  RULES --> FS
+
+  CR_URL["Production URL<br/>community-hero-987477089222.asia-south1.run.app"]
+
+  CR --- CR_URL

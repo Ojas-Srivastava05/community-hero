@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, Sparkles } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { GlassCard } from '@/components/civic/GlassCard'
 import { apiGetThread } from '../lib/api'
@@ -42,13 +42,17 @@ export function ThreadDetailPage() {
       <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-4 px-5 pt-4">
         <motion.div variants={fadeUp}>
           <GlassCard>
-            <p className="text-sm text-ink-muted">{thread.summary}</p>
+            <div className="mb-2 flex items-center gap-2">
+              <Sparkles className="size-4 text-coral" />
+              <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">Gemini AI summary</p>
+            </div>
+            <p className="text-sm leading-relaxed text-ink">{thread.summary}</p>
           </GlassCard>
         </motion.div>
         {issues.map((issue) => (
           <motion.div key={issue.id} variants={fadeUp}>
             <Link to={`/issues/${issue.id}`} className="paper flex gap-3 p-3 transition-transform active:scale-[0.99]">
-              <img src={issueImage(issue)} alt="" className="size-14 rounded-lg object-cover" />
+              <img src={issueImage(issue)} alt={`${issue.title} — ${issue.status}`} className="size-14 rounded-lg object-cover" />
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-ink">{issue.title}</p>
                 <p className="text-[11px] text-ink-muted">

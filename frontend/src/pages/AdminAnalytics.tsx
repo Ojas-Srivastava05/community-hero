@@ -5,7 +5,7 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recha
 import { Flame, MapPin, Sparkles } from 'lucide-react'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { GlassCard, SectionHeader } from '@/components/civic/GlassCard'
-import { useAuth } from '../lib/auth'
+import { useRequireAdmin } from '../lib/admin'
 import { apiAnalyticsSummary, apiHotspots, apiTrends } from '../lib/api'
 import { fadeUp, stagger } from '../lib/motion'
 
@@ -20,30 +20,59 @@ type Hotspot = {
   predictive?: boolean
 }
 
+type WardRow = { wardId: string; total: number; open: number; resolved: number }
+
+function wardHeatColor(total: number, max: number): string {
+  const ratio = max > 0 ? total / max : 0
+  if (ratio >= 0.75) return 'bg-coral text-paper'
+  if (ratio >= 0.5) return 'bg-coral/70 text-paper'
+  if (ratio >= 0.25) return 'bg-coral/40 text-ink'
+  return 'bg-indigo-soft text-indigo'
+}
+
 export function AdminAnalyticsPage() {
-  const { user, signInWithGoogle, signingIn } = useAuth()
+  const { user, loading, isAdmin, signInWithGoogle, signingIn } = useRequireAdmin()
   const [hotspots, setHotspots] = useState<Hotspot[]>([])
   const [byCategory, setByCategory] = useState<Record<string, number>>({})
+  const [wardBreakdown, setWardBreakdown] = useState<WardRow[]>([])
   const [narrative, setNarrative] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [recurringIssues, setRecurringIssues] = useState<{ category: string; geohash6: string; count: number }[]>([])
+  const [categoryTrends, setCategoryTrends] = useState<Record<string, { last7: number; last30: number; prev7: number }>>({})
+  const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
-    if (!user) return
-    setLoading(true)
+    if (!user || !isAdmin) return
+    setPageLoading(true)
     Promise.all([apiHotspots(), apiAnalyticsSummary(), apiTrends().catch(() => null)])
       .then(([h, s, t]) => {
         setHotspots(h.hotspots ?? [])
         setByCategory(s.byCategory ?? {})
+        setWardBreakdown(s.wardBreakdown ?? t?.wardBreakdown ?? [])
         setNarrative(t?.narrative || s.insight || '')
+        setRecurringIssues(t?.recurringIssues ?? [])
+        setCategoryTrends(t?.categoryTrends ?? {})
       })
       .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [user])
+      .finally(() => setPageLoading(false))
+  }, [user, isAdmin])
 
   const chartData = Object.entries(byCategory).map(([name, count]) => ({
     name: name.replace(/_/g, ' ').slice(0, 12),
     count,
   }))
+  const maxWardTotal = wardBreakdown.reduce((m, w) => Math.max(m, w.total), 0)
+
+  const categoryTrendRows = Object.entries(categoryTrends)
+    .map(([category, t]) => ({ category, ...t, delta: t.last7 - t.prev7 }))
+    .sort((a, b) => b.last7 - a.last7)
+
+  if (loading) {
+    return (
+      <AppShell>
+        <PageHeader title="Admin analytics" subtitle="Loading…" />
+      </AppShell>
+    )
+  }
 
   if (!user) {
     return (
@@ -59,9 +88,11 @@ export function AdminAnalyticsPage() {
     )
   }
 
+  if (!isAdmin) return null
+
   return (
     <AppShell>
-      <PageHeader title="Admin analytics" subtitle="Hotspots · category breakdown" />
+      <PageHeader title="Admin analytics" subtitle="Hotspots · ward heatmap · trends" />
       <main className="space-y-6 px-5 pt-4 pb-10">
         {narrative && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
@@ -78,9 +109,82 @@ export function AdminAnalyticsPage() {
           </motion.div>
         )}
 
+        {wardBreakdown.length > 0 && (
+          <section>
+            <SectionHeader title="Ward heatmap" hint="Issue density by ward" />
+            <motion.ul variants={stagger} initial="hidden" animate="show" className="space-y-2">
+              {wardBreakdown.map((w) => (
+                <motion.li key={w.wardId} variants={fadeUp}>
+                  <GlassCard className="flex items-center gap-3">
+                    <div
+                      className={`grid size-12 shrink-0 place-items-center rounded-xl text-sm font-bold ${wardHeatColor(w.total, maxWardTotal)}`}
+                      title={`${w.total} total issues`}
+                    >
+                      {w.total}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-ink">{w.wardId}</p>
+                      <div className="mt-1 flex gap-3 text-[11px] text-ink-muted">
+                        <span>{w.open} open</span>
+                        <span className="text-leaf">{w.resolved} resolved</span>
+                      </div>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-ink/5">
+                        <div
+                          className="h-full rounded-full bg-coral transition-all"
+                          style={{ width: `${maxWardTotal > 0 ? (w.total / maxWardTotal) * 100 : 0}%` }}
+                        />
+                      </div>
+                    </div>
+                  </GlassCard>
+                </motion.li>
+              ))}
+            </motion.ul>
+          </section>
+        )}
+
+        {categoryTrendRows.length > 0 && (
+          <section>
+            <SectionHeader title="Category trends" hint="7d vs prior week" />
+            <motion.ul variants={stagger} initial="hidden" animate="show" className="space-y-2">
+              {categoryTrendRows.map((row) => (
+                <motion.li key={row.category} variants={fadeUp}>
+                  <GlassCard className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-ink">{row.category.replace(/_/g, ' ')}</p>
+                      <p className="text-[11px] text-ink-muted">{row.last7} last 7d · {row.last30} last 30d</p>
+                    </div>
+                    <span className={`text-xs font-bold ${row.delta > 0 ? 'text-coral' : row.delta < 0 ? 'text-leaf' : 'text-ink-muted'}`}>
+                      {row.delta > 0 ? `+${row.delta}` : row.delta}
+                    </span>
+                  </GlassCard>
+                </motion.li>
+              ))}
+            </motion.ul>
+          </section>
+        )}
+
+        {recurringIssues.length > 0 && (
+          <section>
+            <SectionHeader title="Recurring issues" hint="Same category + geohash (30d)" />
+            <motion.ul variants={stagger} initial="hidden" animate="show" className="space-y-2">
+              {recurringIssues.map((r) => (
+                <motion.li key={`${r.category}-${r.geohash6}`} variants={fadeUp}>
+                  <GlassCard className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-ink">{r.category.replace(/_/g, ' ')}</p>
+                      <p className="text-[11px] text-ink-muted">{r.geohash6} · {r.count} reports</p>
+                    </div>
+                    <span className="rounded-lg bg-coral-soft px-2 py-1 text-[10px] font-bold uppercase text-coral">Recurring</span>
+                  </GlassCard>
+                </motion.li>
+              ))}
+            </motion.ul>
+          </section>
+        )}
+
         <section>
           <SectionHeader title="Hotspot cells" hint="Predictive clusters" />
-          {loading ? (
+          {pageLoading ? (
             <p className="text-sm text-ink-muted">Loading hotspots…</p>
           ) : hotspots.length === 0 ? (
             <GlassCard><p className="text-sm text-ink-muted">No hotspot clusters detected yet.</p></GlassCard>

@@ -1,0 +1,32 @@
+flowchart TB
+  USER([Citizen /assistant chat]) --> API[POST /api/ai/chat]
+  API --> AUTH[requireAuth + chatLimit 20/min]
+  AUTH --> GEMINI[Gemini 2.0 Flash Lite<br/>function calling]
+
+  subgraph tools["Citizen Assistant Tools — Appendix V"]
+    T1[findNearbyIssues<br/>lat, lng, radius_km]
+    T2[getMyReports<br/>reporterId from token]
+    T3[getIssueById<br/>issue id]
+    T4[searchIssues<br/>text query]
+    T5[getHotspots<br/>geohash-5 density grid]
+    T6[getDepartmentInfo<br/>category → SLA table]
+  end
+
+  GEMINI -->|tool call| T1
+  GEMINI -->|tool call| T2
+  GEMINI -->|tool call| T3
+  GEMINI -->|tool call| T4
+  GEMINI -->|tool call| T5
+  GEMINI -->|tool call| T6
+
+  T1 --> FS[(Firestore issues)]
+  T2 --> FS
+  T3 --> FS
+  T4 --> FS
+  T5 --> FS
+  T6 --> DEPT[DEPARTMENTS map<br/>types/shared.ts]
+
+  FS --> GEMINI
+  DEPT --> GEMINI
+  GEMINI --> REPLY[Grounded reply<br/>never invent issue data]
+  REPLY --> USER

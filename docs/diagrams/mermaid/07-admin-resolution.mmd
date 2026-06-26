@@ -1,0 +1,26 @@
+flowchart TB
+  ADMIN([Admin opens /admin]) --> GUARD{ADMIN_EMAILS<br/>or ADMIN_UIDS?}
+  GUARD -->|no| DENY[403 — not authorized]
+  GUARD -->|yes| QUEUE[Load open issues<br/>filter by department]
+
+  QUEUE --> PICK[Select issue]
+  PICK --> ACTION{Action}
+
+  ACTION -->|status update| STATUS[PATCH status:<br/>Assigned / In Progress / Resolved]
+  ACTION -->|proof upload| PROOF[Upload proof image<br/>issues/id/proof.ext]
+  ACTION -->|reopen| REOPEN[Reporter reopen flow]
+
+  STATUS --> NOTIFY[notifyStatusChange<br/>→ notifications collection]
+  PROOF --> RESOLVED[Set status Resolved<br/>resolvedAt timestamp]
+  RESOLVED --> MATCH[Optional: Gemini before/after<br/>Model F stretch]
+  MATCH --> PTS[+25 pts reporter<br/>Verified Voice badge]
+
+  NOTIFY --> EVENT[events/status_change]
+  PTS --> EVENT
+  EVENT --> TIMELINE[Issue detail timeline updated]
+  TIMELINE --> DASH[Dashboard resolved count++]
+
+  subgraph sla["SLA monitoring"]
+    QUEUE --> BREACH{slaDeadline passed?}
+    BREACH -->|yes| ESC[Flag slaBreached<br/>admin analytics alert]
+  end

@@ -5,13 +5,24 @@ import ngeohash from 'ngeohash'
 import { z } from 'zod'
 import { db, bucket } from '../lib/firebase-admin'
 import { analyzeImage } from '../lib/gemini'
-import { runAgentPipeline, awardPoints, notifyStatusChange } from '../lib/agents'
+import {
+  runAgentPipeline,
+  awardPoints,
+  notifyStatusChange,
+  enrichIssuesWithSla,
+  runCitizenCommunicator,
+  type AwardResult,
+} from '../lib/agents'
+import { compareBeforeAfter } from '../lib/gemini'
+import { generateEmbedding, issueEmbeddingText } from '../lib/embeddings'
 import { requireAuth, type AuthedRequest } from '../middleware/auth'
 import { reportLimit, upvoteLimit } from '../middleware/rateLimit'
 import { deriveWardId, haversineKm, reverseGeocodeServer } from '../lib/geo'
+import { validateImageBuffer } from '../lib/media-validation'
 import { upsertThreadForIssue } from './threads'
 import { CATEGORIES, DEPARTMENTS, type IssueAnalysis } from '../types/shared'
-import { sendError, ErrorCodes, isApiError } from '../lib/errors'
+import { sendError, ErrorCodes, sendServerError, isApiError } from '../lib/errors'
+import { runIntakeAgent } from '../lib/agents/intake'
 import { toOpen311Record } from '../lib/open311'
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } })
@@ -73,14 +84,15 @@ reportsRouter.post('/analyze', requireAuth, upload.single('image'), async (req: 
       return
     }
     const hint = req.body.hint as string | undefined
+    const intake = await runIntakeAgent(req.file.buffer, hint)
+    if (!intake.ok) {
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, intake.reason || 'Image failed safety or civic check')
+      return
+    }
     const analysis = await analyzeImage(req.file.buffer, req.file.mimetype, hint)
     res.json({ analysis })
   } catch (e) {
-    if (isApiError(e) && e.code === ErrorCodes.INVALID_MEDIA) {
-      sendError(res, 400, ErrorCodes.INVALID_MEDIA, e.message)
-      return
-    }
-    res.status(500).json({ error: String(e) })
+    sendServerError(res, e)
   }
 })
 
@@ -88,7 +100,12 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
   try {
     const parsed = createSchema.safeParse(req.body)
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() })
+      const missingGps = !Number.isFinite(Number(req.body.lat)) || !Number.isFinite(Number(req.body.lng))
+      if (missingGps) {
+        sendError(res, 400, ErrorCodes.GPS_REQUIRED, 'Location required — enable GPS or place a pin on the map')
+        return
+      }
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'Invalid report data')
       return
     }
     const data = parsed.data
@@ -107,20 +124,43 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
         payload: { mergedFrom: 'new-report', title: data.title },
         timestamp: new Date().toISOString(),
       })
-      await awardPoints(req.user!.uid, 15, 'merge')
-      res.status(201).json({ id: data.mergeIntoId, merged: true, issue: { id: data.mergeIntoId, ...target.data(), upvoteCount: count } })
+      const mergeAward = await awardPoints(req.user!.uid, 15, 'merge')
+      res.status(201).json({
+        id: data.mergeIntoId,
+        merged: true,
+        issue: { id: data.mergeIntoId, ...target.data(), upvoteCount: count },
+        pointsEarned: mergeAward,
+      })
       return
     }
 
-    const geo = data.address
-      ? { address: data.address, wardId: deriveWardId(data.address, data.lat, data.lng) }
-      : await reverseGeocodeServer(data.lat, data.lng)
-
     const id = uuid()
-    const imageUrls: string[] = []
     const files = (req.files as Express.Multer.File[]) || []
 
     for (const file of files) {
+      const intake = await runIntakeAgent(file.buffer, data.description, data.title, data.description)
+      if (!intake.ok) {
+        sendError(res, 400, ErrorCodes.INVALID_MEDIA, intake.reason || 'Image failed safety or civic check')
+        return
+      }
+    }
+
+    const geoPromise = data.address
+      ? Promise.resolve({
+          address: data.address,
+          wardId: deriveWardId(data.address, data.lat, data.lng),
+        })
+      : reverseGeocodeServer(data.lat, data.lng)
+
+    for (const file of files) {
+      const validation = validateImageBuffer(file.buffer, file.mimetype)
+      if (!validation.ok) {
+        sendError(res, 400, ErrorCodes.INVALID_MEDIA, validation.reason)
+        return
+      }
+    }
+
+    const uploadFile = async (file: Express.Multer.File): Promise<string | null> => {
       try {
         const ext = file.mimetype.split('/')[1] || 'jpg'
         const path = `issues/${id}/${uuid()}.${ext}`
@@ -128,21 +168,30 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
         await blob.save(file.buffer, { metadata: { contentType: file.mimetype } })
         try {
           await blob.makePublic()
-          imageUrls.push(`https://storage.googleapis.com/${bucket.name}/${path}`)
+          return `https://storage.googleapis.com/${bucket.name}/${path}`
         } catch {
           const [signedUrl] = await blob.getSignedUrl({
             action: 'read',
             expires: Date.now() + 365 * 24 * 60 * 60 * 1000,
           })
-          imageUrls.push(signedUrl)
+          return signedUrl
         }
       } catch (storageErr) {
         console.error('Image upload failed (report will save without photo):', storageErr)
+        return null
       }
     }
 
+    const [geo, ...uploadedUrls] = await Promise.all([
+      geoPromise,
+      ...files.map((file) => uploadFile(file)),
+    ])
+    const imageUrls = uploadedUrls.filter((url): url is string => Boolean(url))
+
     const geohash = ngeohash.encode(data.lat, data.lng, 7)
     const now = new Date().toISOString()
+    const embedText = issueEmbeddingText(data.title, data.description, data.category)
+    const embedding = await generateEmbedding(embedText)
     const issue = {
       title: data.title,
       description: data.description,
@@ -153,6 +202,7 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
       lng: data.lng,
       address: geo.address,
       geohash,
+      embedding,
       wardId: geo.wardId || deriveWardId(geo.address, data.lat, data.lng),
       imageUrls,
       reporterId: req.user!.uid,
@@ -178,9 +228,25 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
       }
     }
 
+    let pointsEarned: AwardResult = { pointsAwarded: 0, badgesEarned: [] }
     try {
-      await runAgentPipeline(id, analysis, data.lat, data.lng, req.user!.uid, geo.wardId)
-      await upsertThreadForIssue(id, geohash, data.title, data.category)
+      const firstImage = files[0]
+      const pipelineResult = await runAgentPipeline({
+        issueId: id,
+        analysis,
+        lat: data.lat,
+        lng: data.lng,
+        reporterId: req.user!.uid,
+        wardId: geo.wardId,
+        title: data.title,
+        description: data.description,
+        imageBuffer: firstImage?.buffer,
+        imageMime: firstImage?.mimetype,
+        createdAt: now,
+        precomputedEmbedding: embedding,
+      })
+      await upsertThreadForIssue(id, geohash, data.title, data.category, embedding)
+      pointsEarned = pipelineResult.pointsEarned ?? pointsEarned
     } catch (agentErr) {
       console.error('Agent pipeline failed (report saved):', agentErr)
       await db.collection('issues').doc(id).update({
@@ -191,20 +257,25 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
 
     const saved = await db.collection('issues').doc(id).get()
     const savedData = saved.data()!
-    const dupes = (savedData.aiMetadata as { duplicate_suggestions?: { id: string; title: string }[] })?.duplicate_suggestions
+    const dupes = (savedData.aiMetadata as { duplicate_suggestions?: { id: string; title: string; similarity?: number; distanceM?: number }[] })?.duplicate_suggestions
 
-    const needsReview = analysis.confidence < 0.6
+    const needsReview = analysis.confidence < 0.7
     const statusCode = needsReview ? 202 : 201
     const responseBody: Record<string, unknown> = {
       id,
       issue: { id, ...savedData },
       duplicateSuggestions: dupes || [],
+      pointsEarned,
     }
-    if (needsReview) responseBody.code = ErrorCodes.NEEDS_REVIEW
+    if (needsReview) {
+      responseBody.code = ErrorCodes.NEEDS_REVIEW
+    } else if (dupes && dupes.length > 0) {
+      responseBody.code = ErrorCodes.DUPLICATE_SUGGESTED
+    }
 
     res.status(statusCode).json(responseBody)
   } catch (e) {
-    res.status(500).json({ error: String(e) })
+    sendServerError(res, e)
   }
 })
 
@@ -216,12 +287,19 @@ reportsRouter.get('/', async (req, res) => {
     const lng = req.query.lng ? Number(req.query.lng) : undefined
     const radiusKm = req.query.radius_km ? Number(req.query.radius_km) : undefined
     const includeDraft = req.query.include_draft === '1'
+    const sortByPriority = req.query.sort === 'priority'
 
     const includeDemo = req.query.include_demo === '1'
     const fetchLimit = lat !== undefined && lng !== undefined ? Math.min(limit * 4, 100) : limit
 
-    let q = db.collection('issues').orderBy('createdAt', 'desc').limit(fetchLimit)
-    if (status) q = db.collection('issues').where('status', '==', status).orderBy('createdAt', 'desc').limit(fetchLimit)
+    let q = sortByPriority
+      ? db.collection('issues').orderBy('priorityScore', 'desc').limit(fetchLimit)
+      : db.collection('issues').orderBy('createdAt', 'desc').limit(fetchLimit)
+    if (status) {
+      q = sortByPriority
+        ? db.collection('issues').where('status', '==', status).orderBy('priorityScore', 'desc').limit(fetchLimit)
+        : db.collection('issues').where('status', '==', status).orderBy('createdAt', 'desc').limit(fetchLimit)
+    }
     const snap = await q.get()
     let issues = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as {
       id: string
@@ -231,7 +309,14 @@ reportsRouter.get('/', async (req, res) => {
       reporterId?: string
       status?: string
       aiMetadata?: { needs_review?: boolean }
+      slaDeadline?: string
+      slaBreached?: boolean
+      priorityScore?: number
     }[]
+
+    if (sortByPriority) {
+      issues = (await enrichIssuesWithSla(issues)) as typeof issues
+    }
 
     if (!includeDemo) {
       issues = issues.filter((i) => !i.isDemo && i.reporterId !== 'demo-seed')
@@ -246,15 +331,17 @@ reportsRouter.get('/', async (req, res) => {
       issues = issues
         .map((i) => ({ ...i, _dist: haversineKm(lat, lng, i.lat, i.lng) }))
         .filter((i) => i._dist <= radius)
-        .sort((a, b) => a._dist - b._dist)
+        .sort((a, b) => (sortByPriority ? (b.priorityScore ?? 0) - (a.priorityScore ?? 0) : a._dist - b._dist))
         .map(({ _dist, ...rest }) => rest)
+    } else if (sortByPriority) {
+      issues.sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0))
     }
 
     issues = issues.slice(0, limit)
 
     res.json({ issues })
   } catch (e) {
-    res.status(500).json({ error: String(e) })
+    sendServerError(res, e)
   }
 })
 
@@ -268,7 +355,7 @@ reportsRouter.get('/mine', requireAuth, async (req: AuthedRequest, res) => {
       .get()
     res.json({ issues: snap.docs.map((d) => ({ id: d.id, ...d.data() })) })
   } catch (e) {
-    res.status(500).json({ error: String(e) })
+    sendServerError(res, e)
   }
 })
 
@@ -282,7 +369,7 @@ reportsRouter.get('/:id/vote', requireAuth, async (req: AuthedRequest, res) => {
       .get()
     res.json({ voted: vote.exists })
   } catch (e) {
-    res.status(500).json({ error: String(e) })
+    sendServerError(res, e)
   }
 })
 
@@ -293,6 +380,8 @@ reportsRouter.get('/:id', async (req, res) => {
       sendError(res, 404, ErrorCodes.NOT_FOUND, 'Not found')
       return
     }
+    const data = doc.data()!
+    const [enriched] = await enrichIssuesWithSla([{ id: doc.id, ...data }])
     const events = await db
       .collection('issues')
       .doc(req.params.id)
@@ -300,11 +389,11 @@ reportsRouter.get('/:id', async (req, res) => {
       .orderBy('timestamp', 'asc')
       .get()
     res.json({
-      issue: { id: doc.id, ...doc.data() },
+      issue: enriched,
       events: events.docs.map((d) => ({ id: d.id, ...d.data() })),
     })
   } catch (e) {
-    res.status(500).json({ error: String(e) })
+    sendServerError(res, e)
   }
 })
 
@@ -326,9 +415,15 @@ reportsRouter.post('/:id/upvote', requireAuth, upvoteLimit, async (req: AuthedRe
       res.json({ already: true, count: result.count, verificationLevel: result.verificationLevel })
       return
     }
-    res.json({ count: result.count, verificationLevel: result.verificationLevel })
+    res.json({
+      count: result.count,
+      verificationLevel: result.verificationLevel,
+      pointsEarned: result.pointsAwarded
+        ? { pointsAwarded: result.pointsAwarded, badgesEarned: result.badgesEarned ?? [] }
+        : undefined,
+    })
   } catch (e) {
-    res.status(500).json({ error: String(e) })
+    sendServerError(res, e)
   }
 })
 
@@ -337,7 +432,7 @@ reportsRouter.post('/:id/merge', requireAuth, async (req: AuthedRequest, res) =>
     const sourceId = String(req.params.id)
     const { targetId } = req.body as { targetId?: string }
     if (!targetId) {
-      res.status(400).json({ error: 'targetId required' })
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'targetId required')
       return
     }
     const [source, target] = await Promise.all([
@@ -357,10 +452,10 @@ reportsRouter.post('/:id/merge', requireAuth, async (req: AuthedRequest, res) =>
       payload: { sourceId },
       timestamp: new Date().toISOString(),
     })
-    await awardPoints(req.user!.uid, 15, 'merge')
-    res.json({ ok: true, targetId, upvoteCount: count })
+    const mergeAward = await awardPoints(req.user!.uid, 15, 'merge')
+    res.json({ ok: true, targetId, upvoteCount: count, pointsEarned: mergeAward })
   } catch (e) {
-    res.status(500).json({ error: String(e) })
+    sendServerError(res, e)
   }
 })
 
@@ -376,7 +471,7 @@ reportsRouter.post('/:id/open311/export', requireAuth, async (req: AuthedRequest
     res.setHeader('Content-Disposition', `attachment; filename=open311-${doc.id}.json`)
     res.json(record)
   } catch (e) {
-    res.status(500).json({ error: String(e) })
+    sendServerError(res, e)
   }
 })
 
@@ -397,7 +492,7 @@ reportsRouter.post('/:id/reopen', requireAuth, async (req: AuthedRequest, res) =
       return
     }
     if (!['Resolved', 'Closed'].includes(data.status)) {
-      res.status(400).json({ error: 'Only resolved/closed issues can be reopened' })
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'Only resolved/closed issues can be reopened')
       return
     }
     await doc.ref.update({ status: 'Submitted', resolvedAt: null, updatedAt: new Date().toISOString() })
@@ -409,7 +504,52 @@ reportsRouter.post('/:id/reopen', requireAuth, async (req: AuthedRequest, res) =
     })
     res.json({ ok: true })
   } catch (e) {
-    res.status(500).json({ error: String(e) })
+    sendServerError(res, e)
+  }
+})
+
+reportsRouter.post('/bulk-status', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const { ids, status } = req.body as { ids?: string[]; status?: string }
+    if (!ids?.length || !status) {
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'ids and status required')
+      return
+    }
+    const admins = (process.env.ADMIN_UIDS || '').split(',')
+    const adminEmails = (process.env.ADMIN_EMAILS || 'srivastavaojas454@gmail.com').split(',')
+    const isAdmin =
+      admins.includes(req.user!.uid) ||
+      (req.user!.email && adminEmails.includes(req.user!.email))
+    if (!isAdmin) {
+      sendError(res, 403, ErrorCodes.FORBIDDEN, 'Forbidden')
+      return
+    }
+
+    const now = new Date().toISOString()
+    const updated: string[] = []
+    for (const issueId of ids.slice(0, 50)) {
+      const doc = await db.collection('issues').doc(issueId).get()
+      if (!doc.exists) continue
+      const data = doc.data()!
+      await doc.ref.update({ status, updatedAt: now })
+      await doc.ref.collection('events').add({
+        type: 'status_change',
+        actorId: req.user!.uid,
+        payload: { status, bulk: true },
+        timestamp: now,
+      })
+      if (data.reporterId && data.status !== status) {
+        const narrative = await runCitizenCommunicator(status, data.title || 'Your report', data.departmentId)
+        await notifyStatusChange(issueId, data.reporterId, status, data.title || 'Your report', {
+          en: narrative.narrativeEn,
+          hi: narrative.narrativeHi,
+        })
+      }
+      updated.push(issueId)
+    }
+    res.json({ ok: true, updated })
+  } catch (e) {
+    sendServerError(res, e)
   }
 })
 
@@ -426,7 +566,7 @@ reportsRouter.patch('/:id/status', requireAuth, (req, res, next) => {
     const id = String(req.params.id)
     const status = typeof req.body?.status === 'string' ? req.body.status.trim() : ''
     if (!status) {
-      res.status(400).json({ error: 'status field required' })
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'status field required')
       return
     }
     const admins = (process.env.ADMIN_UIDS || '').split(',')
@@ -455,7 +595,7 @@ reportsRouter.patch('/:id/status', requireAuth, (req, res, next) => {
       const reporterId = issueData.reporterId
       if (reporterId) {
         const { awardPoints } = await import('../lib/agents')
-        await awardPoints(reporterId, 25, 'resolved')
+        await awardPoints(reporterId, 25, 'resolved') // Fix Follower badge
       }
     }
 
@@ -475,9 +615,37 @@ reportsRouter.patch('/:id/status', requireAuth, (req, res, next) => {
           })
           updates.proofImageUrl = signedUrl
         }
+
+        const beforeUrl = (issueData.imageUrls as string[] | undefined)?.[0]
+        if (beforeUrl && req.file) {
+          try {
+            const beforeRes = await fetch(beforeUrl)
+            const beforeBuffer = Buffer.from(await beforeRes.arrayBuffer())
+            const comparison = await compareBeforeAfter(
+              beforeBuffer,
+              req.file.buffer,
+              beforeRes.headers.get('content-type') || 'image/jpeg',
+              req.file.mimetype,
+            )
+            updates['aiMetadata.data_source'] = 'ai'
+            updates['aiMetadata.proofComparison'] = comparison
+            await db.collection('issues').doc(id).collection('events').add({
+              type: 'proof_comparison',
+              actorId: 'vision-agent',
+              payload: comparison,
+              timestamp: new Date().toISOString(),
+            })
+          } catch (compareErr) {
+            console.error('Proof comparison failed:', compareErr)
+          }
+        }
       } catch (e) {
         console.error('Proof upload failed:', e)
       }
+    }
+
+    if (status === 'Resolved' || status === 'Closed') {
+      updates.slaBreached = false
     }
 
     await db.collection('issues').doc(id).update(updates)
@@ -489,11 +657,22 @@ reportsRouter.patch('/:id/status', requireAuth, (req, res, next) => {
     })
 
     if (issueData.reporterId && issueData.status !== status) {
-      await notifyStatusChange(id, issueData.reporterId, status, issueData.title || 'Your report')
+      const narrative = await runCitizenCommunicator(
+        status,
+        issueData.title || 'Your report',
+        issueData.departmentId as string | undefined,
+      )
+      await notifyStatusChange(
+        id,
+        issueData.reporterId,
+        status,
+        issueData.title || 'Your report',
+        { en: narrative.narrativeEn, hi: narrative.narrativeHi },
+      )
     }
 
     res.json({ ok: true })
   } catch (e) {
-    res.status(500).json({ error: String(e) })
+    sendServerError(res, e)
   }
 })

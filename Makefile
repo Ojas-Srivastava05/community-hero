@@ -1,4 +1,4 @@
-.PHONY: dev build preview install verify seed deploy test lint health
+.PHONY: dev build preview install verify seed seed-all deploy test lint health diagrams
 
 install:
 	cd frontend && npm install
@@ -18,8 +18,17 @@ preview:
 seed:
 	cd server && npx tsx scripts/seed-firestore.ts
 
+seed-departments:
+	cd server && npx tsx scripts/seed-departments.ts
+
+seed-all: seed seed-departments
+	@echo "Seeded Firestore issues + departments"
+
 deploy:
 	bash scripts/deploy-cloud-run.sh
+
+diagrams:
+	bash scripts/render-diagrams.sh
 
 test:
 	cd server && npm test

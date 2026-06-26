@@ -2,6 +2,7 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import path from 'path'
+import { runWithGeocodeCache } from './lib/geocode-cache'
 import { reportsRouter } from './routes/reports'
 import { analyticsRouter } from './routes/analytics'
 import { aiRouter } from './routes/ai'
@@ -16,6 +17,12 @@ const isProd = process.env.NODE_ENV === 'production'
 
 app.use(cors())
 app.use(express.json())
+app.use((req, res, next) => {
+  runWithGeocodeCache(() => next())
+})
+
+const publicDir = path.resolve(__dirname, '../../public')
+app.use('/public', express.static(publicDir))
 
 app.get('/api/health', async (_req, res) => {
   let firestore = 'unknown'
@@ -41,6 +48,7 @@ app.get('/api', (_req, res) => {
 })
 
 app.use('/api/reports', reportsRouter)
+app.use('/api/internal', analyticsRouter)
 app.use('/api/analytics', analyticsRouter)
 app.use('/api/ai', aiRouter)
 app.use('/api/leaderboard', leaderboardRouter)

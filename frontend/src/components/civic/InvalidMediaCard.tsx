@@ -1,11 +1,12 @@
 import { AlertCircle, Camera } from 'lucide-react'
 import { GlassCard } from './GlassCard'
 
-export type InvalidMediaReason = 'not-image' | 'too-large'
+export type InvalidMediaReason = 'not-image' | 'too-large' | 'blank'
 
 const MESSAGES: Record<InvalidMediaReason, string> = {
   'not-image': 'Please choose a photo file (JPEG, PNG, or WebP).',
   'too-large': 'This image is over 10 MB. Choose a smaller photo or take a new one.',
+  blank: 'This photo looks blank or too dark. Retake with the issue clearly visible.',
 }
 
 export function InvalidMediaCard({

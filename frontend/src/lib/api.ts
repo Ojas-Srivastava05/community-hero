@@ -20,9 +20,9 @@ async function apiFetch(path: string, init?: RequestInit, retries = 3): Promise<
     try {
       const res = await fetch(url, init)
       if (res.ok) return res
-      if (res.status === 429) {
+      if (res.status === 429 || res.status === 503) {
         redirectToWaiting(res.headers.get('Retry-After'))
-        throw new Error('Rate limited — please wait a moment')
+        throw new Error(res.status === 503 ? 'Service temporarily unavailable' : 'Rate limited — please wait a moment')
       }
       if (res.status < 500) return res
       const body = await res.text().catch(() => '')
@@ -88,7 +88,13 @@ export async function apiCreateReport(
   },
   images: File[],
   token: string,
-): Promise<{ id: string; issue: Issue; duplicateSuggestions?: { id: string; title: string }[]; merged?: boolean }> {
+): Promise<{
+  id: string
+  issue: Issue
+  duplicateSuggestions?: { id: string; title: string }[]
+  merged?: boolean
+  pointsEarned?: { pointsAwarded: number; badgesEarned?: string[]; streakBonus?: number }
+}> {
   const fd = new FormData()
   Object.entries(data).forEach(([k, v]) => {
     if (v !== undefined && v !== '') fd.append(k, String(v))
@@ -105,7 +111,7 @@ export async function apiCreateReport(
 
 export async function apiListIssues(
   limit = 50,
-  opts?: { lat?: number; lng?: number; radiusKm?: number; status?: string; includeDemo?: boolean },
+  opts?: { lat?: number; lng?: number; radiusKm?: number; status?: string; includeDemo?: boolean; sortByPriority?: boolean },
 ): Promise<{ issues: Issue[] }> {
   const q = new URLSearchParams({ limit: String(limit) })
   if (opts?.lat !== undefined) q.set('lat', String(opts.lat))
@@ -113,6 +119,7 @@ export async function apiListIssues(
   if (opts?.radiusKm !== undefined) q.set('radius_km', String(opts.radiusKm))
   if (opts?.status) q.set('status', opts.status)
   if (opts?.includeDemo) q.set('include_demo', '1')
+  if (opts?.sortByPriority) q.set('sort', 'priority')
   const res = await apiFetch(`/api/reports?${q}`)
   if (!res.ok) await parseApiError(res)
   return res.json()
@@ -177,7 +184,29 @@ export async function apiUpdateStatus(id: string, status: string, token: string,
   return res.json()
 }
 
-export async function apiAnalyticsSummary() {
+export async function apiBulkUpdateStatus(ids: string[], status: string, token: string) {
+  const res = await apiFetch('/api/reports/bulk-status', {
+    method: 'POST',
+    headers: { ...(await authHeaders(token)), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids, status }),
+  })
+  if (!res.ok) await parseApiError(res)
+  return res.json()
+}
+
+export async function apiAnalyticsSummary(): Promise<{
+  total: number
+  open: number
+  resolved: number
+  byCategory: Record<string, number>
+  insight?: string
+  avgResolutionHours?: number | null
+  slaBreached?: number
+  reportsPerDay?: { date: string; count: number }[]
+  upvotesPerDay?: { date: string; count: number }[]
+  wardBreakdown?: { wardId: string; total: number; open: number; resolved: number }[]
+  departmentSla?: { departmentId: string; total: number; compliant: number; compliancePct: number | null }[]
+}> {
   const res = await apiFetch('/api/analytics/summary')
   if (!res.ok) await parseApiError(res)
   return res.json()
@@ -206,6 +235,20 @@ export async function apiTrends(wardId?: string): Promise<{
   avgResolutionHours?: number
   byCategory?: Record<string, number>
   daily?: { date: string; open: number; resolved: number }[]
+  daily7?: { date: string; open: number; resolved: number }[]
+  daily30?: { date: string; count: number }[]
+  categoryTrends?: Record<string, { last7: number; last30: number; prev7: number }>
+  recurringIssues?: { category: string; geohash6: string; count: number }[]
+  seasonalWasteSpike?: { alert: boolean; message: string; last7: number; prev7: number } | null
+  wardBreakdown?: { wardId: string; total: number; open: number; resolved: number }[]
+  departmentSla?: { departmentId: string; total: number; compliant: number; compliancePct: number | null }[]
+  preventiveZones?: {
+    geohash: string
+    count: number
+    recent: number
+    score: number
+    predictive?: boolean
+  }[]
 }> {
   const q = wardId ? `?ward_id=${encodeURIComponent(wardId)}` : ''
   const res = await apiFetch(`/api/analytics/trends${q}`)
@@ -222,7 +265,7 @@ export async function apiDepartments(): Promise<{
 }
 
 export async function apiExportOpen311Single(id: string, token: string) {
-  const res = await apiFetch(`/api/open311/export/${id}`, {
+  const res = await apiFetch(`/api/reports/${id}/open311/export`, {
     method: 'POST',
     headers: await authHeaders(token),
   })
@@ -272,6 +315,13 @@ export type UserProfile = {
   displayName?: string
   email?: string
   photoURL?: string
+}
+
+export async function apiCheckAdmin(token: string): Promise<boolean> {
+  const res = await apiFetch('/api/users/me', { headers: await authHeaders(token) })
+  if (!res.ok) return false
+  const data = (await res.json()) as { admin?: boolean }
+  return data.admin === true
 }
 
 export async function apiGetProfile(token: string): Promise<UserProfile | null> {

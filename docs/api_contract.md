@@ -15,9 +15,26 @@ Authorization: Bearer <firebase_id_token>
 |------|---------|
 | 401 | Missing or invalid token |
 | 403 | Authenticated but not permitted (admin-only routes) |
-| 429 | Rate limit exceeded (`code: "RATE_LIMIT"`) |
+| 429 | Rate limit exceeded (`code: "RATE_LIMITED"`). Response includes `Retry-After` header (seconds). |
+
+### Guest / anonymous access
+
+Read-only endpoints work **without** authentication so share links and map browsing work for guests:
+
+| Route | Guest access |
+|-------|----------------|
+| `GET /api/reports` | yes |
+| `GET /api/reports/:id` | yes |
+| `GET /api/threads`, `GET /api/threads/:id` | yes |
+| `GET /api/departments` | yes |
+| `GET /api/leaderboard` | yes |
+| `GET /api/analytics/*` | yes |
+
+Firestore rules mirror this: `issues`, `votes`, `events`, `departments`, and `threads` allow public **read**. **Write** operations (create report, upvote, merge, chat) require Firebase Auth — anonymous/guest users cannot submit reports via the API or client SDK without signing in. Guest reporting via unauthenticated `POST` is intentionally not implemented; use Google Sign-In or email auth.
 
 ### Rate limits
+
+Responses with HTTP **429** include a `Retry-After` header (seconds until the window resets).
 
 | Route | Limit |
 |-------|-------|
@@ -117,7 +134,7 @@ Liveness check; probes Firestore connectivity.
 {
   "id": "uuid",
   "issue": { "id": "...", "title": "...", "status": "Submitted", "...": "..." },
-  "duplicateSuggestions": [{ "id": "...", "title": "..." }]
+  "duplicateSuggestions": [{ "id": "...", "title": "...", "similarity": 0.91, "distanceM": 12 }]
 }
 ```
 
@@ -131,7 +148,11 @@ Liveness check; probes Firestore connectivity.
 }
 ```
 
-Runs agent pipeline (routing, SLA, dedup) and awards 10 civic points.
+Runs agent pipeline (routing, SLA, embedding dedup) and awards 10 civic points.
+
+**Dedup:** On submit, `text-embedding-004` vector is stored on the issue (`embedding` field). Candidates within **50 m** (haversine) with cosine similarity **> 0.85** are returned in `duplicateSuggestions`. Pass `mergeIntoId` to upvote an existing issue instead of creating a duplicate.
+
+**Anti-gaming (upvote):** `POST /api/reports/:id/upvote` returns **403** unless the voter has at least one prior report **or** an account older than 24 hours.
 
 ---
 
@@ -300,6 +321,52 @@ Geohash clusters for open issues.
 ```
 
 Hotspot score: `count * 2 + recent * 3 + severity`.
+
+---
+
+### `GET /api/analytics/trends`
+
+Ward-level trend analytics with Gemini narrative (fallback text if AI unavailable).
+
+| Query | Type |
+|-------|------|
+| `ward_id` | string (optional) |
+
+**Response 200**
+
+```json
+{
+  "daily7": [{ "date": "2026-06-21", "open": 3, "resolved": 1 }],
+  "daily30": [{ "date": "2026-05-29", "count": 2 }],
+  "daily": [{ "date": "2026-06-21", "open": 3, "resolved": 1 }],
+  "categoryTrends": {
+    "pothole": { "last7": 4, "last30": 12, "prev7": 2 }
+  },
+  "recurringIssues": [{ "category": "waste", "geohash6": "tdr1q", "count": 3 }],
+  "seasonalWasteSpike": null,
+  "byCategory": { "pothole": 10 },
+  "avgResolutionHours": 18.5,
+  "wardBreakdown": [{ "wardId": "W1", "total": 5, "open": 3, "resolved": 2 }],
+  "departmentSla": [{ "departmentId": "roads", "total": 4, "compliant": 3, "compliancePct": 75 }],
+  "preventiveZones": [{ "geohash": "tdr1q", "count": 8, "recent": 3, "score": 31, "predictive": true }],
+  "narrative": "Pothole reports lead this week…",
+  "cached": false
+}
+```
+
+`categoryTrends` compares the last 7 days vs the prior 7 days (`prev7`). `daily30` is report volume per day for the last 30 days. When `analytics_daily` cache is fresh, `cached` may be `true` for ward-scoped aggregates.
+
+---
+
+### `POST /api/analytics/internal/insights`
+
+**Admin secret required** (`x-admin-secret` or `Authorization: Bearer <ADMIN_SECRET>`). Runs the insights batch agent synchronously.
+
+---
+
+### `POST /api/analytics/insights-batch`
+
+Same auth as `internal/insights`. Triggers Agent 6 nightly-style batch: writes `analytics_daily`, `hotspots`, and `insights/latest`.
 
 ---
 
