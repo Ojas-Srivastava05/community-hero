@@ -99,7 +99,7 @@ export function MapExplorerPage() {
     ? { lat: location.lat, lng: location.lng }
     : issues[0]
       ? { lat: issues[0].lat, lng: issues[0].lng }
-      : { lat: 12.97, lng: 77.59 }
+      : { lat: 12.9716, lng: 77.5946 }
 
   const center = mapCenter ?? defaultCenter
   const hasActiveFilters = filter !== 'all' || categoryFilter !== 'all' || search.trim().length > 0
@@ -123,6 +123,7 @@ export function MapExplorerPage() {
       <div className="relative h-screen w-full">
         <CivicMap
           center={center}
+          zoom={12}
           issues={filtered}
           hotspots={mapHotspots}
           selectedId={selectedId}

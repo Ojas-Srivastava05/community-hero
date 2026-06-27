@@ -11,7 +11,28 @@ env:
   CLOUD_RUN_SERVICE: community-hero
 
 jobs:
+  # Skip (rather than fail) the deploy when GCP credentials aren't configured,
+  # so pushes to main don't send failure emails. Once the GCP_SA_KEY secret is
+  # set in the repo, the deploy job runs automatically again.
+  check-credentials:
+    runs-on: ubuntu-latest
+    outputs:
+      has_key: ${{ steps.check.outputs.has_key }}
+    steps:
+      - id: check
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: |
+          if [ -n "$GCP_SA_KEY" ]; then
+            echo "has_key=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::GCP_SA_KEY secret not set — skipping Cloud Run deploy."
+          fi
+
   deploy:
+    needs: check-credentials
+    if: needs.check-credentials.outputs.has_key == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read

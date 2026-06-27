@@ -42,6 +42,9 @@ See also: [vision.md](./vision.md#deduplication).
 
 ## Civic points (verification-related)
 
+The upvote flow triggers two awards via `awardPoints` (`upvote` for the voter, `neighborhood_voice`
+when the issue hits its 3rd upvote). These are a subset of the full economy:
+
 | Action | Points |
 |--------|--------|
 | New report | 10 |
@@ -49,6 +52,10 @@ See also: [vision.md](./vision.md#deduplication).
 | 3 upvotes on your report | 15 |
 | Merge into duplicate | 15 |
 | Issue resolved | 25 |
+
+> Point/badge logic, streaks, weekly leaderboard, and constraints are documented in
+> [gamification.md](./gamification.md). Award constants live in `server/src/lib/gamification.ts`
+> (not `agents.ts`, which only re-exports them).
 
 ## Rate limits & 429
 
