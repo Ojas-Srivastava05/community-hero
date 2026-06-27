@@ -73,7 +73,7 @@ Reference benchmark: LogiFlow-Solution-Challenge-2026 (771 commits, 6,275+ doc l
 | Target | LogiFlow | Community Hero |
 |--------|----------|----------------|
 | Documentation | 6,275+ lines | 8,000+ lines stretch |
-| Diagrams | 16 mermaid + PNG | 16 civic-specific (5/16 in repo) |
+| Diagrams | 16 mermaid + PNG | 16 civic-specific (16/16 in repo) |
 | Pipelines | 5 transport modes | 9 civic pipelines |
 | Deploy | Vercel + Cloud Run | AI Studio Publish + Cloud Run |
 

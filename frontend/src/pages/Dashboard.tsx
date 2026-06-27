@@ -9,7 +9,7 @@ import { CivicMap } from '@/components/civic/CivicMap'
 import { DashboardSkeleton } from '@/components/PageSkeleton'
 import { useLocation } from '../lib/location'
 import { useDashboardStore } from '../stores/useDashboardStore'
-import { fadeUp, stagger } from '../lib/motion'
+import { fadeUp, fadeUpChart, stagger } from '../lib/motion'
 
 export function DashboardPage() {
   const { location } = useLocation()
@@ -179,7 +179,7 @@ export function DashboardPage() {
           <motion.div variants={fadeUp}>
             <SectionHeader title="Citizen engagement" hint="Reports & upvotes per day" />
           </motion.div>
-          <motion.div variants={fadeUp} className="grid gap-3">
+          <motion.div variants={fadeUpChart} className="grid gap-3">
             {reportsLine.length > 0 && (
               <GlassCard className="pt-5">
                 <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-muted">Reports / day</p>
@@ -257,7 +257,7 @@ export function DashboardPage() {
           <motion.div variants={fadeUp}>
             <SectionHeader title="30-day volume" hint="Reports per day" />
           </motion.div>
-          <motion.div variants={fadeUp}>
+          <motion.div variants={fadeUpChart}>
             <GlassCard className="pt-5">
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
@@ -314,7 +314,10 @@ export function DashboardPage() {
                       {h.geohash}
                       {h.predictive && <span className="ml-2 text-[10px] font-bold uppercase text-coral">Alert</span>}
                     </p>
-                    <p className="text-[11px] text-ink-muted">{h.count} open · {h.recent} recent · score {h.score}</p>
+                    <p className="text-[11px] text-ink-muted">
+                      {h.count} open · {h.recent} recent · score {h.score}
+                      {h.categories && h.categories.length > 0 ? ` · ${h.categories.join(', ')}` : ''}
+                    </p>
                   </div>
                 </GlassCard>
               </motion.li>
@@ -328,7 +331,7 @@ export function DashboardPage() {
           <motion.div variants={fadeUp}>
             <SectionHeader title="7-day trend" hint="Open vs resolved" />
           </motion.div>
-          <motion.div variants={fadeUp}>
+          <motion.div variants={fadeUpChart}>
             <GlassCard className="pt-5">
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
@@ -357,26 +360,30 @@ export function DashboardPage() {
         <motion.div variants={fadeUp}>
           <SectionHeader title="By category" hint="All reports" />
         </motion.div>
-        <motion.div variants={fadeUp}>
+        <motion.div variants={fadeUpChart}>
           <GlassCard className="pt-5">
           <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} barGap={4}>
-                <XAxis dataKey="name" stroke="oklch(0.48 0.03 265)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="oklch(0.48 0.03 265)" fontSize={11} tickLine={false} axisLine={false} width={28} />
-                <Tooltip
-                  cursor={{ fill: 'oklch(0.66 0.21 36 / 0.08)' }}
-                  contentStyle={{
-                    background: 'oklch(0.99 0.005 80)',
-                    border: '1px solid oklch(0.18 0.04 270 / 10%)',
-                    borderRadius: 12,
-                    fontSize: 12,
-                    color: 'oklch(0.18 0.04 270)',
-                  }}
-                />
-                <Bar dataKey="count" fill="oklch(0.66 0.21 36)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} barGap={4}>
+                  <XAxis dataKey="name" stroke="oklch(0.48 0.03 265)" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="oklch(0.48 0.03 265)" fontSize={11} tickLine={false} axisLine={false} width={28} />
+                  <Tooltip
+                    cursor={{ fill: 'oklch(0.66 0.21 36 / 0.08)' }}
+                    contentStyle={{
+                      background: 'oklch(0.99 0.005 80)',
+                      border: '1px solid oklch(0.18 0.04 270 / 10%)',
+                      borderRadius: 12,
+                      fontSize: 12,
+                      color: 'oklch(0.18 0.04 270)',
+                    }}
+                  />
+                  <Bar dataKey="count" fill="oklch(0.66 0.21 36)" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="grid h-full place-items-center text-sm text-ink-muted">No category data yet.</p>
+            )}
           </div>
         </GlassCard>
         </motion.div>
@@ -397,7 +404,6 @@ export function DashboardPage() {
                 <Link to="/admin/analytics" className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-coral">
                   View analytics <ArrowRight className="size-3.5" />
                 </Link>
-                <a href="/api/analytics/export/open311" className="mt-2 block text-xs font-bold text-paper/70">Export Open311 bulk</a>
               </div>
             </div>
           </div>

@@ -23,7 +23,7 @@ Central index for the `docs/` folder. Mirrors LogiFlow-style documentation layou
 | Document | Description |
 |----------|-------------|
 | [architecture.md](architecture.md) | System layout, routes, agent pipeline, Firestore model, deployment summary |
-| [system-design.md](system-design.md) | Data model overview, auth, API pointer |
+| [system-design.md](system-design.md) | Sections 20, 25, 29 — design principles, L1–L5 caching, ML models A–G (424 lines) |
 | [api_contract.md](api_contract.md) | Full REST API reference — every endpoint, auth, rate limits |
 | [deployment.md](deployment.md) | GCP/Firebase project, env vars, deploy script, CI, BlockseBlock notes |
 | [SUBMISSION-CHECKLIST.md](SUBMISSION-CHECKLIST.md) | Phase 18 BlockseBlock steps with evidence links |
@@ -71,6 +71,7 @@ Full index: [diagrams/README.md](diagrams/README.md). PNG exports in [`diagrams/
 | Document | Description |
 |----------|-------------|
 | [submission/GOOGLE-DOC-CONTENT.md](submission/GOOGLE-DOC-CONTENT.md) | Appendix J — full 10-section Google Doc (paste-ready) |
+| [submission/screenshots/README.md](submission/screenshots/README.md) | 8 screenshot capture paths for Google Doc |
 | [ppt-info/SLIDES-COMPLETE.md](ppt-info/SLIDES-COMPLETE.md) | Appendix P — 15 slides with full speaker notes |
 | [ppt-info/SUBMISSION.md](ppt-info/SUBMISSION.md) | Appendix P — slide outline (compact) |
 | [ppt-info/slides/](ppt-info/slides/) | 15 individual slide markdown files (01–15) |

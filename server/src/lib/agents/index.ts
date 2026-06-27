@@ -7,8 +7,15 @@ import { runRoutingAgent } from './routing'
 import { runCitizenCommunicator } from './communicator'
 import { issueEmbeddingText } from '../embeddings'
 import { REVIEW_CONFIDENCE_THRESHOLD, confidenceGateUpdates, type AgentEvent } from './types'
+import {
+  awardPoints,
+  shouldAwardReportPoints,
+  POINTS,
+  type AwardResult,
+} from '../gamification'
 
 export { confidenceGateUpdates, REVIEW_CONFIDENCE_THRESHOLD } from './types'
+export { awardPoints, currentWeekKey, type AwardResult } from '../gamification'
 
 export { computePriorityScore } from '../priority'
 export { runInsightsBatch } from './insights'
@@ -169,129 +176,13 @@ export async function runAgentPipeline(input: RunPipelineInput) {
   }
 
   let pointsEarned: AwardResult = { pointsAwarded: 0, badgesEarned: [] }
-  if (analysis.confidence >= 0.8) {
-    pointsEarned = await awardPoints(reporterId, 10, 'report', {
+  if (shouldAwardReportPoints(analysis.confidence)) {
+    pointsEarned = await awardPoints(reporterId, POINTS.report, 'report', {
       wardId: wardId || `area-${dedup.geohash.slice(0, 5)}`,
     })
   }
 
   return { needsReview, agents: agentsRun, analysis, routing, pointsEarned }
-}
-
-export type AwardResult = {
-  pointsAwarded: number
-  badgesEarned: string[]
-  streakBonus?: number
-}
-
-const BADGE_BY_REASON: Record<string, string> = {
-  report: 'First Reporter',
-  neighborhood_voice: 'Neighborhood Voice',
-  merge: 'Duplicate Hunter',
-  resolved: 'Fix Follower',
-}
-
-function todayKey(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
-/** ISO week key for weekly leaderboard (e.g. 2025-W26) */
-export function currentWeekKey(): string {
-  const d = new Date()
-  const day = d.getUTCDay() || 7
-  d.setUTCDate(d.getUTCDate() + 4 - day)
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
-  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
-}
-
-function hasSevenDayStreakIncludingToday(dates: string[]): boolean {
-  const set = new Set(dates)
-  const today = new Date()
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(today)
-    d.setDate(d.getDate() - i)
-    if (!set.has(d.toISOString().slice(0, 10))) return false
-  }
-  return true
-}
-
-export async function awardPoints(
-  uid: string,
-  points: number,
-  reason: string,
-  meta?: { wardId?: string },
-): Promise<AwardResult> {
-  const ref = db.collection('users').doc(uid)
-  const doc = await ref.get()
-  const data = doc.data() || {}
-  const badges: string[] = [...(data.badges ?? [])]
-  const badgesEarned: string[] = []
-  let extraPoints = 0
-  let streakBonus = 0
-
-  const addBadge = (name: string) => {
-    if (!badges.includes(name)) {
-      badges.push(name)
-      badgesEarned.push(name)
-    }
-  }
-
-  const badge = BADGE_BY_REASON[reason]
-  if (badge) addBadge(badge)
-
-  const patch: Record<string, unknown> = { updatedAt: new Date().toISOString() }
-
-  if (reason === 'report') {
-    const today = todayKey()
-    const reportDates: string[] = [...(data.reportDates ?? [])]
-    if (!reportDates.includes(today)) reportDates.push(today)
-    patch.reportDates = reportDates
-
-    const streakBonusDates: string[] = data.streakBonusDates ?? []
-    if (!streakBonusDates.includes(today) && hasSevenDayStreakIncludingToday(reportDates)) {
-      streakBonus = 30
-      extraPoints += 30
-      patch.streakBonusDates = [...streakBonusDates, today]
-    }
-
-    if (meta?.wardId) {
-      const wardReportCounts: Record<string, number> = { ...(data.wardReportCounts ?? {}) }
-      wardReportCounts[meta.wardId] = (wardReportCounts[meta.wardId] ?? 0) + 1
-      patch.wardReportCounts = wardReportCounts
-      if (wardReportCounts[meta.wardId]! >= 5 && !badges.includes('Ward Guardian')) {
-        addBadge('Ward Guardian')
-        extraPoints += 20
-      }
-    }
-  }
-
-  if (reason === 'upvote') {
-    const upvotesGiven = (data.upvotesGiven ?? 0) + 1
-    patch.upvotesGiven = upvotesGiven
-    if (upvotesGiven >= 50) addBadge('Verified Voice')
-  }
-
-  const civicPoints = (data.civicPoints ?? 0) + points + extraPoints
-  if (civicPoints >= 100) addBadge('Civic Champion')
-
-  const weekKey = currentWeekKey()
-  const pointsThisAward = points + extraPoints
-  const prevWeek = data.weeklyPointsWeek as string | undefined
-  const weeklyPoints =
-    prevWeek === weekKey ? (data.weeklyPoints ?? 0) + pointsThisAward : pointsThisAward
-
-  patch.civicPoints = civicPoints
-  patch.badges = badges
-  patch.weeklyPoints = weeklyPoints
-  patch.weeklyPointsWeek = weekKey
-  await ref.set(patch, { merge: true })
-
-  return {
-    pointsAwarded: points + extraPoints,
-    badgesEarned,
-    streakBonus: streakBonus || undefined,
-  }
 }
 
 export async function canUserUpvote(userId: string): Promise<boolean> {
@@ -334,9 +225,25 @@ export async function notifyStatusChange(
   })
 }
 
+/** Pure tier logic — 1 = Acknowledged, 2 = Community Verified, 3 = Priority Escalation */
+export function computeVerificationFromUpvotes(
+  count: number,
+  currentStatus?: string,
+): { verificationLevel: number; status: string | undefined } {
+  let verificationLevel = 0
+  let status: string | undefined = currentStatus
+  if (count >= 10) verificationLevel = 3
+  else if (count >= 3) {
+    verificationLevel = 2
+    if (currentStatus === 'Submitted') status = 'Community Verified'
+  } else if (count >= 1) verificationLevel = 1
+  return { verificationLevel, status }
+}
+
 export type UpvoteResult =
   | { ok: true; count: number; verificationLevel: number; already?: boolean; pointsAwarded?: number; badgesEarned?: string[] }
   | { ok: false; forbidden: true }
+  | { ok: false; notFound: true }
 
 export async function processUpvote(issueId: string, userId: string): Promise<UpvoteResult> {
   const allowed = await canUserUpvote(userId)
@@ -344,7 +251,7 @@ export async function processUpvote(issueId: string, userId: string): Promise<Up
 
   const issueRef = db.collection('issues').doc(issueId)
   const issue = await issueRef.get()
-  if (!issue.exists) return { ok: false, forbidden: true }
+  if (!issue.exists) return { ok: false, notFound: true }
 
   const data = issue.data()!
   if (data.reporterId === userId) return { ok: false, forbidden: true }
@@ -361,13 +268,7 @@ export async function processUpvote(issueId: string, userId: string): Promise<Up
 
   await voteRef.set({ createdAt: new Date().toISOString() })
   const count = (data.upvoteCount ?? 0) + 1
-  let status = data.status
-  let verificationLevel = 0
-  if (count >= 10) verificationLevel = 3
-  else if (count >= 3) {
-    verificationLevel = 2
-    if (status === 'Submitted') status = 'Community Verified'
-  } else if (count >= 1) verificationLevel = 1
+  const { verificationLevel, status } = computeVerificationFromUpvotes(count, data.status)
 
   const { computePriorityScore: calcPriority } = await import('../priority')
   const safetyRisk =
@@ -390,8 +291,8 @@ export async function processUpvote(issueId: string, userId: string): Promise<Up
   })
 
   const reporterId = data.reporterId as string | undefined
-  if (reporterId && count === 3) await awardPoints(reporterId, 15, 'neighborhood_voice')
-  const voterAward = await awardPoints(userId, 5, 'upvote')
+  if (reporterId && count === 3) await awardPoints(reporterId, POINTS.neighborhood_voice, 'neighborhood_voice')
+  const voterAward = await awardPoints(userId, POINTS.upvote, 'upvote')
 
   return {
     ok: true,

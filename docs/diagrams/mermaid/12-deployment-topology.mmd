@@ -16,7 +16,7 @@ flowchart TB
     end
 
     subgraph build["CI/CD"]
-      GH[GitHub Actions ci.yml]
+      GH[GitHub Actions ci.yml + deploy.yml]
       CB[cloudbuild.yaml]
       DEPLOY[scripts/deploy-cloud-run.sh]
     end

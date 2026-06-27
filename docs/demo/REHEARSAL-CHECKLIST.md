@@ -16,12 +16,12 @@ Rehearse the judge demo **twice**, timed, on **production** before BlockseBlock 
 - [x] Analytics APIs respond (summary, trends, hotspots, Open311 export) — `verify-phases.sh` Phases 8–9, 12
 - [x] Demo seed ≥25 issues on production (50 with `include_demo=1`) — `verify-phases.sh` Phase 17
 - [x] 16 mermaid diagram sources + 15 slide files in repo — `verify-phases.sh` Phase 15
-- [ ] Firebase Auth authorized domain includes Cloud Run hostname — **manual** ([`TODO.md`](../../TODO.md))
-- [ ] Run `make seed` if production has &lt;20 issues — **manual**
-- [ ] `GEMINI_API_KEY` set on Cloud Run for live AI analyze — **manual** (fallbacks exist)
-- [ ] `VITE_GOOGLE_MAPS_API_KEY` in build for map tiles — **manual** (list fallback works)
+- [x] Firebase Auth authorized domain includes Cloud Run hostname — configured 2026-06-27 ([`TODO.md`](../../TODO.md))
+- [x] Production has ≥20 demo issues (50 with `include_demo=1`) — verified via `verify-phases.sh` Phase 17
+- [x] `GEMINI_API_KEY` set on Cloud Run for live AI analyze — configured 2026-06-27 (keyword fallback if key fails)
+- [ ] `VITE_GOOGLE_MAPS_API_KEY` in build for map tiles — **manual** (list fallback works on `/map`)
 - [ ] Google test account credentials shared with demo presenter — **manual**
-- [ ] Admin test account with custom claims or seed admin — see [`FIREBASE-ADMIN-CLAIMS.md`](../FIREBASE-ADMIN-CLAIMS.md)
+- [x] Admin custom claim for demo admin — see [`FIREBASE-ADMIN-CLAIMS.md`](../FIREBASE-ADMIN-CLAIMS.md); sign out/in to refresh token
 
 ---
 

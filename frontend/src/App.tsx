@@ -3,6 +3,7 @@ import { AuthProvider } from './lib/auth'
 import { LocationProvider } from './lib/location'
 import { PointsToastProvider } from './components/civic/PointsToast'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { RouteBoundary } from './components/RouteBoundary'
 import { LandingPage } from './pages/Landing'
 import { ProfilePage } from './pages/Profile'
 import { ReportWizardPage } from './pages/ReportWizard'
@@ -34,24 +35,24 @@ export default function App() {
         <BrowserRouter>
           <ErrorBoundary>
           <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/map" element={<MapExplorerPage />} />
-            <Route path="/report" element={<ReportWizardPage />} />
-            <Route path="/activity" element={<ActivityPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/gamification-rules" element={<GamificationRulesPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/waiting" element={<WaitingPage />} />
-            <Route path="/my-reports" element={<MyReportsPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/issues/:id" element={<IssueDetailPage />} />
-            <Route path="/threads/:id" element={<ThreadDetailPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
-            <Route path="/assistant" element={<AssistantPage />} />
-            <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/" element={<RouteBoundary><LandingPage /></RouteBoundary>} />
+            <Route path="/map" element={<RouteBoundary><MapExplorerPage /></RouteBoundary>} />
+            <Route path="/report" element={<RouteBoundary><ReportWizardPage /></RouteBoundary>} />
+            <Route path="/activity" element={<RouteBoundary><ActivityPage /></RouteBoundary>} />
+            <Route path="/profile" element={<RouteBoundary><ProfilePage /></RouteBoundary>} />
+            <Route path="/login" element={<RouteBoundary><LoginPage /></RouteBoundary>} />
+            <Route path="/terms" element={<RouteBoundary><TermsPage /></RouteBoundary>} />
+            <Route path="/gamification-rules" element={<RouteBoundary><GamificationRulesPage /></RouteBoundary>} />
+            <Route path="/privacy" element={<RouteBoundary><PrivacyPage /></RouteBoundary>} />
+            <Route path="/waiting" element={<RouteBoundary><WaitingPage /></RouteBoundary>} />
+            <Route path="/my-reports" element={<RouteBoundary><MyReportsPage /></RouteBoundary>} />
+            <Route path="/dashboard" element={<RouteBoundary><DashboardPage /></RouteBoundary>} />
+            <Route path="/issues/:id" element={<RouteBoundary><IssueDetailPage /></RouteBoundary>} />
+            <Route path="/threads/:id" element={<RouteBoundary><ThreadDetailPage /></RouteBoundary>} />
+            <Route path="/admin" element={<RouteBoundary><AdminPage /></RouteBoundary>} />
+            <Route path="/admin/analytics" element={<RouteBoundary><AdminAnalyticsPage /></RouteBoundary>} />
+            <Route path="/assistant" element={<RouteBoundary><AssistantPage /></RouteBoundary>} />
+            <Route path="/leaderboard" element={<RouteBoundary><LeaderboardPage /></RouteBoundary>} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
           </ErrorBoundary>

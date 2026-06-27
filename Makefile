@@ -1,4 +1,4 @@
-.PHONY: dev build preview install verify seed seed-all deploy test lint health diagrams
+.PHONY: dev build preview install verify verify-phases seed seed-all deploy test lint health diagrams
 
 install:
 	cd frontend && npm install
@@ -37,9 +37,12 @@ lint:
 	cd frontend && npm run lint
 
 health:
-	@curl -sf http://localhost:3001/api/health | head -c 500 && echo ""
+	@bash scripts/uptime-ping.sh
 
 verify:
 	@echo "=== Production health ==="
 	@curl -sf https://community-hero-987477089222.asia-south1.run.app/api/health | head -c 300 && echo ""
 	@curl -sf "https://community-hero-987477089222.asia-south1.run.app/api/reports?limit=1" | head -c 100 && echo ""
+
+verify-phases:
+	bash scripts/verify-phases.sh

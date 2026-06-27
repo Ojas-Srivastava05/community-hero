@@ -151,6 +151,10 @@ export async function analyzeImage(
     return analysis
   } catch (e) {
     if (isApiError(e)) throw e
+    const msg = String(e)
+    if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('depleted')) {
+      throw new ApiError(ErrorCodes.SERVICE_UNAVAILABLE, 'Vision service temporarily unavailable — try again shortly', 503)
+    }
     const analysis = fallbackAnalysis(hint)
     setCachedAnalysis(hash, analysis)
     return analysis
@@ -177,7 +181,32 @@ async function keywordFallback(
     const lines = items.map((i: { title: string; status: string; category: string }) => `• ${i.title} (${i.category}, ${i.status})`).join('\n')
     return prefix + (hindi ? `आपके पास के मुद्दे:\n${lines}` : `Issues near you:\n${lines}`)
   }
-  if (lastLower.includes('my report') || lastLower.includes('status') || last.includes('मेरी रिपोर्ट')) {
+  if (lastLower.includes('explain status') || lastLower.includes('explain submitted') || (lastLower.includes('what does') && lastLower.includes('status')) || last.includes('मतलब')) {
+    const statusMatch = last.match(
+      /Submitted|Community Verified|Assigned|In Progress|Resolved|Closed/i,
+    )
+    const status = statusMatch?.[0] || 'Submitted'
+    const data = (await toolHandler('explainStatus', { status })) as { explanation?: string; status?: string }
+    return prefix + (hindi
+      ? `${data.status || status}: ${data.explanation || 'स्थिति अपडेट।'}`
+      : `${data.status || status}: ${data.explanation || 'Status updated.'}`)
+  }
+  const issueIdMatch = last.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
+  if (issueIdMatch || lastLower.includes('issue id') || lastLower.includes('issue #')) {
+    const issueId = issueIdMatch?.[0] || last.replace(/.*issue\s*(?:id|#)?\s*/i, '').trim().split(/\s+/)[0]
+    if (issueId) {
+      const data = (await toolHandler('getIssueById', { issue_id: issueId })) as { error?: string; title?: string; status?: string; id?: string }
+      if (data?.error === 'NOT_FOUND') {
+        return prefix + (hindi
+          ? `ID ${issueId} के लिए कोई मुद्दा नहीं मिला — डेटा नहीं बनाया गया।`
+          : `No issue found for ID ${issueId} — not inventing data.`)
+      }
+      return prefix + (hindi
+        ? `${data.title || 'मुद्दा'} (${data.status || 'अज्ञात'}) — ID: ${data.id || issueId}`
+        : `${data.title || 'Issue'} (${data.status || 'unknown'}) — ID: ${data.id || issueId}`)
+    }
+  }
+  if (lastLower.includes('my report') || lastLower.includes('status') || last.includes('मेरी रिपोर्ट') || last.includes('स्थिति')) {
     const data = await toolHandler('getMyReports', {})
     const items = Array.isArray(data) ? data : []
     if (!items.length) {
@@ -204,8 +233,14 @@ async function keywordFallback(
       : (hindi ? 'कोई मिलान नहीं मिला।' : 'No matching issues found.'))
   }
   if (lastLower.includes('department') || lastLower.includes('sla') || last.includes('विभाग')) {
-    const data = await toolHandler('getDepartmentInfo', { department_id: 'pothole' })
-    return prefix + JSON.stringify(data, null, 2)
+    const data = (await toolHandler('getDepartmentInfo', { department_id: 'pothole' })) as {
+      name?: string
+      sla_hours?: number
+      contact?: string
+    }
+    return prefix + (hindi
+      ? `${data.name || 'विभाग'} — SLA: ${data.sla_hours ?? '?'} घंटे। ${data.contact || ''}`
+      : `${data.name || 'Department'} — SLA: ${data.sla_hours ?? '?'} hours. ${data.contact || ''}`)
   }
   if (lastLower.includes('how to report') || lastLower.includes('garbage') || last.includes('रिपोर्ट कैसे')) {
     return prefix + (hindi

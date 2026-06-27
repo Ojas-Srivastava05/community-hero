@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom'
 import { apiBulkUpdateStatus, apiListIssues, apiUpdateStatus } from '../lib/api'
 import { useRequireAdmin } from '../lib/admin'
 import { GlassCard } from '@/components/civic/GlassCard'
+import { PageSkeleton } from '@/components/PageSkeleton'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { fadeUp, stagger } from '../lib/motion'
 import { motion } from 'framer-motion'
 import { AlertTriangle, Camera, Download } from 'lucide-react'
+import { slaHoursLeft } from '@/lib/issue-ui'
 import type { Issue } from '../../../shared/types'
 
 const STATUSES = ['Submitted', 'Community Verified', 'Assigned', 'In Progress', 'Resolved', 'Closed']
@@ -35,7 +37,7 @@ function exportCsv(issues: Issue[]) {
 }
 
 export function AdminPage() {
-  const { user, loading, isAdmin, signInWithGoogle, signingIn } = useRequireAdmin()
+  const { user, loading, isAdmin, accessDenied, signInWithGoogle, signingIn } = useRequireAdmin()
   const [issues, setIssues] = useState<Issue[]>([])
   const [filter, setFilter] = useState('open')
   const [proofFiles, setProofFiles] = useState<Record<string, File>>({})
@@ -93,18 +95,24 @@ export function AdminPage() {
   }
 
   const displayed = useMemo(() => {
-    const filtered = issues.filter((i) =>
-      filter === 'open' ? !['Resolved', 'Closed'].includes(i.status) : true,
-    )
+    const filtered = issues.filter((i) => {
+      if (filter === 'breached') return Boolean(i.slaBreached) && !['Resolved', 'Closed'].includes(i.status)
+      if (filter === 'open') return !['Resolved', 'Closed'].includes(i.status)
+      return true
+    })
     return [...filtered].sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0))
   }, [issues, filter])
 
-  const breachCount = displayed.filter((i) => i.slaBreached).length
+  const breachCount = useMemo(
+    () => issues.filter((i) => i.slaBreached && !['Resolved', 'Closed'].includes(i.status)).length,
+    [issues],
+  )
 
   if (loading) {
     return (
       <AppShell>
         <PageHeader title="Admin" subtitle="Loading…" />
+        <PageSkeleton rows={5} />
       </AppShell>
     )
   }
@@ -123,7 +131,19 @@ export function AdminPage() {
     )
   }
 
-  if (!isAdmin) return null
+  if (!isAdmin) {
+    if (accessDenied) {
+      return (
+        <AppShell>
+          <PageHeader title="Admin" subtitle="Access denied" />
+          <div className="px-5 py-16 text-center text-ink-muted">
+            <p>Admin privileges required.</p>
+          </div>
+        </AppShell>
+      )
+    }
+    return null
+  }
 
   return (
     <AppShell>
@@ -134,14 +154,14 @@ export function AdminPage() {
       />
       <main className="space-y-3 px-5 pt-4">
         <div className="flex flex-wrap items-center gap-2">
-          {['open', 'all'].map((f) => (
+          {['open', 'breached', 'all'].map((f) => (
             <button
               key={f}
               type="button"
               className={`rounded-full px-3 py-1 text-xs font-semibold ${filter === f ? 'bg-coral text-paper' : 'paper'}`}
               onClick={() => setFilter(f)}
             >
-              {f}
+              {f === 'breached' ? `breached (${breachCount})` : f}
             </button>
           ))}
           <button
@@ -197,6 +217,9 @@ export function AdminPage() {
                           <span className="ml-2 inline-flex items-center gap-0.5 font-bold text-[oklch(0.5_0.22_25)]">
                             <AlertTriangle className="size-3" /> SLA breached
                           </span>
+                        )}
+                        {!issue.slaBreached && slaHoursLeft(issue) !== null && !['Resolved', 'Closed'].includes(issue.status) && (
+                          <span className="ml-2 text-ink-muted">· {slaHoursLeft(issue)}h to SLA</span>
                         )}
                       </p>
                     </div>

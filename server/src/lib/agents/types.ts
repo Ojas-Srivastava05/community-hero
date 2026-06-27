@@ -44,7 +44,8 @@ export type CommunicatorResult = {
   narrativeHi: string
 }
 
-export const REVIEW_CONFIDENCE_THRESHOLD = 0.7
+/** Section 20.3 — low confidence → Draft review queue */
+export const REVIEW_CONFIDENCE_THRESHOLD = 0.6
 
 /** Confidence gate — Section 20.3: low confidence → Draft review queue */
 export function confidenceGateUpdates(confidence: number): Record<string, unknown> {

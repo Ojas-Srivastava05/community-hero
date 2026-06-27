@@ -12,7 +12,21 @@ https://community-hero-987477089222.asia-south1.run.app
 
 ---
 
-## Generate QR code
+## Committed asset (ready for Slide 12)
+
+```
+docs/demo/qr-production.png
+```
+
+Regenerate anytime:
+
+```bash
+bash scripts/generate-demo-qr.sh
+```
+
+---
+
+## Generate QR code (alternatives)
 
 ### Option A — Google Chrome
 

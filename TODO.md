@@ -45,6 +45,7 @@
 - [x] [`docs/SUBMISSION-CHECKLIST.md`](docs/SUBMISSION-CHECKLIST.md) — in-repo items checked with evidence
 - [x] [`scripts/prepare-submission.sh`](scripts/prepare-submission.sh) — tags `v1.0.0-submission`, prints 3 BlockseBlock URLs
 - [x] [`README.md`](README.md) — architecture links, 8-feature table, team, live URLs
+- [x] [`docs/submission/screenshots/README.md`](docs/submission/screenshots/README.md) — 8 screenshot capture paths for Google Doc
 - [x] [`CHANGELOG.md`](CHANGELOG.md) — v1.0.0-submission entry
 
 ---
@@ -60,14 +61,19 @@
 
 ## Manual steps only (requires external accounts / consoles)
 
-### Firebase Console
+### Firebase / Cloud Run — automated 2026-06-27
 
-1. Add `community-hero-987477089222.asia-south1.run.app` to **Firebase Auth → Authorized domains**
-2. Enable **Firebase Storage** for image uploads
-3. Set `GEMINI_API_KEY` on Cloud Run for live AI vision
-4. Set `VITE_GOOGLE_MAPS_API_KEY` at frontend build time and redeploy for live map tiles
-5. Run `make deploy` to ship latest API + UI to production
-6. Run `make seed` if production issue count is low for judge demo
+- [x] Authorized domain `community-hero-987477089222.asia-south1.run.app` (already configured)
+- [x] Google Sign-In provider enabled (`firebase deploy --only auth`)
+- [x] Admin custom claim for `srivastavaojas454@gmail.com` (UID `8xj7BmsQA3ZW6dPRerGKG3Zc1Rn2`) — **sign out & back in** to refresh token
+- [x] `GEMINI_API_KEY` + `ADMIN_SECRET` on Cloud Run (`community-hero-00020-dtk`) — values in **`.env.local`** (gitignored)
+- [x] GCS uploads bucket `community-hero-vibe2ship-uploads` in use
+- [ ] Firebase Storage **console** “Get Started” (one click) — only needed to deploy `storage.rules` via CLI; uploads already work via Admin SDK
+
+### You still do in the browser
+
+1. **Sign in with Google** once on production (assistant, report, upvote) — I cannot click OAuth for you
+2. After admin claim: sign **out** and **back in** so Open311 export + admin UI see `admin: true`
 
 ### Google Docs (Appendix J)
 
@@ -99,7 +105,7 @@
 - Video reporting + keyframe extraction
 - Gemini embeddings dedup (Model C) — geohash-only today
 - MarkerClusterer library
-- Remaining 11/16 mermaid diagrams + PNG exports
+- [x] 16/16 mermaid diagrams + PNG exports — `docs/diagrams/` (Phase 15)
 - Full E2E browser test suite
 - Bilingual EN/HI assistant
 - WhatsApp share agent

@@ -8,6 +8,8 @@ type Hotspot = {
   lat?: number
   lng?: number
   predictive?: boolean
+  categories?: string[]
+  risk_score?: number
 }
 
 type WardRow = { wardId: string; total: number; open: number; resolved: number }

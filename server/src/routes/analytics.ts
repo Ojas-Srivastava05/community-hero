@@ -1,10 +1,12 @@
 import { Router } from 'express'
 import { sendServerError } from '../lib/errors'
+import { requireAdminSecret } from '../middleware/admin-secret'
 import { db } from '../lib/firebase-admin'
 import {
   buildCategoryTrends,
   buildDailyCounts,
   buildOpenResolvedDaily,
+  computeHotspots,
   computeSummary,
   detectRecurringIssues,
   detectSeasonalWasteSpike,
@@ -23,27 +25,6 @@ import { runInsightsBatch } from '../lib/agents'
 
 export const analyticsRouter = Router()
 
-function requireAdminSecret(
-  req: { headers: Record<string, string | string[] | undefined> },
-  res: { status: (n: number) => { json: (b: unknown) => void } },
-): boolean {
-  const secret = process.env.ADMIN_SECRET || process.env.ADMIN_API_SECRET
-  if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      res.status(403).json({ error: 'Forbidden' })
-      return false
-    }
-    return true
-  }
-  const raw = req.headers['x-admin-secret'] ?? req.headers.authorization
-  const header = Array.isArray(raw) ? raw[0] : raw?.toString().replace(/^Bearer\s+/i, '')
-  if (header !== secret) {
-    res.status(403).json({ error: 'Forbidden' })
-    return false
-  }
-  return true
-}
-
 function dayKey(): string {
   return new Date().toISOString().slice(0, 10)
 }
@@ -51,35 +32,6 @@ function dayKey(): string {
 function filterByWard(issues: IssueRow[], wardId?: string) {
   if (!wardId) return issues
   return issues.filter((i) => i.wardId === wardId)
-}
-
-function computeHotspots(issues: IssueRow[], wardId?: string) {
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-  const grid: Record<
-    string,
-    { count: number; recent: number; lat: number; lng: number; severity: number; score: number }
-  > = {}
-  for (const i of issues) {
-    if (!['Submitted', 'Community Verified', 'Assigned', 'In Progress'].includes(i.status)) continue
-    if (wardId && i.wardId !== wardId) continue
-    const key = (i.geohash || '').slice(0, 6)
-    if (!key) continue
-    const created = new Date(i.createdAt || 0).getTime()
-    const isRecent = created >= sevenDaysAgo
-    if (!grid[key]) grid[key] = { count: 0, recent: 0, lat: i.lat ?? 0, lng: i.lng ?? 0, severity: 0, score: 0 }
-    grid[key].count++
-    if (isRecent) grid[key].recent++
-    grid[key].severity = Math.max(grid[key].severity, i.severity || 1)
-  }
-  return Object.entries(grid)
-    .map(([geohash, v]) => ({
-      geohash,
-      ...v,
-      score: v.count * 2 + v.recent * 3 + v.severity,
-      predictive: v.recent >= 3 && v.count >= 5,
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 10)
 }
 
 async function persistHotspots(
@@ -97,6 +49,7 @@ async function persistHotspots(
           recentCount: h.recent,
           predictedRisk: h.score,
           predictive: h.predictive,
+          categories: h.categories,
           lat: h.lat,
           lng: h.lng,
           severity: h.severity,

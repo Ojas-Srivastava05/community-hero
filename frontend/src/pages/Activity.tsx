@@ -8,6 +8,7 @@ import { apiListIssues, apiListThreads } from '../lib/api'
 import { useLocation } from '../lib/location'
 import { haversineKm } from '../lib/geo'
 import { fadeUp, stagger } from '../lib/motion'
+import { VerificationBadges } from '@/components/civic/VerificationBadges'
 import { issueArea, issueReportedAt } from '@/lib/issue-ui'
 import type { Issue } from '../../../shared/types'
 
@@ -135,9 +136,16 @@ export function ActivityPage() {
                         <span className="text-ink-muted">{action}</span>{' '}
                         <span className="font-semibold text-coral">{issue.title}</span>
                       </p>
-                      <p className="mt-0.5 text-[11px] font-semibold text-ink-muted">
-                        {issueArea(issue)} · {issueReportedAt(issue)} · {issue.upvoteCount} boosts
-                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <p className="text-[11px] font-semibold text-ink-muted">
+                          {issueArea(issue)} · {issueReportedAt(issue)} · {issue.upvoteCount} boosts
+                        </p>
+                        <VerificationBadges
+                          upvoteCount={issue.upvoteCount}
+                          verificationLevel={issue.verificationLevel ?? 0}
+                          compact
+                        />
+                      </div>
                     </Link>
                     {threadId && (
                       <Link

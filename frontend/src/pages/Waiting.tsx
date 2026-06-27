@@ -9,6 +9,7 @@ export function WaitingPage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const returnTo = params.get('return') || '/'
+  const isOverload = params.get('reason') === '503'
   const initialSeconds = Math.max(5, Number(params.get('retry') || params.get('retryAfter') || 30))
   const [seconds, setSeconds] = useState(initialSeconds)
 
@@ -36,9 +37,13 @@ export function WaitingPage() {
             <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-coral-soft ring-1 ring-coral/30">
               <Clock className="size-8 text-coral" />
             </div>
-            <h1 className="display mt-4 text-xl font-bold text-ink">High civic traffic</h1>
+            <h1 className="display mt-4 text-xl font-bold text-ink">
+              {isOverload ? 'Service warming up' : 'High civic traffic'}
+            </h1>
             <p className="mt-2 text-sm text-ink-muted">
-              You hit a rate limit. We&apos;re holding your spot — retrying automatically in a moment.
+              {isOverload
+                ? 'The server is temporarily busy. We\u2019re holding your spot — retrying automatically in a moment.'
+                : 'You hit a rate limit. We\u2019re holding your spot — retrying automatically in a moment.'}
             </p>
             <div className="mt-6 flex items-center justify-center gap-2">
               <Loader2 className="size-5 animate-spin text-coral" />

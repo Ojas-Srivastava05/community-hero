@@ -16,8 +16,12 @@ import { usePointsToast } from '@/components/civic/PointsToast'
 import { cn } from '@/lib/utils'
 import { clearReportDraft, loadReportDraft, saveReportDraft } from '../lib/offline-drafts'
 import type { IssueAnalysis } from '../../../shared/types'
+import { SeverityBadge } from '@/components/civic/SeverityBadge'
+import { apiSeverityToUi } from '@/lib/issue-ui'
 
 const CATEGORIES = ['pothole', 'water_leak', 'streetlight', 'waste', 'road_damage', 'drainage', 'signage', 'encroachment', 'other']
+const REVIEW_CONFIDENCE_THRESHOLD = 0.7
+const SEVERITY_LEVELS = [1, 2, 3, 4, 5] as const
 
 export function ReportWizardPage() {
   const { user, signInWithGoogle, signingIn } = useAuth()
@@ -336,8 +340,16 @@ export function ReportWizardPage() {
             <div className="space-y-4">
               {analysis && (
                 <GlassCard className="border-coral/30 bg-coral-soft/30">
-                  <div className="flex items-center gap-2"><Zap className="size-4 text-coral" /><p className="text-xs font-bold uppercase tracking-wider text-coral">AI detected</p></div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2"><Zap className="size-4 text-coral" /><p className="text-xs font-bold uppercase tracking-wider text-coral">AI detected</p></div>
+                    <SeverityBadge severity={apiSeverityToUi(form.severity)} />
+                  </div>
                   <p className="mt-2 text-sm text-ink">{form.description}</p>
+                  {analysis.confidence < REVIEW_CONFIDENCE_THRESHOLD && (
+                    <p className="mt-2 rounded-xl border border-amber/30 bg-amber-soft/40 px-3 py-2 text-[11px] font-medium text-amber">
+                      Low confidence ({Math.round(analysis.confidence * 100)}%) — your report may need admin review before appearing on the map.
+                    </p>
+                  )}
                 </GlassCard>
               )}
               <div>
@@ -354,6 +366,24 @@ export function ReportWizardPage() {
                   {CATEGORIES.map((c) => (
                     <button key={c} type="button" onClick={() => setForm({ ...form, category: c })} className={cn('chip transition-colors', form.category === c && 'bg-coral-soft text-coral border-coral/30')}>
                       {c.replace('_', ' ')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-ink-muted">Severity</label>
+                <div className="mt-2 flex gap-2">
+                  {SEVERITY_LEVELS.map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setForm({ ...form, severity: level })}
+                      className={cn(
+                        'flex-1 rounded-xl border py-2.5 text-sm font-bold transition-colors',
+                        form.severity === level ? 'border-coral bg-coral-soft text-coral' : 'border-rule text-ink-muted',
+                      )}
+                    >
+                      {level}
                     </button>
                   ))}
                 </div>

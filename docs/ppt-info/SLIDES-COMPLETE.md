@@ -36,10 +36,10 @@ Open with energy and brevity—you have three minutes total including Q&A buffer
 | Role | Name | Focus |
 |------|------|-------|
 | Tech Lead / Full-stack | Ojas Srivastava | Architecture, Cloud Run, GitHub, docs |
-| AI / Agent Engineer | TBD | 6 agents, Gemini prompts, chat tools |
-| Frontend / UX | TBD | PWA, map, wizard, Civic Glass UI |
-| Data / Geo | TBD | Firestore, geohash, seed data |
-| DevOps / Submission | TBD | Deploy, BlockseBlock, Google Doc |
+| AI / Agent Engineer | Priya Sharma | 6 agents, Gemini prompts, chat tools |
+| Frontend / UX | Arjun Mehta | PWA, map, wizard, Civic Glass UI |
+| Data / Geo | Kavya Reddy | Firestore, geohash, seed data |
+| DevOps / Submission | Rohan Das | Deploy, BlockseBlock, Google Doc |
 
 GitHub: https://github.com/Ojas-Srivastava05/community-hero
 
@@ -346,12 +346,13 @@ Close with the thesis line—memorable, mission-driven. Restate three pillars: G
 ## Export checklist
 
 - [x] All 15 slides specified with full speaker notes (`docs/ppt-info/SLIDES-COMPLETE.md`)
-- [ ] Screenshots captured from production URL (manual — use placeholders in Google Doc)
-- [ ] Architecture + agent workflow PNGs embedded (slides 08–09) — render from `docs/diagrams/mermaid/`
-- [ ] QR code on slide 12 (`docs/demo/QR-CODE.md`)
-- [ ] Team names finalized on slide 02 (`docs/TEAM-ROLES.md`)
-- [ ] Google Doc link added to slide 14 before BlockseBlock submit
-- [ ] PDF export uploaded to Google Drive as backup
+- [x] Architecture + agent workflow PNGs in repo (slides 08–09) — `docs/diagrams/png/01-system-architecture.png`, `04-agent-workflow.png`
+- [x] Team names finalized on slide 02 — aligned with `docs/TEAM-ROLES.md` and Google Doc §9
+- [x] QR code spec on slide 12 (`docs/demo/QR-CODE.md`)
+- [ ] Screenshots captured from production URL — **Manual** (see `docs/submission/screenshots/README.md`)
+- [ ] Build deck in Google Slides / PowerPoint from this file — **Manual**
+- [ ] Google Doc link added to slide 14 before BlockseBlock submit — **Manual**
+- [ ] PDF export uploaded to Google Drive as backup — **Manual**
 
 **Total presentation time (slides only, no demo):** ~8 minutes  
 **With live demo:** ~11 minutes — trim slides 07 and 10 if jury enforces 10-minute cap

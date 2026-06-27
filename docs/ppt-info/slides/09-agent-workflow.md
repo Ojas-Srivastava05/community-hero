@@ -4,8 +4,8 @@
 
 **Diagram:** Embed `docs/diagrams/png/04-agent-workflow.png`
 
-**Agents:** Intake → Vision → Routing → SLA → Dedup → Priority  
-**Branches:** Low confidence → Draft review queue; duplicates → merge suggestions
+**Agents:** Intake → Vision → Dedup → Routing (SLA + priority) → Communicator → Insights (batch)  
+**Branches:** Low confidence (&lt; 0.6) → Draft review queue; duplicates → merge suggestions
 
 ## Speaker notes
 

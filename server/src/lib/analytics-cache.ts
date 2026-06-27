@@ -366,3 +366,58 @@ export async function fetchIssuesAndUpvotes(limit = 500) {
   const upvoteEvents = (upvoteSnap?.docs ?? []).map((d) => d.data() as { timestamp: string })
   return { issues, upvoteEvents }
 }
+
+export type HotspotCell = {
+  geohash: string
+  count: number
+  recent: number
+  lat: number
+  lng: number
+  severity: number
+  score: number
+  risk_score: number
+  categories: string[]
+  predictive: boolean
+}
+
+/** Model D — HotspotScorer v1: geohash-6 cells, severity + recency decay */
+export function computeHotspots(issues: IssueRow[], wardId?: string, limit = 10): HotspotCell[] {
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+  const grid: Record<
+    string,
+    { count: number; recent: number; lat: number; lng: number; severity: number; categories: Set<string> }
+  > = {}
+  for (const i of issues) {
+    if (!['Submitted', 'Community Verified', 'Assigned', 'In Progress'].includes(i.status)) continue
+    if (wardId && i.wardId !== wardId) continue
+    const key = (i.geohash || '').slice(0, 6)
+    if (!key) continue
+    const created = new Date(i.createdAt || 0).getTime()
+    const isRecent = created >= sevenDaysAgo
+    if (!grid[key]) {
+      grid[key] = { count: 0, recent: 0, lat: i.lat ?? 0, lng: i.lng ?? 0, severity: 0, categories: new Set() }
+    }
+    grid[key].count++
+    if (isRecent) grid[key].recent++
+    grid[key].severity = Math.max(grid[key].severity, i.severity || 1)
+    if (i.category) grid[key].categories.add(i.category)
+  }
+  return Object.entries(grid)
+    .map(([geohash, v]) => {
+      const score = v.count * 2 + v.recent * 3 + v.severity
+      return {
+        geohash,
+        count: v.count,
+        recent: v.recent,
+        lat: v.lat,
+        lng: v.lng,
+        severity: v.severity,
+        score,
+        risk_score: score,
+        categories: [...v.categories].sort(),
+        predictive: v.recent >= 3 && v.count >= 5,
+      }
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+}

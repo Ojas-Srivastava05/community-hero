@@ -2,8 +2,8 @@ import { Router } from 'express'
 import multer from 'multer'
 import { v4 as uuid } from 'uuid'
 import ngeohash from 'ngeohash'
-import { z } from 'zod'
 import { db, bucket } from '../lib/firebase-admin'
+import { createReportSchema, type CreateReportInput } from '../lib/report-schema'
 import { analyzeImage } from '../lib/gemini'
 import {
   runAgentPipeline,
@@ -13,41 +13,25 @@ import {
   runCitizenCommunicator,
   type AwardResult,
 } from '../lib/agents'
+import { POINTS } from '../lib/gamification'
 import { compareBeforeAfter } from '../lib/gemini'
 import { generateEmbedding, issueEmbeddingText } from '../lib/embeddings'
 import { requireAuth, requireAdmin, isAdminUser, type AuthedRequest } from '../middleware/auth'
 import { reportLimit, upvoteLimit } from '../middleware/rateLimit'
 import { deriveWardId, haversineKm, reverseGeocodeServer } from '../lib/geo'
-import { validateImageBuffer } from '../lib/media-validation'
+import { validateImageBuffer } from '../lib/media'
 import { upsertThreadForIssue } from './threads'
 import { CATEGORIES, DEPARTMENTS, type IssueAnalysis } from '../types/shared'
 import { sendError, ErrorCodes, sendServerError, isApiError } from '../lib/errors'
 import { runIntakeAgent } from '../lib/agents/intake'
+import { REVIEW_CONFIDENCE_THRESHOLD } from '../lib/agents/types'
 import { toOpen311Record } from '../lib/open311'
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } })
 export const reportsRouter = Router()
 
-const boolish = z.union([z.boolean(), z.string().transform((s) => s === 'true' || s === '1')])
-
-const createSchema = z.object({
-  title: z.string().min(3),
-  description: z.string().min(3),
-  category: z.enum(CATEGORIES),
-  severity: z.coerce.number().min(1).max(5),
-  lat: z.coerce.number(),
-  lng: z.coerce.number(),
-  address: z.string().optional(),
-  mergeIntoId: z.string().optional(),
-  confidence: z.coerce.number().min(0).max(1).optional(),
-  safety_risk: boolish.optional(),
-  department: z.string().optional(),
-  ai_analyzed: boolish.optional(),
-  analysis: z.string().optional(),
-})
-
 function parseAnalysisFromBody(
-  data: z.infer<typeof createSchema>,
+  data: CreateReportInput,
   body: Record<string, unknown>,
 ): IssueAnalysis {
   if (data.analysis) {
@@ -142,7 +126,7 @@ async function performMerge(
 
   const pointsEarned = alreadyMergedToday
     ? { pointsAwarded: 0, badgesEarned: [] as string[] }
-    : await awardPoints(userId, 15, 'merge')
+    : await awardPoints(userId, POINTS.merge, 'merge')
 
   return { upvoteCount: count, pointsEarned, idempotent: alreadyMergedToday }
 }
@@ -151,6 +135,11 @@ reportsRouter.post('/analyze', requireAuth, upload.single('image'), async (req: 
   try {
     if (!req.file) {
       sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'Image required')
+      return
+    }
+    const preflight = validateImageBuffer(req.file.buffer, req.file.mimetype)
+    if (!preflight.ok) {
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, preflight.reason)
       return
     }
     const hint = req.body.hint as string | undefined
@@ -168,7 +157,7 @@ reportsRouter.post('/analyze', requireAuth, upload.single('image'), async (req: 
 
 reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), async (req: AuthedRequest, res) => {
   try {
-    const parsed = createSchema.safeParse(req.body)
+    const parsed = createReportSchema.safeParse(req.body)
     if (!parsed.success) {
       const missingGps = !Number.isFinite(Number(req.body.lat)) || !Number.isFinite(Number(req.body.lng))
       if (missingGps) {
@@ -329,7 +318,7 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
     const savedData = saved.data()!
     const dupes = (savedData.aiMetadata as { duplicate_suggestions?: { id: string; title: string; similarity?: number; distanceM?: number }[] })?.duplicate_suggestions
 
-    const needsReview = analysis.confidence < 0.7
+    const needsReview = analysis.confidence < REVIEW_CONFIDENCE_THRESHOLD
     const statusCode = needsReview ? 202 : 201
     const responseBody: Record<string, unknown> = {
       id,
@@ -492,6 +481,10 @@ reportsRouter.post('/:id/upvote', requireAuth, upvoteLimit, async (req: AuthedRe
     const { processUpvote } = await import('../lib/agents')
     const result = await processUpvote(id, req.user!.uid)
     if (!result.ok) {
+      if ('notFound' in result && result.notFound) {
+        sendError(res, 404, ErrorCodes.NOT_FOUND, 'Not found')
+        return
+      }
       sendError(
         res,
         403,
@@ -681,8 +674,8 @@ reportsRouter.patch('/:id/status', requireAuth, (req, res, next) => {
       updates.resolvedAt = new Date().toISOString()
       const reporterId = issueData.reporterId
       if (reporterId) {
-        const { awardPoints } = await import('../lib/agents')
-        await awardPoints(reporterId, 25, 'resolved') // Fix Follower badge
+        const { awardPoints } = await import('../lib/gamification')
+        await awardPoints(reporterId, POINTS.resolved, 'resolved')
       }
     }
 

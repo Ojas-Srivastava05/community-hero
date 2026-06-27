@@ -2,6 +2,10 @@ import { initializeApp, applicationDefault } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 import ngeohash from 'ngeohash'
 import { v4 as uuid } from 'uuid'
+import { CATEGORIES, DEPARTMENTS, type Category } from '../src/types/shared'
+import { computePriorityScore } from '../src/lib/priority'
+import { getSlaHours } from '../src/lib/agents/routing'
+import { currentWeekKey } from '../src/lib/gamification'
 
 const projectId = process.env.FIREBASE_PROJECT_ID || 'community-hero-vibe2ship'
 initializeApp({ credential: applicationDefault(), projectId })
@@ -53,12 +57,16 @@ async function main() {
   let n = 0
   for (let i = 0; i < SPECS.length; i++) {
     const d = SPECS[i]
+    const category = (CATEGORIES.includes(d.category as Category) ? d.category : 'other') as Category
+    const dept = DEPARTMENTS[category]
     const { lat, lng } = jitter(i)
     const id = uuid()
+    const createdAt = now
+    const slaHours = getSlaHours(category, d.severity)
     await db.collection('issues').doc(id).set({
       title: d.title,
       description: `Demo issue (Appendix R): ${d.title} in Koramangala ward.`,
-      category: d.category,
+      category,
       severity: d.severity,
       status: d.status,
       lat,
@@ -69,20 +77,89 @@ async function main() {
       imageUrls: [IMAGES[d.category] || IMAGES.pothole],
       reporterId: 'demo-seed',
       reporterEmail: 'demo@community-hero.app',
-      departmentId: 'Roads & Infrastructure',
+      departmentId: dept.name,
       upvoteCount: d.upvotes ?? 1,
       verificationLevel: (d.upvotes ?? 0) >= 3 ? 2 : 1,
-      priorityScore: d.severity * 8,
-      slaDeadline: new Date(Date.now() + 72 * 3600000).toISOString(),
+      priorityScore: computePriorityScore(d.severity, d.upvotes ?? 1, d.severity >= 4, createdAt),
+      slaDeadline: new Date(Date.now() + slaHours * 3600000).toISOString(),
       isDemo: true,
-      createdAt: now,
+      createdAt,
       updatedAt: now,
       resolvedAt: d.status === 'Resolved' ? now : null,
     })
+
+    const eventsRef = db.collection('issues').doc(id).collection('events')
+    await eventsRef.add({
+      type: 'created',
+      actorId: 'demo-seed',
+      payload: { status: 'Submitted' },
+      timestamp: now,
+    })
+    if (d.status !== 'Submitted') {
+      await eventsRef.add({
+        type: 'status_change',
+        actorId: 'routing-agent',
+        payload: { from: 'Submitted', to: d.status },
+        timestamp: now,
+      })
+    }
+    if (d.status === 'Resolved') {
+      await eventsRef.add({
+        type: 'resolved',
+        actorId: 'admin',
+        payload: { proof: true },
+        timestamp: now,
+      })
+    }
     n++
     console.log('Seeded:', id, d.title)
   }
-  console.log('Done — seeded', n, 'issues')
+
+  const weekKey = currentWeekKey()
+
+  const demoUsers = [
+    {
+      uid: 'demo-champion-1',
+      displayName: 'Priya K.',
+      civicPoints: 125,
+      weeklyPoints: 45,
+      badges: ['First Reporter', 'Neighborhood Voice', 'Civic Champion'],
+    },
+    {
+      uid: 'demo-champion-2',
+      displayName: 'Arjun M.',
+      civicPoints: 88,
+      weeklyPoints: 55,
+      badges: ['First Reporter', 'Verified Voice', 'Ward Guardian'],
+    },
+    {
+      uid: 'demo-champion-3',
+      displayName: 'Sneha R.',
+      civicPoints: 62,
+      weeklyPoints: 30,
+      badges: ['First Reporter', 'Fix Follower'],
+    },
+  ]
+
+  for (const u of demoUsers) {
+    await db.collection('users').doc(u.uid).set(
+      {
+        displayName: u.displayName,
+        civicPoints: u.civicPoints,
+        weeklyPoints: u.weeklyPoints,
+        weeklyPointsWeek: weekKey,
+        badges: u.badges,
+        leaderboardOptIn: true,
+        reportsCount: 5,
+        createdAt: now,
+        updatedAt: now,
+      },
+      { merge: true },
+    )
+    console.log('Seeded leaderboard user:', u.displayName)
+  }
+
+  console.log('Done — seeded', n, 'issues +', demoUsers.length, 'leaderboard users')
 }
 
 main().catch(console.error)

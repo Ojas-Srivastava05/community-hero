@@ -15,12 +15,12 @@ flowchart TB
 
   subgraph step2["Step 2 — AI analyze"]
     LOC --> ANALYZE[POST /api/reports/analyze]
-    ANALYZE --> GEMINI[Gemini 2.0 Flash structured JSON]
+    ANALYZE --> GEMINI[Gemini 2.5 Flash structured JSON]
     GEMINI --> VALID{Valid civic image?}
     VALID -->|no| INVALID[InvalidMediaCard — retake]
     INVALID --> STEP1
     VALID -->|yes| PREFILL[Prefill title, category, severity]
-    PREFILL --> CONF{confidence ≥ 0.6?}
+    PREFILL --> CONF{confidence ≥ 0.7?}
     CONF -->|no| WARN[Needs review badge]
     CONF -->|yes| OK[High confidence chip]
   end

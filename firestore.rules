@@ -32,14 +32,39 @@ service cloud.firestore {
         ]);
     }
 
+    function reporterIssueWritableKeys() {
+      return ['title', 'description', 'updatedAt'];
+    }
+
+    function issueServerFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny([
+          'upvoteCount',
+          'verificationLevel',
+          'priorityScore',
+          'departmentId',
+          'slaDeadline',
+          'reporterId',
+          'reporterEmail',
+          'embedding',
+          'mergedInto',
+          'civicPoints',
+          'aiMetadata',
+          'status',
+          'imageUrls',
+          'geohash',
+          'wardId',
+        ]);
+    }
+
     match /issues/{issueId} {
       // Guest / anonymous read — map, issue detail, share links
       allow read: if true;
-      allow create: if signedIn()
-        && request.resource.data.reporterId == request.auth.uid
-        && request.resource.data.keys().hasAll(['title', 'category', 'status', 'createdAt']);
+      allow create: if false;
       allow update: if signedIn() && (
-        resource.data.reporterId == request.auth.uid
+        (resource.data.reporterId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(reporterIssueWritableKeys())
+          && issueServerFieldsUnchanged())
         || isAdmin()
       );
       allow delete: if false;
@@ -80,13 +105,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /geocode_cache/{docId} {
+      allow read, write: if false;
+    }
+
     match /threads/{threadId} {
       allow read: if true;
-      allow create: if signedIn();
-      allow update: if signedIn();
+      allow create, update, delete: if false;
       match /messages/{msgId} {
         allow read: if true;
-        allow create: if signedIn();
+        allow create, update, delete: if false;
       }
     }
   }

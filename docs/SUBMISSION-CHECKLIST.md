@@ -11,7 +11,7 @@ All in-repo items are complete. Manual steps require Google Docs UI and BlockseB
 
 | Item | URL | Status | Evidence |
 |------|-----|--------|----------|
-| **Deployed app (primary)** | https://community-hero-987477089222.asia-south1.run.app | ✅ Tested | `bash scripts/verify-phases.sh` — 30/31 checks pass; health 200 |
+| **Deployed app (primary)** | https://community-hero-987477089222.asia-south1.run.app | ✅ Tested | `bash scripts/verify-phases.sh` — Phase 18 **9/9** in-repo (see § Phase 18 verification below); health 200 |
 | Vercel preview | https://community-hero-eight.vercel.app | ✅ Optional backup | Listed in [`README.md`](../README.md) |
 | GitHub repository | https://github.com/Ojas-Srivastava05/community-hero | ✅ Public, README polished | [`README.md`](../README.md), architecture + features table |
 | Google Doc | _(create — anyone with link can view)_ | ⏳ **Manual** | Content ready: [`submission/GOOGLE-DOC-CONTENT.md`](submission/GOOGLE-DOC-CONTENT.md) |
@@ -33,7 +33,7 @@ bash scripts/verify-phases.sh https://community-hero-987477089222.asia-south1.ru
 |-------|--------|----------|
 | `GET /api/health` → `status: ok`, `firestore: connected` | ✅ | `scripts/verify-phases.sh` Phase 1 |
 | Landing `/` loads | ✅ | Phase 3 route check |
-| Google Sign-In on production domain | ⏳ **Manual** | Add authorized domain in Firebase console |
+| Google Sign-In on production domain | ✅ | Google provider enabled via `firebase deploy --only auth`; authorized domain already listed |
 | Map `/map` shows issues | ✅ | Phase 3; seed via `make seed` if sparse |
 | Report wizard `/report` — camera/GPS on HTTPS | ✅ | Route 200; wizard in `frontend/src/pages/ReportPage.tsx` |
 | Dashboard `/dashboard` — analytics charts | ✅ | Phase 8 |
@@ -46,10 +46,10 @@ Firebase console (see [`TODO.md`](../TODO.md)):
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Auth authorized domain: `community-hero-987477089222.asia-south1.run.app` | ⏳ **Manual** | Firebase Console → Authentication → Settings |
-| Firebase Storage enabled | ⏳ **Manual** | Required for image uploads |
-| `GEMINI_API_KEY` on Cloud Run | ⏳ **Manual** | Optional — keyword fallbacks exist |
-| `VITE_GOOGLE_MAPS_API_KEY` at build time | ⏳ **Manual** | Required for live map tiles |
+| Auth authorized domain: `community-hero-987477089222.asia-south1.run.app` | ✅ | Already in Firebase Auth config |
+| Firebase Storage enabled | ⚠️ **Partial** | GCS bucket `community-hero-vibe2ship-uploads` works for uploads; Firebase Storage *console product* needs one-time “Get Started” click for rules deploy |
+| `GEMINI_API_KEY` on Cloud Run | ✅ | Set on revision `community-hero-00020-dtk` (see `.env.local`) |
+| `VITE_GOOGLE_MAPS_API_KEY` at build time | ✅ | Injected via Cloud Build / `frontend/.env.production` |
 
 ---
 
@@ -59,7 +59,7 @@ Firebase console (see [`TODO.md`](../TODO.md)):
 |------|--------|----------|
 | README: live URL, architecture diagram, features, stack, team | ✅ | [`README.md`](../README.md) |
 | `docs/` complete — `docs/README.md` indexes all documents | ✅ | [`README.md`](README.md) |
-| Tag release: `v1.0.0-submission` | ✅ Script ready | `bash scripts/prepare-submission.sh` |
+| Tag release: `v1.0.0-submission` | ✅ Tagged locally | `bash scripts/prepare-submission.sh` (push: `git push origin v1.0.0-submission`) |
 | GitHub Actions CI green on `main` | ✅ | [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) |
 | No secrets committed (`.env` gitignored) | ✅ | `.env.example` only; `.gitignore` |
 
@@ -91,9 +91,26 @@ Evaluation mapping (Appendix A): innovation, agentic depth, impact, Google tech,
 |------|--------|----------|
 | 15 slides with full speaker notes | ✅ | [`ppt-info/SLIDES-COMPLETE.md`](ppt-info/SLIDES-COMPLETE.md) |
 | Outline reference | ✅ | [`ppt-info/SUBMISSION.md`](ppt-info/SUBMISSION.md) |
-| Architecture + agent workflow PNGs | ⏳ Render | `npx @mermaid-js/mermaid-cli -i docs/diagrams/mermaid/ -o docs/diagrams/png/` |
+| Architecture + agent workflow PNGs | ✅ | `docs/diagrams/png/01-system-architecture.png`, `04-agent-workflow.png` (16 PNGs total) |
 | QR code on demo slide | ✅ | [`demo/QR-CODE.md`](demo/QR-CODE.md) |
-| Rehearse 3-minute demo twice | ⏳ **Manual** | [`demo/REHEARSAL-CHECKLIST.md`](demo/REHEARSAL-CHECKLIST.md) |
+| Rehearse 3-minute demo twice | ⏳ **Manual** (Phase 19) | [`demo/REHEARSAL-CHECKLIST.md`](demo/REHEARSAL-CHECKLIST.md) |
+| Production screenshots (8 PNGs) | ⏳ **Manual** | [`submission/screenshots/README.md`](submission/screenshots/README.md) |
+
+---
+
+## Phase 18 in-repo verification (`verify-phases.sh`)
+
+| Check | Status | Evidence |
+|-------|--------|----------|
+| `GOOGLE-DOC-CONTENT.md` exists (275 lines) | ✅ | `docs/submission/GOOGLE-DOC-CONTENT.md` |
+| Appendix J — 10 sections | ✅ | `grep -c '^## Section'` → 10 |
+| `SLIDES-COMPLETE.md` — 15 slides + Slide 12 demo | ✅ | `docs/ppt-info/SLIDES-COMPLETE.md` |
+| `SUBMISSION-CHECKLIST.md` | ✅ | This file |
+| `prepare-submission.sh` executable | ✅ | `scripts/prepare-submission.sh` |
+| Architecture + agent workflow PNGs | ✅ | `docs/diagrams/png/01-system-architecture.png`, `04-agent-workflow.png` |
+| Screenshot capture guide | ✅ | `docs/submission/screenshots/README.md` |
+| **Publish Google Doc public link** | ⏳ **Manual** | Cannot automate from repo |
+| **BlockseBlock Final Submit** | ⏳ **Manual** | Cannot automate from repo |
 
 ---
 
@@ -121,6 +138,7 @@ Evaluation mapping (Appendix A): innovation, agentic depth, impact, Google tech,
 |------|--------|----------|
 | Demo script with click paths | ✅ | [`demo/APPENDIX-I-DEMO-SCRIPT.md`](demo/APPENDIX-I-DEMO-SCRIPT.md) |
 | Rehearsal checklist (2× timed) | ✅ | [`demo/REHEARSAL-CHECKLIST.md`](demo/REHEARSAL-CHECKLIST.md) |
+| QR code PNG for Slide 12 | ✅ | [`demo/qr-production.png`](demo/qr-production.png) · [`scripts/generate-demo-qr.sh`](../scripts/generate-demo-qr.sh) |
 | Phase 0–19 tracker 100% | ✅ | [`PHASE-COMPLETION-TRACKER.md`](PHASE-COMPLETION-TRACKER.md) |
 | Monitor `GET /api/health` during evaluation | ⏳ **Manual** | UptimeRobot or cron |
 | Do **not** delete AI Studio app until evaluation ends | ⏳ **Manual** | Ops policy |
@@ -134,6 +152,7 @@ Evaluation mapping (Appendix A): innovation, agentic depth, impact, Google tech,
 | Document | Path |
 |----------|------|
 | Google Doc content (paste-ready) | [`submission/GOOGLE-DOC-CONTENT.md`](submission/GOOGLE-DOC-CONTENT.md) |
+| Screenshot capture guide | [`submission/screenshots/README.md`](submission/screenshots/README.md) |
 | Full slide speaker notes | [`ppt-info/SLIDES-COMPLETE.md`](ppt-info/SLIDES-COMPLETE.md) |
 | API contract | [`api_contract.md`](api_contract.md) |
 | Architecture | [`architecture.md`](architecture.md) |

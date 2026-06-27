@@ -3,13 +3,30 @@ import { sendError, ErrorCodes, sendServerError } from '../lib/errors'
 import { db } from '../lib/firebase-admin'
 import { generateInsight } from '../lib/gemini'
 import { cosineSimilarity } from '../lib/embeddings'
+import { averageCoords } from '../lib/threads-geo'
 
 export const threadsRouter = Router()
+
+async function withCentroid(
+  id: string,
+  data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const existing = data.centroid as { lat?: number; lng?: number } | undefined
+  if (typeof existing?.lat === 'number' && typeof existing?.lng === 'number') return data
+  const issueIds = (data.issueIds as string[]) || []
+  if (!issueIds.length) return data
+  const centroid = await computeCentroid(issueIds)
+  if (!centroid) return data
+  await db.collection('threads').doc(id).update({ centroid })
+  return { ...data, centroid }
+}
 
 threadsRouter.get('/', async (_req, res) => {
   try {
     const snap = await db.collection('threads').orderBy('updatedAt', 'desc').limit(50).get()
-    const threads = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    const threads = await Promise.all(
+      snap.docs.map(async (d) => ({ id: d.id, ...(await withCentroid(d.id, d.data()!)) })),
+    )
     res.json({ threads })
   } catch (e) {
     sendServerError(res, e)
@@ -23,8 +40,8 @@ threadsRouter.get('/:id', async (req, res) => {
       sendError(res, 404, ErrorCodes.NOT_FOUND, 'Not found')
       return
     }
-    const data = doc.data()!
-    const issueIds: string[] = data.issueIds || []
+    const data = await withCentroid(doc.id, doc.data()!)
+    const issueIds: string[] = (data.issueIds as string[]) || []
     const issues = await Promise.all(
       issueIds.map(async (id) => {
         const i = await db.collection('issues').doc(id).get()
@@ -91,19 +108,15 @@ async function findSimilarThread(
 async function computeCentroid(issueIds: string[]): Promise<{ lat: number; lng: number } | null> {
   if (!issueIds.length) return null
   const docs = await Promise.all(issueIds.map((id) => db.collection('issues').doc(id).get()))
-  let lat = 0
-  let lng = 0
-  let n = 0
+  const coords: { lat: number; lng: number }[] = []
   for (const doc of docs) {
     if (!doc.exists) continue
     const d = doc.data()!
     if (typeof d.lat === 'number' && typeof d.lng === 'number') {
-      lat += d.lat
-      lng += d.lng
-      n += 1
+      coords.push({ lat: d.lat, lng: d.lng })
     }
   }
-  return n > 0 ? { lat: lat / n, lng: lng / n } : null
+  return averageCoords(coords)
 }
 
 export async function upsertThreadForIssue(

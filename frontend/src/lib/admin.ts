@@ -36,5 +36,7 @@ export function useRequireAdmin(redirectTo = '/dashboard') {
     }
   }, [user, loading, navigate, redirectTo])
 
-  return { user, loading: loading || checking, isAdmin, signInWithGoogle, signingIn }
+  const accessDenied = !loading && !checking && Boolean(user) && !isAdmin
+
+  return { user, loading: loading || checking, isAdmin, accessDenied, signInWithGoogle, signingIn }
 }

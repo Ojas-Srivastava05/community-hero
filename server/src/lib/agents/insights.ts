@@ -1,13 +1,13 @@
 import { db } from '../firebase-admin'
 import {
   buildCategoryTrends,
+  computeHotspots,
   computeSummary,
   detectRecurringIssues,
   detectSeasonalWasteSpike,
   fetchIssuesAndUpvotes,
   invalidateL3Summary,
   writeAnalyticsDaily,
-  type IssueRow,
 } from '../analytics-cache'
 import { generateTrendNarrative } from '../gemini'
 
@@ -23,33 +23,6 @@ export type InsightsBatchResult = {
   narrative: string
   hotspots: number
   recurringIssues: number
-}
-
-function computeInsightHotspots(issues: IssueRow[]) {
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-  const grid: Record<
-    string,
-    { count: number; recent: number; lat: number; lng: number; severity: number; score: number }
-  > = {}
-  for (const i of issues) {
-    if (!['Submitted', 'Community Verified', 'Assigned', 'In Progress'].includes(i.status)) continue
-    const key = (i.geohash || '').slice(0, 6)
-    if (!key) continue
-    const created = new Date(i.createdAt || 0).getTime()
-    if (!grid[key]) grid[key] = { count: 0, recent: 0, lat: i.lat ?? 0, lng: i.lng ?? 0, severity: 0, score: 0 }
-    grid[key].count++
-    if (created >= sevenDaysAgo) grid[key].recent++
-    grid[key].severity = Math.max(grid[key].severity, i.severity || 1)
-  }
-  return Object.entries(grid)
-    .map(([geohash, v]) => ({
-      geohash,
-      ...v,
-      score: v.count * 2 + v.recent * 3 + v.severity,
-      predictive: v.recent >= 3 && v.count >= 5,
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 20)
 }
 
 /** Agent 6 — Insights Analyst nightly batch */
@@ -75,7 +48,7 @@ export async function runInsightsBatch(): Promise<InsightsBatchResult> {
   const date = new Date().toISOString().slice(0, 10)
   await writeAnalyticsDaily(`${date}_all`, summary, null)
 
-  const hotspots = computeInsightHotspots(issues)
+  const hotspots = computeHotspots(issues, undefined, 20)
   const updatedAt = new Date().toISOString()
   await Promise.all(
     hotspots.map((h) =>
@@ -84,6 +57,7 @@ export async function runInsightsBatch(): Promise<InsightsBatchResult> {
         recentCount: h.recent,
         predictedRisk: h.score,
         predictive: h.predictive,
+        categories: h.categories,
         lat: h.lat,
         lng: h.lng,
         severity: h.severity,

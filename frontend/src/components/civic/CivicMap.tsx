@@ -187,6 +187,14 @@ function MapClickHandler({
   return null
 }
 
+function PanToCenter({ map, center }: { map: google.maps.Map; center: { lat: number; lng: number } }) {
+  useEffect(() => {
+    map.panTo(center)
+  }, [map, center.lat, center.lng])
+
+  return null
+}
+
 export function CivicMap({
   center,
   issues,
@@ -229,6 +237,7 @@ export function CivicMap({
     >
       {map && (
         <>
+          <PanToCenter map={map} center={center} />
           <ClusteredMarkers map={map} issues={issues} selectedId={selectedId} onSelect={onSelect} />
           {hotspots.length > 0 && <HotspotMarkers map={map} hotspots={hotspots} />}
           {pinPosition && <DraftPin map={map} position={pinPosition} />}

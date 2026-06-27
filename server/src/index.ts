@@ -2,6 +2,7 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import path from 'path'
+import fs from 'fs'
 import { runWithGeocodeCache } from './lib/geocode-cache'
 import { reportsRouter } from './routes/reports'
 import { analyticsRouter } from './routes/analytics'
@@ -60,11 +61,12 @@ app.use('/api/threads', threadsRouter)
 app.use('/api/users', usersRouter)
 app.use('/api/departments', departmentsRouter)
 
-if (isProd) {
-  const frontendDist = path.resolve(__dirname, '../../frontend/dist')
+const frontendDist = path.resolve(__dirname, '../../frontend/dist')
+const spaIndex = path.join(frontendDist, 'index.html')
+if (isProd || fs.existsSync(spaIndex)) {
   app.use(express.static(frontendDist))
   app.get(/^(?!\/api).*/, (_req, res) => {
-    res.sendFile(path.join(frontendDist, 'index.html'))
+    res.sendFile(spaIndex)
   })
 }
 

@@ -13,7 +13,7 @@ Mark each item **PASS**, **FAIL**, or **N/A**. All P0 items must PASS before Blo
 ## Automated verification (`bash scripts/verify-phases.sh`)
 
 **Production URL:** https://community-hero-987477089222.asia-south1.run.app  
-**Last run:** 2026-06-27 — 40/42 checks passed (demo seed: 50 issues via `include_demo=1`)
+**Last run:** 2026-06-27 — 50/50 checks passed (demo seed: 50 issues via `include_demo=1`)
 
 - [x] #1 Landing page loads over HTTPS (`GET /` → 200)
 - [x] #9 Dashboard summary charts load (`/dashboard`, `/api/analytics/summary`, `/api/analytics/trends`)

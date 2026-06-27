@@ -29,10 +29,10 @@
 | Role | Name | Focus |
 |------|------|-------|
 | Tech Lead / Full-stack | Ojas Srivastava | Architecture, Cloud Run, GitHub, docs |
-| AI / Agent Engineer | TBD | 6 agents, Gemini prompts, chat tools |
-| Frontend / UX | TBD | PWA, map, wizard, Civic Glass UI |
-| Data / Geo | TBD | Firestore, geohash, seed data |
-| DevOps / Submission | TBD | Deploy, BlockseBlock, Google Doc |
+| AI / Agent Engineer | Priya Sharma | 6 agents, Gemini prompts, chat tools |
+| Frontend / UX | Arjun Mehta | PWA, map, wizard, Civic Glass UI |
+| Data / Geo | Kavya Reddy | Firestore, geohash, seed data |
+| DevOps / Submission | Rohan Das | Deploy, BlockseBlock, Google Doc |
 
 **Links:** GitHub — https://github.com/Ojas-Srivastava05/community-hero
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowUp, ChevronLeft, Download, MapPin, RotateCcw, Share2, AlertTriangle } from 'lucide-react'
@@ -9,7 +9,8 @@ import { VerificationBadges } from '@/components/civic/VerificationBadges'
 import { IssueDetailSkeleton } from '@/components/PageSkeleton'
 import { useAuth } from '../lib/auth'
 import { useIssueStore } from '../stores/useIssueStore'
-import { apiExportOpen311Single, apiGetIssue, apiGetIssueVoteStatus, apiReopenIssue, apiUpvote } from '../lib/api'
+import { apiExportOpen311Single, apiGetIssueVoteStatus, apiReopenIssue, apiUpvote } from '../lib/api'
+import { useLiveIssue } from '../lib/use-live-issue'
 import { resolveIsAdmin } from '../lib/admin'
 import { usePointsToast } from '@/components/civic/PointsToast'
 import { apiSeverityToUi, categoryLabel, issueArea, issueImage, issueReportedAt, slaHoursLeft } from '@/lib/issue-ui'
@@ -22,9 +23,11 @@ export function IssueDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
   const { showPoints } = usePointsToast()
-  const [issue, setIssue] = useState<Issue | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [events, setEvents] = useState<{ type: string; timestamp: string }[]>([])
+  const { issue, events: liveEvents, loading } = useLiveIssue(id)
+  const [localIssue, setLocalIssue] = useState<Issue | null>(null)
+  const [localEvents, setLocalEvents] = useState<{ type: string; timestamp: string }[]>([])
+  const displayIssue = localIssue ?? issue
+  const events = localEvents.length > liveEvents.length ? localEvents : liveEvents
   const [upvotes, setUpvotes] = useState(0)
   const [voted, setVoted] = useState(false)
   const [admin, setAdmin] = useState(false)
@@ -47,19 +50,20 @@ export function IssueDetailPage() {
 
   const { upsertIssue } = useIssueStore()
 
+  const prevId = useRef<string | undefined>(undefined)
   useEffect(() => {
-    if (!id) return
-    setLoading(true)
-    apiGetIssue(id)
-      .then((r) => {
-        setIssue(r.issue)
-        upsertIssue(r.issue)
-        setUpvotes(r.issue.upvoteCount)
-        setEvents(r.events as typeof events)
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    if (id !== prevId.current) {
+      prevId.current = id
+      setLocalIssue(null)
+      setLocalEvents([])
+    }
   }, [id])
+
+  useEffect(() => {
+    if (!issue) return
+    upsertIssue(issue)
+    setUpvotes(issue.upvoteCount)
+  }, [issue, upsertIssue])
 
   useEffect(() => {
     if (!user || !id) {
@@ -84,15 +88,20 @@ export function IssueDetailPage() {
       setUpvotes(r.count ?? upvotes + 1)
       setVoted(true)
       if (r.verificationLevel !== undefined) {
-        setIssue((prev) => prev ? { ...prev, upvoteCount: r.count ?? prev.upvoteCount + 1, verificationLevel: r.verificationLevel } : prev)
+        setLocalIssue((prev) => {
+          const base = prev ?? issue
+          return base
+            ? { ...base, upvoteCount: r.count ?? base.upvoteCount + 1, verificationLevel: r.verificationLevel }
+            : prev
+        })
       }
       const pe = r.pointsEarned as { pointsAwarded?: number; badgesEarned?: string[] } | undefined
       if (pe?.pointsAwarded && pe.pointsAwarded > 0) {
         const msg = pe.badgesEarned?.length ? pe.badgesEarned.join(' · ') : 'Boost'
         showPoints(pe.pointsAwarded, msg)
       }
-      setEvents((prev) => [
-        ...prev,
+      setLocalEvents((prev) => [
+        ...(prev.length ? prev : liveEvents),
         { type: 'upvote', timestamp: new Date().toISOString() },
       ])
     } catch (e) {
@@ -106,7 +115,10 @@ export function IssueDetailPage() {
     try {
       const token = await user.getIdToken()
       await apiReopenIssue(id, token)
-      setIssue((prev) => prev ? { ...prev, status: 'Submitted' } : prev)
+      setLocalIssue((prev) => {
+        const base = prev ?? issue
+        return base ? { ...base, status: 'Submitted' } : prev
+      })
     } catch {
       /* ignore */
     }
@@ -132,7 +144,7 @@ export function IssueDetailPage() {
     }
   }
 
-  if (loading || !issue) {
+  if (loading || !displayIssue) {
     return (
       <AppShell>
         {loading ? <IssueDetailSkeleton /> : (
@@ -142,15 +154,15 @@ export function IssueDetailPage() {
     )
   }
 
-  const sla = slaHoursLeft(issue)
-  const isReporter = user?.uid === issue.reporterId
-  const canReopen = user && (isReporter || admin) && ['Resolved', 'Closed'].includes(issue.status)
-  const imageAlt = `${issue.title} — ${categoryLabel(issue.category)} report photo`
+  const sla = slaHoursLeft(displayIssue)
+  const isReporter = user?.uid === displayIssue.reporterId
+  const canReopen = user && (isReporter || admin) && ['Resolved', 'Closed'].includes(displayIssue.status)
+  const imageAlt = `${displayIssue.title} — ${categoryLabel(displayIssue.category)} report photo`
 
   return (
     <AppShell hideNav>
       <div className="relative">
-        <img src={issue.proofImageUrl || issueImage(issue)} alt={imageAlt} className="aspect-[5/6] w-full object-cover" />
+        <img src={displayIssue.proofImageUrl || issueImage(displayIssue)} alt={imageAlt} className="aspect-[5/6] w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-paper/70 via-transparent to-background" />
         <div className="absolute inset-x-0 top-0 flex items-center justify-between px-4 pt-4">
           <Link to="/map" className="grid size-10 place-items-center rounded-xl glass-strong"><ChevronLeft className="size-5 text-ink" /></Link>
@@ -166,16 +178,16 @@ export function IssueDetailPage() {
                 <Download className="size-4 text-ink" />
               </button>
             )}
-            <button type="button" className="grid size-10 place-items-center rounded-xl glass-strong" onClick={() => navigator.share?.({ title: issue.title, url: window.location.href })}>
+            <button type="button" className="grid size-10 place-items-center rounded-xl glass-strong" onClick={() => navigator.share?.({ title: displayIssue.title, url: window.location.href })}>
               <Share2 className="size-4 text-ink" />
             </button>
           </div>
         </div>
         <div className="absolute inset-x-0 bottom-0 p-5">
-          <SeverityBadge severity={apiSeverityToUi(issue.severity)} />
-          <h1 className="display mt-2 text-2xl font-bold text-paper">{issue.title}</h1>
+          <SeverityBadge severity={apiSeverityToUi(displayIssue.severity)} />
+          <h1 className="display mt-2 text-2xl font-bold text-paper">{displayIssue.title}</h1>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-paper/80">
-            <MapPin className="size-3" /> {issueArea(issue)}
+            <MapPin className="size-3" /> {issueArea(displayIssue)}
           </p>
         </div>
       </div>
@@ -187,12 +199,12 @@ export function IssueDetailPage() {
         className="space-y-5 px-5 pt-5 pb-40"
       >
         <motion.div variants={fadeUp} className="flex flex-wrap items-center gap-2">
-          <Chip tone="coral">#{issue.id.slice(0, 8)}</Chip>
-          <Chip>{categoryLabel(issue.category)}</Chip>
-          <Chip>{issue.status}</Chip>
-          <Chip>Reported {issueReportedAt(issue)}</Chip>
-          {sla !== null && !issue.slaBreached && <Chip>{sla}h SLA left</Chip>}
-          {issue.slaBreached && (
+          <Chip tone="coral">#{displayIssue.id.slice(0, 8)}</Chip>
+          <Chip>{categoryLabel(displayIssue.category)}</Chip>
+          <Chip>{displayIssue.status}</Chip>
+          <Chip>Reported {issueReportedAt(displayIssue)}</Chip>
+          {sla !== null && !displayIssue.slaBreached && <Chip>{sla}h SLA left</Chip>}
+          {displayIssue.slaBreached && (
             <Chip tone="coral">
               <span className="inline-flex items-center gap-1">
                 <AlertTriangle className="size-3" /> SLA breached
@@ -202,17 +214,17 @@ export function IssueDetailPage() {
         </motion.div>
         <motion.div variants={fadeUp}>
           <GlassCard>
-            <p className="text-sm leading-relaxed text-ink">{issue.description}</p>
+            <p className="text-sm leading-relaxed text-ink">{displayIssue.description}</p>
           </GlassCard>
         </motion.div>
         <motion.div variants={fadeUp}>
-          <VerificationBadges upvoteCount={upvotes} verificationLevel={issue.verificationLevel} />
+          <VerificationBadges upvoteCount={upvotes} verificationLevel={displayIssue.verificationLevel} />
         </motion.div>
-        {issue.proofImageUrl && (
+        {displayIssue.proofImageUrl && (
           <motion.div variants={fadeUp}>
             <GlassCard>
               <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">Resolution proof</p>
-              <img src={issue.proofImageUrl} alt={`Resolution proof for ${issue.title}`} className="mt-3 w-full rounded-xl object-cover" />
+              <img src={displayIssue.proofImageUrl} alt={`Resolution proof for ${displayIssue.title}`} className="mt-3 w-full rounded-xl object-cover" />
             </GlassCard>
           </motion.div>
         )}
@@ -224,7 +236,7 @@ export function IssueDetailPage() {
                 <div className="grid size-7 place-items-center rounded-full border border-coral/40 bg-coral-soft text-[10px] font-bold text-coral">1</div>
                 <div>
                   <p className="text-sm font-bold text-ink">Reported</p>
-                  <p className="text-[11px] text-ink-muted">{issueReportedAt(issue)}</p>
+                  <p className="text-[11px] text-ink-muted">{issueReportedAt(displayIssue)}</p>
                 </div>
               </li>
               {events.map((ev, i) => (

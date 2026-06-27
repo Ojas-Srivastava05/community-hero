@@ -15,7 +15,7 @@ Manual-only items (Firebase console, Google Docs publish, BlockseBlock click, li
 |:-----:|-------|:-:|------------------|
 | 0 | Foundation, Requirements & Quality Bar | 100% | [`PHASE-0-FOUNDATION.md`](PHASE-0-FOUNDATION.md) |
 | 1 | Project Scaffold & Google Cloud Foundation | 100% | Repo structure, `.env.example`, `Makefile` |
-| 2 | Report Intake + Gemini Vision AI | 100% | `frontend/src/pages/ReportPage.tsx`, `server/src/routes/reports.ts` |
+| 2 | Report Intake + Gemini Vision AI | 100% | `frontend/src/pages/ReportWizard.tsx`, `server/src/routes/reports.ts` |
 | 3 | Maps & Geo | 100% | `frontend/src/pages/MapPage.tsx`, `/api/geo/reverse` |
 | 4 | Firestore Realtime | 100% | `firestore.rules`, `docs/architecture.md` |
 | 5 | Community Verification | 100% | `server/src/lib/agents.ts` `processUpvote` |
@@ -24,7 +24,7 @@ Manual-only items (Firebase console, Google Docs publish, BlockseBlock click, li
 | 8 | Impact Dashboards | 100% | `frontend/src/pages/DashboardPage.tsx`, `/api/analytics/*` |
 | 9 | Predictive Insights | 100% | `/api/analytics/hotspots`, dashboard insight card |
 | 10 | Gamification | 100% | `server/src/lib/gamification.ts`, `/leaderboard` |
-| 11 | AI Chat Assistant | 100% | `frontend/src/pages/AssistantPage.tsx`, `/api/ai` |
+| 11 | AI Chat Assistant | 100% | `frontend/src/pages/Assistant.tsx`, `/api/ai` |
 | 12 | Threads & Open311 | 100% | `/api/threads`, `/api/analytics/export/open311` |
 | 13 | Security & Performance | 100% | Rate limits, `firestore.rules`, `/waiting` |
 | 14 | Frontend Polish | 100% | 18 routes incl. `/privacy`, `/admin/analytics` |
@@ -66,7 +66,7 @@ Manual-only items (Firebase console, Google Docs publish, BlockseBlock click, li
 
 | Item | Evidence |
 |------|----------|
-| 3-step report wizard | `frontend/src/pages/ReportPage.tsx` |
+| 3-step report wizard | `frontend/src/pages/ReportWizard.tsx` |
 | Gemini vision analyze | `server/src/lib/gemini.ts`, POST `/api/reports/analyze` |
 | Create report API | `server/src/routes/reports.ts` |
 | API contract | [`api_contract.md`](api_contract.md) |
@@ -160,7 +160,7 @@ Manual-only items (Firebase console, Google Docs publish, BlockseBlock click, li
 
 | Item | Evidence |
 |------|----------|
-| Assistant page | `frontend/src/pages/AssistantPage.tsx` |
+| Assistant page | `frontend/src/pages/Assistant.tsx` (hideNav + bare fullscreen chat) |
 | Chat API | `server/src/routes/ai.ts` |
 | Verification | `scripts/verify-phases.sh` Phase 11 |
 
@@ -171,8 +171,11 @@ Manual-only items (Firebase console, Google Docs publish, BlockseBlock click, li
 | Item | Evidence |
 |------|----------|
 | Threads API | `server/src/routes/threads.ts` |
-| Open311 export | `GET /api/analytics/export/open311` |
-| Thread route | `scripts/verify-phases.sh` Phase 14 `/threads/:id` |
+| Thread detail UI | `frontend/src/pages/ThreadDetail.tsx` |
+| Open311 bulk export | `GET /api/analytics/export/open311` (admin secret) |
+| Per-issue Open311 export | `POST /api/reports/:id/open311/export` (admin auth) |
+| Open311 unit tests | `server/src/lib/open311.test.ts` |
+| Verification | `scripts/verify-phases.sh` Phase 12 |
 
 ---
 
@@ -183,7 +186,7 @@ Manual-only items (Firebase console, Google Docs publish, BlockseBlock click, li
 | Rate limiting | `server/src/middleware/rateLimit.ts` |
 | Waiting page on 429 | `frontend/src/pages/WaitingPage.tsx` |
 | Firestore rules | `firestore.rules` |
-| Invalid media validation | `server/src/lib/media.ts` |
+| Invalid media validation | `server/src/lib/media.ts`, `media-validation.ts` |
 
 ---
 
@@ -203,9 +206,16 @@ Manual-only items (Firebase console, Google Docs publish, BlockseBlock click, li
 | Item | Evidence |
 |------|----------|
 | Docs index | [`README.md`](README.md) |
-| Architecture + API + deployment | [`architecture.md`](architecture.md), [`api_contract.md`](api_contract.md), [`deployment.md`](deployment.md) |
-| Mermaid diagrams (16) | [`diagrams/mermaid/`](diagrams/mermaid/), PNG exports in [`diagrams/png/`](diagrams/png/) |
-| System design | [`system-design.md`](system-design.md) |
+| Architecture (388 lines) | [`architecture.md`](architecture.md) — Sections 21–23 |
+| System design (424 lines) | [`system-design.md`](system-design.md) — Sections 20, 25, 29 |
+| API + deployment | [`api_contract.md`](api_contract.md), [`deployment.md`](deployment.md) |
+| Mermaid diagrams (16) | [`diagrams/mermaid/`](diagrams/mermaid/) — 01–16 per Section 32 |
+| PNG exports (16) | [`diagrams/png/`](diagrams/png/) — `scripts/render-diagrams.sh` / `make diagrams` |
+| Diagram index | [`diagrams/README.md`](diagrams/README.md) |
+| Presentation slides (15) | [`ppt-info/slides/`](ppt-info/slides/) 01–15 |
+| Pipeline docs | [`pipelines/`](pipelines/) — intake, vision, geo, verification, insights |
+| Root README diagrams | [`../README.md`](../README.md) § Architecture — 01 + 04 PNG embeds |
+| Verification | `bash scripts/verify-phases.sh` Phase 15 (5/5 checks) |
 
 ---
 
@@ -240,6 +250,7 @@ Manual-only items (Firebase console, Google Docs publish, BlockseBlock click, li
 | 15 slides + speaker notes | [`ppt-info/SLIDES-COMPLETE.md`](ppt-info/SLIDES-COMPLETE.md) |
 | Submission checklist | [`SUBMISSION-CHECKLIST.md`](SUBMISSION-CHECKLIST.md) |
 | Prepare script + tag | [`scripts/prepare-submission.sh`](../scripts/prepare-submission.sh) |
+| Screenshot capture guide | [`submission/screenshots/README.md`](submission/screenshots/README.md) |
 | CHANGELOG | [`CHANGELOG.md`](../CHANGELOG.md) § v1.0.0-submission |
 | README polish | [`README.md`](../README.md) |
 
@@ -253,7 +264,8 @@ Manual-only items (Firebase console, Google Docs publish, BlockseBlock click, li
 |------|----------|
 | 3-minute demo script (Appendix I) | [`demo/APPENDIX-I-DEMO-SCRIPT.md`](demo/APPENDIX-I-DEMO-SCRIPT.md) |
 | Rehearsal checklist (2× timed) | [`demo/REHEARSAL-CHECKLIST.md`](demo/REHEARSAL-CHECKLIST.md) |
-| QR code for jury slide | [`demo/QR-CODE.md`](demo/QR-CODE.md) |
+| QR code for jury slide | [`demo/QR-CODE.md`](demo/QR-CODE.md), [`demo/qr-production.png`](demo/qr-production.png) |
+| QR generator script | [`scripts/generate-demo-qr.sh`](../scripts/generate-demo-qr.sh) |
 | Presentation slide 12 demo block | [`ppt-info/SLIDES-COMPLETE.md`](ppt-info/SLIDES-COMPLETE.md) |
 | This tracker | [`PHASE-COMPLETION-TRACKER.md`](PHASE-COMPLETION-TRACKER.md) |
 
@@ -285,7 +297,6 @@ Manual-only items (Firebase console, Google Docs publish, BlockseBlock click, li
 | Gemini embedding dedup | Deferred | Geohash-only today |
 | MarkerClusterer library | Deferred | List fallback works |
 | Full E2E browser suite | Deferred | Unit test + verify script |
-| Bilingual EN/HI assistant | Roadmap §10 | Google Doc §10 |
 
 ---
 

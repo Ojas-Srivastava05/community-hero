@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Flame, MapPin, Sparkles } from 'lucide-react'
+import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Flame, MapPin, Sparkles, Wrench, AlertTriangle } from 'lucide-react'
+import { DashboardSkeleton } from '@/components/PageSkeleton'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { GlassCard, SectionHeader } from '@/components/civic/GlassCard'
 import { useRequireAdmin } from '../lib/admin'
@@ -18,6 +19,8 @@ type Hotspot = {
   severity: number
   score: number
   predictive?: boolean
+  categories?: string[]
+  risk_score?: number
 }
 
 type WardRow = { wardId: string; total: number; open: number; resolved: number }
@@ -31,13 +34,17 @@ function wardHeatColor(total: number, max: number): string {
 }
 
 export function AdminAnalyticsPage() {
-  const { user, loading, isAdmin, signInWithGoogle, signingIn } = useRequireAdmin()
+  const { user, loading, isAdmin, accessDenied, signInWithGoogle, signingIn } = useRequireAdmin()
   const [hotspots, setHotspots] = useState<Hotspot[]>([])
   const [byCategory, setByCategory] = useState<Record<string, number>>({})
   const [wardBreakdown, setWardBreakdown] = useState<WardRow[]>([])
   const [narrative, setNarrative] = useState('')
   const [recurringIssues, setRecurringIssues] = useState<{ category: string; geohash6: string; count: number }[]>([])
   const [categoryTrends, setCategoryTrends] = useState<Record<string, { last7: number; last30: number; prev7: number }>>({})
+  const [preventiveZones, setPreventiveZones] = useState<Hotspot[]>([])
+  const [daily30, setDaily30] = useState<{ date: string; count: number }[]>([])
+  const [slaBreached, setSlaBreached] = useState<number | null>(null)
+  const [departmentSla, setDepartmentSla] = useState<{ departmentId: string; total: number; compliant: number; compliancePct: number | null }[]>([])
   const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
@@ -51,6 +58,10 @@ export function AdminAnalyticsPage() {
         setNarrative(t?.narrative || s.insight || '')
         setRecurringIssues(t?.recurringIssues ?? [])
         setCategoryTrends(t?.categoryTrends ?? {})
+        setSlaBreached(s.slaBreached ?? null)
+        setDepartmentSla(s.departmentSla ?? [])
+        setPreventiveZones((h.hotspots ?? []).filter((z) => z.predictive))
+        setDaily30(t?.daily30 ?? [])
       })
       .catch(() => {})
       .finally(() => setPageLoading(false))
@@ -66,10 +77,13 @@ export function AdminAnalyticsPage() {
     .map(([category, t]) => ({ category, ...t, delta: t.last7 - t.prev7 }))
     .sort((a, b) => b.last7 - a.last7)
 
+  const daily30Line = daily30.map((d) => ({ label: d.date.slice(5), count: d.count }))
+
   if (loading) {
     return (
       <AppShell>
         <PageHeader title="Admin analytics" subtitle="Loading…" />
+        <DashboardSkeleton />
       </AppShell>
     )
   }
@@ -88,12 +102,69 @@ export function AdminAnalyticsPage() {
     )
   }
 
-  if (!isAdmin) return null
+  if (!isAdmin) {
+    if (accessDenied) {
+      return (
+        <AppShell>
+          <PageHeader title="Admin analytics" subtitle="Access denied" />
+          <div className="px-5 py-16 text-center text-ink-muted">
+            <p>Admin privileges required.</p>
+          </div>
+        </AppShell>
+      )
+    }
+    return null
+  }
 
   return (
     <AppShell>
       <PageHeader title="Admin analytics" subtitle="Hotspots · ward heatmap · trends" />
+      {pageLoading ? (
+        <DashboardSkeleton />
+      ) : (
       <main className="space-y-6 px-5 pt-4 pb-10">
+        {(slaBreached !== null || departmentSla.length > 0) && (
+          <section>
+            <SectionHeader title="SLA enforcement" hint="Open breaches · department compliance" />
+            <div className="grid grid-cols-2 gap-3">
+              {slaBreached !== null && (
+                <GlassCard className="space-y-1">
+                  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+                    <AlertTriangle className="size-3.5 text-coral" /> Open SLA breaches
+                  </p>
+                  <p className={`display text-2xl font-bold ${slaBreached > 0 ? 'text-coral' : 'text-leaf'}`}>{slaBreached}</p>
+                </GlassCard>
+              )}
+              {departmentSla.length > 0 && (
+                <GlassCard className="space-y-1">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Avg dept compliance</p>
+                  <p className="display text-2xl font-bold text-ink">
+                    {Math.round(
+                      departmentSla.reduce((s, d) => s + (d.compliancePct ?? 0), 0) /
+                        departmentSla.filter((d) => d.compliancePct !== null).length,
+                    )}%
+                  </p>
+                </GlassCard>
+              )}
+            </div>
+            {departmentSla.length > 0 && (
+              <motion.ul variants={stagger} initial="hidden" animate="show" className="mt-3 space-y-2">
+                {departmentSla.map((d) => (
+                  <motion.li key={d.departmentId} variants={fadeUp}>
+                    <GlassCard className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-bold text-ink">{d.departmentId}</p>
+                        <p className="text-[11px] text-ink-muted">{d.compliant}/{d.total} resolved on time</p>
+                      </div>
+                      <span className="text-sm font-bold text-coral">{d.compliancePct ?? '—'}%</span>
+                    </GlassCard>
+                  </motion.li>
+                ))}
+              </motion.ul>
+            )}
+          </section>
+        )}
+
         {narrative && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <div className="relative overflow-hidden rounded-[28px] border border-ink/10 bg-ink p-5 text-paper">
@@ -163,6 +234,47 @@ export function AdminAnalyticsPage() {
           </section>
         )}
 
+        {daily30Line.length > 0 && (
+          <section>
+            <SectionHeader title="30-day volume" hint="Reports per day" />
+            <GlassCard className="pt-5">
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={daily30Line}>
+                    <XAxis dataKey="label" stroke="oklch(0.48 0.03 265)" fontSize={10} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                    <YAxis stroke="oklch(0.48 0.03 265)" fontSize={11} tickLine={false} axisLine={false} width={28} />
+                    <Tooltip contentStyle={{ background: 'oklch(0.99 0.005 80)', borderRadius: 12, fontSize: 12 }} />
+                    <Line type="monotone" dataKey="count" stroke="oklch(0.52 0.22 275)" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </GlassCard>
+          </section>
+        )}
+
+        {preventiveZones.length > 0 && (
+          <section>
+            <SectionHeader title="Preventive zones" hint="High-risk clusters" />
+            <motion.ul variants={stagger} initial="hidden" animate="show" className="space-y-2">
+              {preventiveZones.slice(0, 5).map((h) => (
+                <motion.li key={h.geohash} variants={fadeUp}>
+                  <GlassCard className="flex items-center gap-3">
+                    <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-coral-soft text-coral">
+                      <Wrench className="size-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-ink">{h.geohash}</p>
+                      <p className="text-[11px] text-ink-muted">
+                        {h.count} open · {h.recent} recent · score {h.score} — schedule sweep
+                      </p>
+                    </div>
+                  </GlassCard>
+                </motion.li>
+              ))}
+            </motion.ul>
+          </section>
+        )}
+
         {recurringIssues.length > 0 && (
           <section>
             <SectionHeader title="Recurring issues" hint="Same category + geohash (30d)" />
@@ -185,7 +297,11 @@ export function AdminAnalyticsPage() {
         <section>
           <SectionHeader title="Hotspot cells" hint="Predictive clusters" />
           {pageLoading ? (
-            <p className="text-sm text-ink-muted">Loading hotspots…</p>
+            <div className="animate-pulse space-y-2" aria-busy="true" aria-label="Loading hotspots">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="paper h-16 rounded-2xl bg-ink/5" />
+              ))}
+            </div>
           ) : hotspots.length === 0 ? (
             <GlassCard><p className="text-sm text-ink-muted">No hotspot clusters detected yet.</p></GlassCard>
           ) : (
@@ -203,6 +319,7 @@ export function AdminAnalyticsPage() {
                       </p>
                       <p className="text-[11px] text-ink-muted">
                         {h.count} open · {h.recent} recent · severity {h.severity} · score {h.score}
+                        {h.categories && h.categories.length > 0 && ` · ${h.categories.join(', ')}`}
                       </p>
                     </div>
                     <Link to={`/map`} className="text-xs font-bold text-coral">Map</Link>
@@ -243,6 +360,7 @@ export function AdminAnalyticsPage() {
 
         <Link to="/admin" className="block text-center text-sm font-semibold text-coral">← Back to admin queue</Link>
       </main>
+      )}
     </AppShell>
   )
 }

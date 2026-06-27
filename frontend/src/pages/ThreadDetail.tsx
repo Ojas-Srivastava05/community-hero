@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ChevronLeft, Sparkles } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
+import { PageSkeleton } from '@/components/PageSkeleton'
 import { GlassCard } from '@/components/civic/GlassCard'
 import { apiGetThread } from '../lib/api'
 import { issueArea, issueImage } from '@/lib/issue-ui'
@@ -36,7 +37,7 @@ export function ThreadDetailPage() {
   if (loading) {
     return (
       <AppShell>
-        <div className="px-5 py-20 text-center text-ink-muted">Loading thread…</div>
+        <PageSkeleton rows={4} />
       </AppShell>
     )
   }

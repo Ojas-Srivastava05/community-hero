@@ -11,16 +11,17 @@ import { cn } from '@/lib/utils'
 type Msg = { role: 'user' | 'ai'; text: string }
 
 const PROMPTS = [
-  'What issues are near me?',
-  'How do I report garbage?',
-  'Show my report status',
+  { en: 'What issues are near me?', hi: 'मेरे पास कौन से मुद्दे हैं?' },
+  { en: 'How do I report garbage?', hi: 'कचरा की रिपोर्ट कैसे करें?' },
+  { en: 'Show my report status', hi: 'मेरी रिपोर्ट की स्थिति दिखाएं' },
+  { en: 'Explain Submitted status', hi: 'Submitted स्थिति का मतलब क्या है?' },
 ]
 
 export function AssistantPage() {
   const { user, signInWithGoogle, signingIn } = useAuth()
   const { location } = useLocation()
   const [messages, setMessages] = useState<Msg[]>([
-    { role: 'ai', text: "Hi! I'm Civic AI — ask about nearby issues, reporting, or your submissions." },
+    { role: 'ai', text: "Hi! I'm Civic AI — ask about nearby issues, reporting, or your submissions. हिंदी में भी पूछ सकते हैं।" },
   ])
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
@@ -74,7 +75,7 @@ export function AssistantPage() {
           <div className="grid size-10 place-items-center rounded-xl bg-coral-soft ring-1 ring-coral/30"><Sparkles className="size-5 text-coral" /></div>
           <div className="min-w-0 flex-1">
             <p className="display truncate text-sm font-bold text-ink">Civic AI</p>
-            <p className="truncate text-[11px] text-leaf">Powered by Gemini</p>
+            <p className="truncate text-[11px] text-leaf">English / हिंदी · Gemini</p>
           </div>
         </header>
         <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
@@ -97,7 +98,10 @@ export function AssistantPage() {
               <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-ink-muted">Try asking</p>
               <div className="flex flex-col gap-2">
                 {PROMPTS.map((p) => (
-                  <button key={p} type="button" onClick={() => send(p)} className="paper px-4 py-3 text-left text-sm text-ink transition-colors hover:bg-coral-soft">{p}</button>
+                  <button key={p.en} type="button" onClick={() => send(p.en)} className="paper px-4 py-3 text-left text-sm text-ink transition-colors hover:bg-coral-soft">
+                    <span>{p.en}</span>
+                    <span className="mt-0.5 block text-xs text-ink-muted">{p.hi}</span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -108,7 +112,7 @@ export function AssistantPage() {
           style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 0px))' }}
         >
           <form onSubmit={(e) => { e.preventDefault(); send(input) }} className="flex items-center gap-2 rounded-2xl border border-rule bg-paper px-3 py-2">
-            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about your ward, SLAs, hotspots…" className="flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-muted" />
+            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask in English or Hindi… / हिंदी या English में पूछें" className="flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-muted" />
             <button type="submit" disabled={!input.trim()} className="grid size-9 place-items-center rounded-xl bg-coral text-paper disabled:opacity-40 ink-glow"><Send className="size-4" /></button>
           </form>
         </div>

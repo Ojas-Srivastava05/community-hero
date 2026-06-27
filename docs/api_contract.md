@@ -28,7 +28,8 @@ Read-only endpoints work **without** authentication so share links and map brows
 | `GET /api/threads`, `GET /api/threads/:id` | yes |
 | `GET /api/departments` | yes |
 | `GET /api/leaderboard` | yes |
-| `GET /api/analytics/*` | yes |
+| `GET /api/analytics/summary`, `trends`, `hotspots` | yes |
+| `GET /api/analytics/export/open311` | no — admin secret required |
 
 Firestore rules mirror this: `issues`, `votes`, `events`, `departments`, and `threads` allow public **read**. **Write** operations (create report, upvote, merge, chat) require Firebase Auth — anonymous/guest users cannot submit reports via the API or client SDK without signing in. Guest reporting via unauthenticated `POST` is intentionally not implemented; use Google Sign-In or email auth.
 
@@ -101,7 +102,8 @@ Liveness check; probes Firestore connectivity.
     "description": "...",
     "department": "Roads & Infrastructure",
     "safety_risk": true,
-    "confidence": 0.92
+    "confidence": 0.92,
+    "estimated_fix_days": "5-7 days"
   }
 }
 ```
@@ -271,6 +273,16 @@ Admins: `ADMIN_UIDS` or `ADMIN_EMAILS` env. Resolving awards 25 points to report
 
 ---
 
+### `POST /api/reports/:id/open311/export`
+
+**Auth required (admin).** Export a single issue as Open311 GeoReport v2 JSON. Sets download headers.
+
+**Response 200** — Open311 record object (see [`miscellaneous/open311.md`](miscellaneous/open311.md))  
+**Response 401** — missing/invalid token  
+**Response 403** — authenticated but not admin
+
+---
+
 ## Analytics — `/api/analytics`
 
 ### `GET /api/analytics/summary`
@@ -372,7 +384,10 @@ Same auth as `internal/insights`. Triggers Agent 6 nightly-style batch: writes `
 
 ### `GET /api/analytics/export/open311`
 
-Open311-style JSON export (max 100 issues). Sets download headers.
+**Admin secret required** (`x-admin-secret` or `Authorization: Bearer <ADMIN_SECRET>`). Bulk Open311 GeoReport v2 JSON export (max 100 issues). Sets download headers.
+
+**Response 200** — JSON array of Open311 records  
+**Response 403** — missing or invalid admin secret (always 403 in production when secret unset)
 
 ---
 

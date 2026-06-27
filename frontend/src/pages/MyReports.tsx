@@ -5,6 +5,7 @@ import { Clock, RotateCcw } from 'lucide-react'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { Chip } from '@/components/civic/GlassCard'
 import { SeverityBadge } from '@/components/civic/SeverityBadge'
+import { VerificationBadges } from '@/components/civic/VerificationBadges'
 import { useAuth } from '../lib/auth'
 import { apiMyReports, apiReopenIssue } from '../lib/api'
 import { apiSeverityToUi, issueArea, slaHoursLeft } from '@/lib/issue-ui'
@@ -78,6 +79,13 @@ export function MyReportsPage() {
                 </div>
                 <p className="mt-3 text-sm font-bold leading-snug text-ink">{i.title}</p>
                 <p className="mt-0.5 text-[11px] text-ink-muted">{issueArea(i)}</p>
+                <div className="mt-2">
+                  <VerificationBadges
+                    upvoteCount={i.upvoteCount}
+                    verificationLevel={i.verificationLevel ?? 0}
+                    compact
+                  />
+                </div>
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <div className={cn('flex items-center gap-1.5 text-[11px] font-semibold', resolved ? 'text-leaf' : sla !== null && sla <= 24 ? 'text-sev-critical' : 'text-ink-muted')}>
                     <Clock className="size-3" />

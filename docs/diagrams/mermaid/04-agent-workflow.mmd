@@ -1,39 +1,37 @@
 flowchart TB
   START([New report saved to Firestore]) --> INTAKE
 
-  subgraph agents["6-Agent Pipeline — server/src/lib/agents.ts"]
-    INTAKE[Intake Agent<br/>geohash + wardId + status Submitted]
+  subgraph agents["6-Agent Pipeline — server/src/lib/agents/index.ts"]
+    INTAKE[Intake Agent<br/>media + civic keyword gate<br/>SafeSearch]
     VISION[Vision Agent<br/>Gemini image classify<br/>category, severity, confidence]
-    ROUTING[Routing Agent<br/>category → DEPARTMENTS map]
-    SLA[SLA Agent<br/>severity-tiered slaDeadline]
-    DEDUP[Dedup Agent<br/>geohash range query<br/>same-category neighbors]
-    PRIORITY[Priority Agent<br/>computePriorityScore<br/>severity + safety + age]
+    DEDUP[Dedup Agent<br/>geohash range query<br/>embedding cosine match]
+    ROUTING[Routing Agent<br/>category → DEPARTMENTS<br/>slaDeadline + priorityScore]
+    COMM[Communicator Agent<br/>status narrative EN + HI]
+    INSIGHTS[Insights Agent<br/>nightly batch hotspots<br/>trends + narrative]
   end
 
   INTAKE --> VISION
-  VISION --> ROUTING
-  ROUTING --> SLA
-  SLA --> DEDUP
-  DEDUP --> PRIORITY
-
   VISION --> CONF{confidence<br/>&lt; 0.6?}
   CONF -->|yes| REVIEW[Set status Draft<br/>aiMetadata.needs_review]
-  CONF -->|no| ROUTING
-
+  CONF -->|no| DEDUP
   DEDUP --> DUPES{duplicates<br/>found?}
   DUPES -->|yes| SUGGEST[aiMetadata.duplicate_suggestions]
-  DUPES -->|no| PRIORITY
-  SUGGEST --> PRIORITY
+  DUPES -->|no| ROUTING
+  SUGGEST --> ROUTING
+  ROUTING --> COMM
+  COMM --> WRITE[Update issues doc<br/>departmentId, slaDeadline,<br/>priorityScore + events]
 
-  PRIORITY --> WRITE[Update issues doc<br/>+ events subcollection]
-  WRITE --> POINTS[Gamification Agent<br/>awardPoints +10 report]
   REVIEW --> WRITE
+  WRITE --> POINTS[Gamification<br/>awardPoints +10 report]
+  INSIGHTS -.->|batch cron| HOTSPOTS[(hotspots + insights/latest)]
 
   subgraph post["Post-submit agents"]
     UPVOTE[Verification Agent<br/>processUpvote tiers 1/2/3]
     NOTIFY[Notify Agent<br/>status_change notifications]
+    SLA[SLA Agent<br/>checkAndApplySlaBreach]
   end
 
   WRITE --> DONE([Issue ready on map])
   DONE -.-> UPVOTE
   DONE -.-> NOTIFY
+  DONE -.-> SLA

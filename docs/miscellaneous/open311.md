@@ -94,9 +94,10 @@ Response: JSON attachment with GeoReport v2 fields.
 
 ```http
 GET /api/analytics/export/open311
+x-admin-secret: <ADMIN_SECRET>
 ```
 
-Returns an array of Open311 records for recent public issues.
+**Admin secret required** in production. Returns a JSON array of Open311 records for recent issues (max 100). Unauthenticated requests receive **403**.
 
 ## Field notes
 

@@ -415,10 +415,23 @@ Structured log fields recommended: `issueId`, `agent`, `latencyMs`, `confidence`
 
 ---
 
+## References
+
+| Document | Path | Scope |
+|----------|------|-------|
+| Architecture | [`architecture.md`](architecture.md) | Routes, agents, Firestore model, deployment summary |
+| API contract | [`api_contract.md`](api_contract.md) | REST endpoints, auth, rate limits |
+| Deployment | [`deployment.md`](deployment.md) | GCP/Firebase setup, env vars, CI/CD |
+| Diagrams index | [`diagrams/README.md`](diagrams/README.md) | 16 mermaid sources + PNG exports |
+| Docs index | [`README.md`](README.md) | Phase 15 documentation hub |
+| Phase tracker | [`PHASE-COMPLETION-TRACKER.md`](PHASE-COMPLETION-TRACKER.md) | Phases 0–19 evidence |
+
+---
+
 ## Document history
 
 | Version | Date | Notes |
 |---------|------|-------|
 | 1.0 | Phase 15 | Sections 20, 25, 29 expanded for LogiFlow parity |
-| 1.1 | Phase 17 | Added index appendix, observability, pipeline registry |
+| 1.2 | Phase 15 | Added References section (TOC link fix); synced deployment topology alias |
 

@@ -6,6 +6,7 @@ import { chatWithTools } from '../lib/gemini'
 import { requireAuth, type AuthedRequest } from '../middleware/auth'
 import { chatLimit } from '../middleware/rateLimit'
 import { haversineKm } from '../lib/geo'
+import { computeHotspots } from '../lib/analytics-cache'
 import { CATEGORIES, DEPARTMENTS } from '../types/shared'
 
 export const aiRouter = Router()
@@ -121,25 +122,26 @@ aiRouter.post('/chat', requireAuth, chatLimit, async (req: AuthedRequest, res) =
       }
       if (name === 'getHotspots') {
         const wardFilter = args.ward_id as string | undefined
-        const snap = await db.collection('issues').limit(100).get()
-        const grid: Record<string, number> = {}
-        for (const d of snap.docs) {
-          const data = d.data()
-          if (wardFilter && data.wardId !== wardFilter) continue
-          const gh = (data.geohash || '').slice(0, 5)
-          if (gh) grid[gh] = (grid[gh] || 0) + 1
-        }
-        return Object.entries(grid)
-          .map(([geohash, count]) => ({ geohash, count, risk_score: Math.min(100, count * 12) }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 5)
+        const snap = await db
+          .collection('issues')
+          .where('status', 'in', ['Submitted', 'Community Verified', 'Assigned', 'In Progress'])
+          .limit(200)
+          .get()
+        const issues = snap.docs.map((d) => d.data()) as Parameters<typeof computeHotspots>[0]
+        return computeHotspots(issues, wardFilter, 5).map((h) => ({
+          geohash: h.geohash,
+          count: h.count,
+          risk_score: h.risk_score,
+          categories: h.categories,
+          predictive: h.predictive,
+        }))
       }
       if (name === 'getDepartmentInfo') {
         return resolveDepartment(String(args.department_id || 'other'))
       }
       if (name === 'explainStatus') {
         const status = String(args.status || 'Submitted')
-        const map: Record<string, string> = {
+        const mapEn: Record<string, string> = {
           Submitted: 'Your report was received and is awaiting community verification.',
           'Community Verified': 'Enough neighbors confirmed this issue. It is queued for the department.',
           Assigned: 'A civic department has been assigned to handle this.',
@@ -147,7 +149,18 @@ aiRouter.post('/chat', requireAuth, chatLimit, async (req: AuthedRequest, res) =
           Resolved: 'The department marked this as fixed. You can reopen if still broken.',
           Closed: 'This issue is closed.',
         }
-        return { status, explanation: map[status] || 'Status updated.' }
+        const mapHi: Record<string, string> = {
+          Submitted: 'आपकी रिपोर्ट प्राप्त हुई और सामुदायिक सत्यापन की प्रतीक्षा में है।',
+          'Community Verified': 'पड़ोसियों ने पुष्टि की। विभाग की कतार में है।',
+          Assigned: 'नागरिक विभाग को सौंपा गया है।',
+          'In Progress': 'इस मुद्दे पर काम चल रहा है।',
+          Resolved: 'विभाग ने इसे ठीक के रूप में चिह्नित किया। अगर अभी भी खराब है तो फिर से खोलें।',
+          Closed: 'यह मुद्दा बंद है।',
+        }
+        const lastMsg = messages[messages.length - 1]?.content || ''
+        const hindi = /[\u0900-\u097F]/.test(lastMsg)
+        const explanation = hindi ? (mapHi[status] || mapEn[status] || 'स्थिति अपडेट।') : (mapEn[status] || 'Status updated.')
+        return { status, explanation }
       }
       return null
     }

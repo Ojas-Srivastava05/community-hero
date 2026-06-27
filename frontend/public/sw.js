@@ -1,5 +1,5 @@
 const CACHE_NAME = 'community-hero-shell-v1'
-const SHELL_ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg', '/icons.svg']
+const SHELL_ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/manifest.json', '/favicon.svg', '/icons.svg']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

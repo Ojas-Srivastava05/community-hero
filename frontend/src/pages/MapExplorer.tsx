@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Filter, Layers, Search, Sparkles, X } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { CivicMap } from '@/components/civic/CivicMap'
+import { PlacesAutocomplete } from '@/components/civic/PlacesAutocomplete'
 import { LiveIndicator } from '@/components/civic/LiveIndicator'
 import { SeverityBadge } from '@/components/civic/SeverityBadge'
 import { VerificationBadges } from '@/components/civic/VerificationBadges'
@@ -38,6 +39,7 @@ export function MapExplorerPage() {
   const [showFilters, setShowFilters] = useState(true)
   const filterPanelRef = useRef<HTMLDivElement>(null)
   const [hotspots, setHotspots] = useState<MapHotspot[]>([])
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null)
   const { issues, livePulse, loading } = useLiveIssues({
     lat: location?.lat,
     lng: location?.lng,
@@ -45,10 +47,6 @@ export function MapExplorerPage() {
     fetchLimit: 100,
   })
   const { selectedId, filter, categoryFilter, search, setSelectedId, setFilter, setCategoryFilter, setSearch } = useMapStore()
-
-  useEffect(() => {
-    if (!selectedId && issues[0]?.id) setSelectedId(issues[0].id)
-  }, [issues, selectedId, setSelectedId])
 
   useEffect(() => {
     apiHotspots()
@@ -85,13 +83,28 @@ export function MapExplorerPage() {
     return i.title.toLowerCase().includes(q) || (i.address || '').toLowerCase().includes(q)
   })
 
+  useEffect(() => {
+    if (!selectedId && filtered[0]?.id) setSelectedId(filtered[0].id)
+  }, [filtered, selectedId, setSelectedId])
+
+  useEffect(() => {
+    if (selectedId && filtered.length > 0 && !filtered.some((i) => i.id === selectedId)) {
+      setSelectedId(filtered[0].id)
+    }
+  }, [filtered, selectedId, setSelectedId])
+
   const issue = filtered.find((i) => i.id === selectedId) ?? filtered[0]
 
-  const center = location
+  const defaultCenter = location
     ? { lat: location.lat, lng: location.lng }
     : issues[0]
       ? { lat: issues[0].lat, lng: issues[0].lng }
-      : { lat: 20, lng: 0 }
+      : { lat: 12.97, lng: 77.59 }
+
+  const center = mapCenter ?? defaultCenter
+  const hasActiveFilters = filter !== 'all' || categoryFilter !== 'all' || search.trim().length > 0
+  const showEmptyMap = !loading && issues.length === 0
+  const showNoMatches = !loading && issues.length > 0 && filtered.length === 0
 
   const toggleFilters = () => {
     setShowFilters((open) => {
@@ -117,13 +130,13 @@ export function MapExplorerPage() {
           className="absolute inset-0 size-full"
         />
         {loading && issues.length === 0 && <MapExplorerSkeleton />}
-        {issues.length === 0 && (
+        {showEmptyMap && (
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="absolute inset-0 z-10 flex items-center justify-center p-8"
+            className="absolute inset-0 z-10 flex items-center justify-center p-8 pointer-events-none"
           >
-            <div className="glass-strong max-w-xs rounded-3xl p-6 text-center">
+            <div className="glass-strong max-w-xs rounded-3xl p-6 text-center pointer-events-auto">
               <Sparkles className="mx-auto size-8 text-coral" />
               <p className="display mt-3 text-lg font-bold text-ink">Be the first reporter</p>
               <p className="mt-1 text-sm text-ink-muted">No civic issues mapped here yet. Snap a photo and help your neighbourhood.</p>
@@ -136,6 +149,31 @@ export function MapExplorerPage() {
             </div>
           </motion.div>
         )}
+        {showNoMatches && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="absolute inset-x-4 top-44 z-10 flex justify-center"
+          >
+            <div className="glass-strong max-w-sm rounded-2xl px-4 py-3 text-center">
+              <p className="text-sm font-bold text-ink">No issues match your filters</p>
+              <p className="mt-0.5 text-xs text-ink-muted">Try a different category, severity, or search term.</p>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilter('all')
+                    setCategoryFilter('all')
+                    setSearch('')
+                  }}
+                  className="mt-2 text-xs font-semibold text-coral"
+                >
+                  Clear all filters
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -143,12 +181,16 @@ export function MapExplorerPage() {
           className="absolute inset-x-0 top-0 z-20 px-4 pt-4"
         >
           <div className="glass-strong flex items-center gap-2 rounded-2xl px-3 py-2.5">
-            <Search className="size-4 text-ink-muted" />
-            <input
+            <Search className="size-4 shrink-0 text-ink-muted" />
+            <PlacesAutocomplete
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={setSearch}
+              onPlaceSelect={({ lat, lng, address }) => {
+                setMapCenter({ lat, lng })
+                setSearch(address)
+              }}
               placeholder="Search area or issue"
-              className="flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-muted"
+              className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-muted"
             />
             <LiveIndicator active={livePulse} />
             <button

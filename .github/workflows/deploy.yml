@@ -49,6 +49,7 @@ jobs:
       - name: Deploy to Cloud Run
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
           GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
         run: |
           gcloud run deploy "${CLOUD_RUN_SERVICE}" \
@@ -59,7 +60,7 @@ jobs:
             --allow-unauthenticated \
             --port=8080 \
             --memory=512Mi \
-            --set-env-vars="FIREBASE_PROJECT_ID=${GCP_PROJECT_ID},NODE_ENV=production,FIREBASE_STORAGE_BUCKET=community-hero-vibe2ship-uploads,ADMIN_EMAILS=${{ secrets.ADMIN_EMAILS }},GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}${GEMINI_API_KEY:+,GEMINI_API_KEY=${GEMINI_API_KEY}}"
+            --set-env-vars="FIREBASE_PROJECT_ID=${GCP_PROJECT_ID},NODE_ENV=production,FIREBASE_STORAGE_BUCKET=community-hero-vibe2ship-uploads,INCLUDE_DEMO_ANALYTICS=1,ADMIN_EMAILS=${{ secrets.ADMIN_EMAILS }},GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}${GEMINI_API_KEY:+,GEMINI_API_KEY=${GEMINI_API_KEY}}${ADMIN_SECRET:+,ADMIN_SECRET=${ADMIN_SECRET}}"
 
       - name: Health check
         run: |

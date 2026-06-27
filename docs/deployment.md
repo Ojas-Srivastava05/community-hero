@@ -45,9 +45,11 @@ Deploy script: `make deploy` → `scripts/deploy-cloud-run.sh`
 | `FIREBASE_PROJECT_ID` | yes | `community-hero-vibe2ship` |
 | `FIREBASE_STORAGE_BUCKET` | yes | `community-hero-vibe2ship-uploads` |
 | `GEMINI_API_KEY` | optional | Live AI; fallbacks work for demo |
+| `ADMIN_SECRET` | prod | `x-admin-secret` header for batch analytics endpoints |
 | `GOOGLE_MAPS_API_KEY` | optional | Server reverse geocoding |
 | `ADMIN_EMAILS` | optional | Comma-separated admin emails |
 | `ADMIN_UIDS` | optional | Comma-separated admin Firebase UIDs |
+| `INCLUDE_DEMO_ANALYTICS` | optional | `1` includes demo seed in dashboard aggregates |
 
 Copy template from repo root `.env.example`.
 
@@ -62,6 +64,8 @@ ADMIN_EMAILS=srivastavaojas454@gmail.com
 FIREBASE_STORAGE_BUCKET=community-hero-vibe2ship-uploads
 GOOGLE_MAPS_API_KEY=<from VITE_GOOGLE_MAPS_API_KEY>
 GEMINI_API_KEY=<if set locally>
+ADMIN_SECRET=<if set locally>
+INCLUDE_DEMO_ANALYTICS=1
 ```
 
 Build-time substitutions for the Docker image: `VITE_FIREBASE_*`, `VITE_GOOGLE_MAPS_API_KEY`.
@@ -106,7 +110,7 @@ make build        # frontend build + server typecheck
 make test         # priority score unit test
 make test-all     # server tests + frontend + server build
 make lint         # frontend ESLint + server tsc
-make health       # curl http://localhost:3001/api/health (server must be running)
+make health       # production uptime-ping via scripts/uptime-ping.sh
 make diagrams     # list mermaid sources in docs/diagrams/mermaid/
 make seed         # seed Firestore demo issues
 ```
@@ -155,6 +159,7 @@ Triggers on push to `main`. Requires repository secrets:
 | `VITE_FIREBASE_STORAGE_BUCKET` | yes | Storage bucket name |
 | `VITE_GOOGLE_MAPS_API_KEY` | optional | Maps tiles + server geocoding |
 | `GEMINI_API_KEY` | optional | Live AI; fallbacks exist for demo |
+| `ADMIN_SECRET` | optional | `x-admin-secret` for insights batch / internal analytics |
 | `ADMIN_EMAILS` | optional | Comma-separated admin emails for `/admin` |
 
 Manual deploy alternative: `make deploy` → `scripts/deploy-cloud-run.sh`

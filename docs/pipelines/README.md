@@ -24,7 +24,7 @@ Nine modular pipelines (Section 23) power Community Hero. Each pipeline returns 
 | 8 | **Insights** | `GET /api/analytics/*` | 8–9 | [insights.md](insights.md) *(Phase 9)* | `server/src/routes/analytics.ts` |
 | 9 | **Notification** | Status change events | 6 | — | `server/src/lib/agents.ts` |
 
-> Detailed per-pipeline markdown files are added in Phases 2–12 per the master plan. This index is the Phase 1 scaffold.
+> Per-pipeline docs: [intake](intake.md), [vision](vision.md), [geo](geo.md), [verification](verification.md), [insights](insights.md). Routing, resolution, and notification are documented in [architecture.md](../architecture.md) § agent pipeline (Phase 15).
 
 ---
 

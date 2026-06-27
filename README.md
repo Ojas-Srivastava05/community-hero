@@ -31,6 +31,10 @@ Hyperlocal civic issue reporting for Indian urban citizens — potholes, water l
 
 Production is a **single Cloud Run container** (`asia-south1`): Express serves `/api/*` and the Vite-built SPA.
 
+![System architecture](docs/diagrams/png/01-system-architecture.png)
+
+![Agent workflow — 6 agents, confidence gate, dedup branch](docs/diagrams/png/04-agent-workflow.png)
+
 | Diagram | Source | Description |
 |---------|--------|-------------|
 | System architecture | [`docs/diagrams/mermaid/01-system-architecture.mmd`](docs/diagrams/mermaid/01-system-architecture.mmd) | PWA → Cloud Run → Firebase + Gemini |

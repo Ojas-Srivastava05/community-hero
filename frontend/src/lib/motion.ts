@@ -12,6 +12,15 @@ export const fadeUp = {
   },
 }
 
+/** Chart wrappers: slide-up only so Recharts measures at full opacity on mount. */
+export const fadeUpChart = {
+  hidden: { y: 8 },
+  show: {
+    y: 0,
+    transition: { type: 'spring' as const, stiffness: 260, damping: 24 },
+  },
+}
+
 export const pageEnter = {
   initial: { opacity: 0, y: 8 },
   animate: { opacity: 1, y: 0 },

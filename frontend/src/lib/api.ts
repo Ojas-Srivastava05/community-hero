@@ -2,7 +2,7 @@ import type { Issue, IssueAnalysis } from '../../../shared/types'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
-function redirectToWaiting(retryAfterHeader: string | null) {
+function redirectToWaiting(retryAfterHeader: string | null, reason?: 'rate_limit' | 'overload') {
   if (typeof window === 'undefined' || window.location.pathname.startsWith('/waiting')) return
   let retry = 30
   if (retryAfterHeader) {
@@ -10,7 +10,8 @@ function redirectToWaiting(retryAfterHeader: string | null) {
     if (!Number.isNaN(parsed)) retry = Math.max(5, parsed)
   }
   const returnTo = encodeURIComponent(window.location.pathname + window.location.search)
-  window.location.assign(`/waiting?retry=${retry}&return=${returnTo}`)
+  const reasonParam = reason === 'overload' ? '&reason=503' : ''
+  window.location.assign(`/waiting?retry=${retry}&return=${returnTo}${reasonParam}`)
 }
 
 async function apiFetch(path: string, init?: RequestInit, retries = 3): Promise<Response> {
@@ -21,7 +22,10 @@ async function apiFetch(path: string, init?: RequestInit, retries = 3): Promise<
       const res = await fetch(url, init)
       if (res.ok) return res
       if (res.status === 429 || res.status === 503) {
-        redirectToWaiting(res.headers.get('Retry-After'))
+        redirectToWaiting(
+          res.headers.get('Retry-After'),
+          res.status === 503 ? 'overload' : 'rate_limit',
+        )
         throw new Error(res.status === 503 ? 'Service temporarily unavailable' : 'Rate limited — please wait a moment')
       }
       if (res.status < 500) return res
@@ -227,6 +231,8 @@ export async function apiHotspots(wardId?: string): Promise<{
     lng: number
     severity: number
     score: number
+    risk_score?: number
+    categories?: string[]
     predictive?: boolean
   }[]
 }> {
@@ -263,7 +269,16 @@ export async function apiTrends(wardId?: string): Promise<{
 }
 
 export async function apiDepartments(): Promise<{
-  departments: { id: string; name: string; categories?: string[]; slaHoursBySeverity?: Record<number, number> }[]
+  services: {
+    service_code: string
+    service_name: string
+    description: string
+    metadata: {
+      category: string
+      department: string
+      sla_hours: Record<string, number>
+    }
+  }[]
 }> {
   const res = await apiFetch('/api/departments')
   if (!res.ok) await parseApiError(res)
