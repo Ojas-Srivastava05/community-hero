@@ -62,13 +62,7 @@ Full write-up: [`docs/architecture.md`](docs/architecture.md) · API: [`docs/api
 
 ## Team
 
-| Role | Name | Focus |
-|------|------|-------|
-| Tech Lead / Full-stack | **Ojas Srivastava** | Architecture, Cloud Run, GitHub, docs |
-| AI / Agent Engineer | TBD | 6 agents, Gemini prompts, chat tools |
-| Frontend / UX | TBD | PWA, map, wizard, Civic Glass UI |
-| Data / Geo | TBD | Firestore, geohash, seed data |
-| DevOps / Submission | TBD | Deploy, BlockseBlock, Google Doc |
+**Solo project:** **Ojas Srivastava** — full-stack, AI/agents, frontend, data/geo, deploy, docs, and submission.
 
 Details: [`docs/TEAM-ROLES.md`](docs/TEAM-ROLES.md)
 

@@ -1,6 +1,9 @@
 # Google Doc Submission Content (Appendix J)
 
-**Copy this entire document into Google Docs.** Set sharing to **Anyone with the link → Viewer** before BlockseBlock submit.
+**For copy-paste into Google Docs, use:** [`GOOGLE-DOC-PASTE.txt`](./GOOGLE-DOC-PASTE.txt)  
+Open that file → Select All → Copy → Paste into a new Google Doc. Tables use tab separators so Google Docs auto-formats them as tables.
+
+Set sharing to **Anyone with the link → Viewer** before BlockseBlock submit.
 
 **Product:** CIVICPULSE AI (Community Hero)  
 **Problem statement:** Vibe2Ship Problem Statement 2 — Community Hero  
@@ -49,8 +52,6 @@ All eight Vibe2Ship example features are implemented and documented in productio
 ### Feature 1 — Image and video-based issue reporting
 
 Three-step wizard at `/report`: camera capture or gallery upload, HTML5 geolocation, client-side WebP resize (max 1280px). Invalid media rejected with `InvalidMediaCard`. Optional 15s video capture (stretch).
-
-> **Screenshot placeholder:** `screenshots/01-report-wizard-step1-camera.png` — Report wizard Step 1 with camera + GPS indicator on production URL.
 
 **Evidence:** `frontend/src/pages/ReportPage.tsx`, `docs/api_contract.md` POST `/api/reports`
 
@@ -229,15 +230,14 @@ Embed the six-agent orchestration diagram from the repo PNG export:
 
 ## Section 9 — Team Members and Roles
 
-| Role | Name | Focus |
-|------|------|-------|
-| Tech Lead / Full-stack | **Ojas** | Architecture, Cloud Run, GitHub, docs, API contract, phase tracker |
-| AI / Agent Engineer | **Priya Sharma** | 6 agents, Gemini prompts, civic assistant tools |
-| Frontend / UX | **Arjun Mehta** | PWA, map, wizard, Civic Glass design, 18 routes |
-| Data / Geo | **Kavya Reddy** | Firestore schema, geohash, seed data (`DEMO_WARD_001`) |
-| DevOps / Submission | **Rohan Das** | Deploy, health monitoring, BlockseBlock, this Google Doc |
+**Team size:** Solo (1 member)
 
-**Primary contact:** community-hero@vibe2ship.dev  
+| Name | Role | Scope (all phases) |
+|------|------|---------------------|
+| **Ojas Srivastava** | Solo builder — Tech Lead, Full-stack, AI/Agents, Frontend/UX, Data/Geo, DevOps & Submission | Architecture, 6-agent pipeline, Gemini integration, React PWA (18 routes), Firestore/geohash, Cloud Run deploy, docs, demo, and BlockseBlock submission |
+
+**Primary contact:** srivastavaojas454@gmail.com  
+**GitHub:** [github.com/Ojas-Srivastava05/community-hero](https://github.com/Ojas-Srivastava05/community-hero)  
 **Full role matrix:** `docs/TEAM-ROLES.md`
 
 ---

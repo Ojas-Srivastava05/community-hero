@@ -29,25 +29,21 @@ Open with energy and brevity—you have three minutes total including Q&A buffer
 
 ## Slide 02 — Team
 
-**Title:** Team
+**Title:** Team — Solo (1 member)
 
 **On-slide content:**
 
-| Role | Name | Focus |
-|------|------|-------|
-| Tech Lead / Full-stack | Ojas Srivastava | Architecture, Cloud Run, GitHub, docs |
-| AI / Agent Engineer | Priya Sharma | 6 agents, Gemini prompts, chat tools |
-| Frontend / UX | Arjun Mehta | PWA, map, wizard, Civic Glass UI |
-| Data / Geo | Kavya Reddy | Firestore, geohash, seed data |
-| DevOps / Submission | Rohan Das | Deploy, BlockseBlock, Google Doc |
+| Name | Role | Scope |
+|------|------|--------|
+| **Ojas Srivastava** | Solo builder | Full-stack, AI agents, PWA, Firestore, Cloud Run deploy, docs & demo |
 
 GitHub: https://github.com/Ojas-Srivastava05/community-hero
 
 **Speaker notes (full):**
 
-Introduce cross-functional coverage even if some roles are consolidated on a small team. Ojas owns architecture, deployment, and documentation—the jury can audit every line on GitHub. Call out who will drive the live demo (typically Tech Lead or Frontend). Emphasize that AI Studio export, Cloud Run deploy, and Firestore schema were built in a seven-day sprint with Cursor-assisted development. If asked about team size, note that role matrix in `docs/TEAM-ROLES.md` shows how work would scale. Do not spend more than 20 seconds here.
+Solo 7-day sprint — architecture, six agents, Civic Glass UI, production deploy on Cloud Run, and submission package. All code auditable on GitHub under one maintainer. Do not spend more than 15 seconds here.
 
-**Timing:** 20 seconds
+**Timing:** 15 seconds
 
 ---
 

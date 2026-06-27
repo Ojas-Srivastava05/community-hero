@@ -1,0 +1,195 @@
+CIVICPULSE AI
+BlockseBlock 2026 Submission Document
+
+Product Name: CIVICPULSE AI
+Problem Statement: Vibe2Ship Problem Statement 2 — Community Hero
+Team Size: Solo (1 member)
+Builder: Ojas Srivastava
+Contact: srivastavaojas454@gmail.com
+Live App: https://community-hero-987477089222.asia-south1.run.app
+GitHub: https://github.com/Ojas-Srivastava05/community-hero
+
+
+SECTION 1 — PROBLEM STATEMENT SELECTED
+
+I selected Problem Statement 2: Community Hero — Hyperlocal Problem Solver (Vibe to Ship / BlockseBlock 2026).
+
+Indian urban residents face fragmented civic reporting. People use WhatsApp groups, municipal portals, and random apps with no shared record. Manual triage slows routing. Duplicate reports waste field crews. Citizens rarely see clear timelines from submission to resolution.
+
+Swachhata proved national demand for photo and GPS reporting, but it lacks agentic AI triage, predictive prevention, and fast vision classification.
+
+CIVICPULSE AI closes this gap with a production web app on Google Cloud. A citizen photographs an issue, Gemini classifies it in seconds, six agents route and track SLA deadlines, neighbors upvote to verify, and public dashboards show accountability.
+
+
+SECTION 2 — SOLUTION OVERVIEW
+
+CIVICPULSE AI is a hyperlocal civic intelligence platform. It turns citizen photographs into accountable, routed, verifiable municipal records.
+
+How it works for a citizen:
+1. Open the mobile-first app and sign in with Google.
+2. Complete a three-step report: take a photo, allow GPS location, confirm AI-filled details.
+3. Gemini 2.0 Flash analyzes the photo on the server and returns category, severity, department, confidence, and a clear title — usually in under three seconds.
+4. On submit, six agents run automatically: Intake, Vision, Routing, SLA, Dedup, and Priority.
+5. Neighbors see the issue on a map, upvote it, and earn civic points.
+6. Admins update status, attach proof photos, and export Open311-compatible data.
+
+Low-confidence reports go to a Draft review queue instead of the public map. This keeps data quality high.
+
+The platform also includes an impact dashboard (KPIs, trends, hotspots, AI insights) and a civic assistant chat that answers questions using live data.
+
+The app runs as one Cloud Run service in asia-south1 with Firebase Auth, Firestore, Cloud Storage, and Google Maps. It was built from Google AI Studio and is fully auditable on GitHub.
+
+Evaluation criteria alignment:
+
+Problem Solving and Impact (20%)
+Transparent reporting, SLA tracking, faster triage than manual forms, and duplicate reduction through geohash dedup plus community verification.
+
+Agentic Depth (20%)
+Six deterministic agents plus a tool-grounded civic assistant — not a single chat prompt.
+
+Innovation and Creativity (20%)
+AI vision, geographic hotspots, ethical gamification, and geohash-based thread clustering.
+
+Google Technologies (15%)
+Google AI Studio, Gemini, Cloud Run, Firestore, Firebase Auth, Cloud Storage, Google Maps.
+
+Product Experience (10%)
+Dark-themed mobile PWA, three-tap reporting, live map, public status timeline.
+
+Technical Implementation (10%)
+Input validation, Firestore security rules, server-side API keys, geohash indexes, rate limiting.
+
+Completeness and Usability (5%)
+Full path from report to verification to dashboard to admin resolution on a live HTTPS deployment.
+
+
+SECTION 3 — KEY FEATURES (ALL 8 IMPLEMENTED)
+
+Feature 1: Image and Video-Based Issue Reporting
+Three-step wizard with camera or gallery upload, GPS pinning, and automatic image resize. Invalid files are rejected. Optional short video capture supported.
+
+Feature 2: AI-Powered Issue Categorization
+Gemini 2.0 Flash returns structured data: category, severity (1–5), department, title, description, confidence score, and safety risk. Results are cached to reduce repeat latency.
+
+Feature 3: Geo-Location and Mapping
+Google Maps explorer with color-coded severity markers, search, category filters, and live refresh. List view fallback for low bandwidth. Server-side reverse geocoding.
+
+Feature 4: Community Verification
+Signed-in users upvote issues. Verification levels unlock at 1, 3, and 10 votes. Community Verified status awards bonus civic points.
+
+Feature 5: Real-Time Issue Tracking
+Each issue has a public timeline showing AI analysis, routing, upvotes, merges, status changes, and reopen events. Citizens see SLA deadlines on their reports.
+
+Feature 6: Impact Dashboards
+Public dashboard with KPI tiles, trend charts, ward breakdown, and engagement metrics. Data served from analytics APIs.
+
+Feature 7: Predictive Insights
+Hotspot detection using geohash density scoring. Gemini generates narrative insight cards on the dashboard. Admin analytics view for deeper review.
+
+Feature 8: Gamification for Citizen Engagement
+Civic points for reporting (+10), upvoting (+5), merging duplicates (+15), and resolved issues (+25). Badges and an opt-in leaderboard drive engagement without toxic competition.
+
+
+SECTION 4 — TECHNOLOGIES USED
+
+Frontend: React 19, Vite, TypeScript, Tailwind CSS, Framer Motion, Recharts, React Router
+Maps: Google Maps JavaScript API via React Google Maps
+Backend: Node.js 22, Express 5, TypeScript, Zod validation, Multer uploads
+Database: Google Cloud Firestore
+Storage: Firebase Cloud Storage
+Authentication: Firebase Authentication (Google Sign-In)
+AI: Google Gemini API (vision, insights, assistant chat)
+Geospatial: ngeohash for dedup and clustering
+Deployment: Docker, Google Cloud Run, Cloud Build, GitHub Actions CI
+Project automation: Makefile for test, lint, health checks, and deploy
+
+
+SECTION 5 — GOOGLE TECHNOLOGIES UTILIZED
+
+Google AI Studio — Prototype, export, and deploy path to Cloud Run
+Gemini 2.0 Flash — Photo classification, dashboard insights, civic assistant
+Gemini 2.0 Flash Lite — Lightweight text summaries
+Firebase Authentication — Google Sign-In with secure ID tokens
+Cloud Firestore — Issues, users, votes, events, geohash indexes
+Firebase Cloud Storage — Report photos and resolution proof images
+Google Maps Platform — Map display and geocoding
+Cloud Run — Production hosting (asia-south1), single container serves API and frontend
+Container Registry — Docker image storage and deployment
+Cloud Build — Automated CI/CD pipeline
+
+Firebase project ID: community-hero-vibe2ship
+
+
+SECTION 6 — ARCHITECTURE
+
+The browser runs a Progressive Web App. Users sign in through Firebase Auth on the client. The map loads Google Maps tiles. All API calls go to Express on Cloud Run with a Bearer token.
+
+On the server:
+- Firebase Admin SDK reads and writes Firestore and Cloud Storage
+- Gemini API handles vision analysis and chat
+- API keys stay on the server and are never sent to the browser
+
+One Cloud Run service handles both /api routes and the static frontend. This keeps deployment simple and costs low.
+
+
+SECTION 7 — AGENTIC WORKFLOW
+
+After each report is submitted, six agents run in sequence:
+
+1. Intake — Save the issue with location, geohash, ward, and reporter info
+2. Vision — Attach Gemini classification from the pre-submit analysis step
+3. Routing — Assign the correct municipal department based on category
+4. SLA — Set a resolution deadline based on severity
+5. Dedup — Search for nearby issues in the same category
+6. Priority — Calculate a priority score from severity, safety risk, and confidence
+
+Decision rules:
+- If confidence is below 0.6, the issue stays in Draft status for review
+- If duplicates are found nearby, merge suggestions are created
+- Upvote milestones trigger Community Verified badges
+
+
+SECTION 8 — LIVE DEPLOYMENT AND GITHUB
+
+Primary deployment:
+https://community-hero-987477089222.asia-south1.run.app
+
+Backup deployment:
+https://community-hero-eight.vercel.app
+
+Source code:
+https://github.com/Ojas-Srivastava05/community-hero
+
+API health check:
+https://community-hero-987477089222.asia-south1.run.app/api/health
+
+
+SECTION 9 — TEAM MEMBERS AND ROLES
+
+Team size: Solo (1 member)
+
+Name: Ojas Srivastava
+Role: Solo builder — full-stack developer
+Responsibilities: System architecture, six-agent AI pipeline, Gemini integration, React PWA (18 pages), Firestore and geohash data layer, Cloud Run deployment, documentation, demo, and submission
+
+Contact: srivastavaojas454@gmail.com
+GitHub: https://github.com/Ojas-Srivastava05/community-hero
+
+
+SECTION 10 — FUTURE ROADMAP
+
+Q3 2026
+- Google ADK agent deployment with durable tool registry
+- Open311 municipal API integrations beyond export
+- Multilingual voice and Hindi/English civic assistant
+
+Q4 2026
+- Gemini embedding-based duplicate detection
+- Map clustering for dense urban areas
+- Native mobile app (Capacitor) for offline-first reporting
+
+2027
+- BigQuery analytics pipeline and Vertex fine-tuning on ward data
+- WhatsApp share agent for viral issue awareness
+
+Long-term goal: deepen agentic automation and expand municipal partnerships through Open311 standards.
