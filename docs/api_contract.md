@@ -440,14 +440,23 @@ Reverse geocode coordinates.
 
 ### `GET /api/leaderboard`
 
-Top 20 users by `civicPoints` (falls back to report counts if index missing).
+Top 20 **opt-in** users (`leaderboardOptIn == true`). Query param `period`:
+
+| `period` | Ranked by |
+|----------|-----------|
+| `alltime` (default) | `civicPoints` |
+| `weekly` | `weeklyPoints` for the current ISO week |
+
+Zero-point users are excluded. On a query/index error the route falls back to a `civicPoints`-ordered
+scan filtered for opt-in in memory. See [gamification.md](pipelines/gamification.md).
 
 **Response 200**
 
 ```json
 {
+  "period": "weekly",
   "users": [
-    { "uid": "...", "civicPoints": 50, "badges": ["First Reporter"], "displayName": "Civic Hero" }
+    { "uid": "...", "civicPoints": 120, "weeklyPoints": 55, "badges": ["First Reporter"], "displayName": "Civic Hero" }
   ]
 }
 ```
@@ -492,6 +501,16 @@ Thread with linked issues.
 **Body:** `{ "displayName?", "email?", "photoURL?" }`
 
 **Response 200** — `{ "ok": true }`
+
+---
+
+### `PATCH /api/users/me`
+
+**Auth required.** Toggle leaderboard visibility (default `false` for new profiles).
+
+**Body:** `{ "leaderboardOptIn": boolean }` — non-boolean → **400** `INVALID_MEDIA`.
+
+**Response 200** — `{ "ok": true, "leaderboardOptIn": <bool> }`
 
 ---
 

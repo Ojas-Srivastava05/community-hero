@@ -23,8 +23,12 @@ Nine modular pipelines (Section 23) power Community Hero. Each pipeline returns 
 | 7 | **Resolution** | `POST /api/reports/:id/status` | 7 | — | `server/src/routes/reports.ts` |
 | 8 | **Insights** | `GET /api/analytics/*` | 8–9 | [insights.md](insights.md) *(Phase 9)* | `server/src/routes/analytics.ts` |
 | 9 | **Notification** | Status change events | 6 | — | `server/src/lib/agents.ts` |
+| ✦ | **Gamification** | On report / upvote / resolution | 10 | [gamification.md](gamification.md) *(Phase 10)* | `server/src/lib/gamification.ts` |
 
-> Per-pipeline docs: [intake](intake.md), [vision](vision.md), [geo](geo.md), [verification](verification.md), [insights](insights.md). Routing, resolution, and notification are documented in [architecture.md](../architecture.md) § agent pipeline (Phase 15).
+> The nine numbered pipelines are the Section 23 orchestrator stages. **Gamification** (✦) is a
+> cross-cutting engagement layer that hangs off the report, upvote, and resolution pipelines.
+>
+> Per-pipeline docs: [intake](intake.md), [vision](vision.md), [geo](geo.md), [verification](verification.md), [insights](insights.md), [gamification](gamification.md). Routing, resolution, and notification are documented in [architecture.md](../architecture.md) § agent pipeline (Phase 15).
 
 ---
 
