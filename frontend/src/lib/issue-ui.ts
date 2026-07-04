@@ -3,7 +3,7 @@ import type { Issue } from '../../../shared/types'
 
 export type Severity = 'low' | 'med' | 'high' | 'critical'
 
-const FALLBACK_IMG = 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=800&q=80'
+const FALLBACK_IMG = 'https://images.unsplash.com/photo-1741997246403-9607826b51b8?w=800&q=80'
 
 export function apiSeverityToUi(severity: number): Severity {
   if (severity >= 5) return 'critical'

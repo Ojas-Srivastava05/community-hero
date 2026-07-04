@@ -126,9 +126,14 @@ function ClusteredMarkers({
       const marker = new google.maps.Marker({
         position: { lat: issue.lat, lng: issue.lng },
         icon: severityMarkerIcon(issue.severity, dimmed),
+        title: issue.title,
         zIndex: selectedId === issue.id ? 1000 : issue.severity * 10,
       })
-      marker.addListener('click', () => onSelect?.(issue.id))
+      marker.addListener('click', () => {
+        onSelect?.(issue.id)
+        map.panTo({ lat: issue.lat, lng: issue.lng })
+        if ((map.getZoom() ?? 14) < 16) map.setZoom(16)
+      })
       return marker
     })
 
