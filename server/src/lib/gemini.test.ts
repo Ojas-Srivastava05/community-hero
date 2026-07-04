@@ -71,9 +71,9 @@ describe('Phase 11 — 7 citizen assistant tools', () => {
   ]
 
   it('defines all Appendix V tools in gemini.ts', async () => {
-    const src = await import('fs/promises').then((fs) =>
-      fs.readFile(new URL('./gemini.ts', import.meta.url), 'utf8'),
-    )
+    const fs = await import('fs/promises')
+    const path = await import('path')
+    const src = await fs.readFile(path.join(__dirname, 'gemini.ts'), 'utf8')
     for (const name of expected) {
       assert.match(src, new RegExp(`name: '${name}'`))
     }
