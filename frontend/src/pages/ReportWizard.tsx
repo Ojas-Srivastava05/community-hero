@@ -231,6 +231,10 @@ export function ReportWizardPage() {
       return
     }
     if (!navigator.onLine) {
+      if (!file) {
+        setError('Offline — add a photo to queue this report')
+        return
+      }
       try {
         await queueOfflineReport(
           {
