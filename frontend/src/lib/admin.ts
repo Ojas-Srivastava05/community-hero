@@ -5,9 +5,9 @@ import { useAuth } from './auth'
 import { apiCheckAdmin } from './api'
 
 export async function resolveIsAdmin(user: User): Promise<boolean> {
-  const tokenResult = await user.getIdTokenResult()
+  const tokenResult = await user.getIdTokenResult(true)
   if (tokenResult.claims.admin === true) return true
-  const token = await user.getIdToken()
+  const token = await user.getIdToken(true)
   return apiCheckAdmin(token)
 }
 

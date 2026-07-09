@@ -142,15 +142,19 @@ reportsRouter.post('/analyze', requireAuth, upload.single('image'), async (req: 
       sendError(res, 400, ErrorCodes.INVALID_MEDIA, preflight.reason)
       return
     }
-    const hint = req.body.hint as string | undefined
+    const hint = [req.body.hint, req.body.title, req.body.description]
+      .filter((s) => typeof s === 'string' && s.trim())
+      .join(' ')
+      .trim() || undefined
     const intake = await runIntakeAgent(req.file.buffer, hint)
     if (!intake.ok) {
       sendError(res, 400, ErrorCodes.INVALID_MEDIA, intake.reason || 'Image failed safety or civic check')
       return
     }
-    const analysis = await analyzeImage(req.file.buffer, req.file.mimetype, hint)
+    const { analysis, visionSource } = await analyzeImage(req.file.buffer, req.file.mimetype, hint)
     res.json({
       analysis,
+      visionSource,
       agentSteps: intakeVisionSteps(true, undefined, analysis),
     })
   } catch (e) {
@@ -218,7 +222,7 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
     const files = (req.files as Express.Multer.File[]) || []
 
     for (const file of files) {
-      const intake = await runIntakeAgent(file.buffer, data.description, data.title, data.description)
+      const intake = await runIntakeAgent(file.buffer, data.description, data.title, data.description, data.category)
       if (!intake.ok) {
         sendError(res, 400, ErrorCodes.INVALID_MEDIA, intake.reason || 'Image failed safety or civic check')
         return
@@ -298,7 +302,7 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
 
     let analysis = parseAnalysisFromBody(data, req.body as Record<string, unknown>)
     if (files.length > 0 && data.confidence === undefined && !data.analysis && !data.ai_analyzed) {
-      const vision = await analyzeImage(files[0].buffer, files[0].mimetype, data.description)
+      const { analysis: vision } = await analyzeImage(files[0].buffer, files[0].mimetype, data.description)
       analysis = {
         ...vision,
         title: data.title || vision.title,

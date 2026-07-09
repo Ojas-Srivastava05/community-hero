@@ -1,14 +1,14 @@
 const DB_NAME = 'community-hero-queue'
 const STORE = 'pending-reports'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 export type QueuedReport = {
   id: string
   createdAt: string
   data: Record<string, string | number | boolean | undefined>
-  imageDataUrl: string
-  imageName: string
-  imageType: string
+  imageDataUrl?: string
+  imageName?: string
+  imageType?: string
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -36,22 +36,29 @@ function dataUrlToFile(dataUrl: string, name: string, type: string): File {
 
 export async function queueOfflineReport(
   data: QueuedReport['data'],
-  imageFile: File,
+  imageFile?: File | null,
 ): Promise<string> {
-  const imageDataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(imageFile)
-  })
+  let imageDataUrl: string | undefined
+  let imageName: string | undefined
+  let imageType: string | undefined
+  if (imageFile) {
+    imageDataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(imageFile)
+    })
+    imageName = imageFile.name
+    imageType = imageFile.type
+  }
   const id = crypto.randomUUID()
   const item: QueuedReport = {
     id,
     createdAt: new Date().toISOString(),
     data,
     imageDataUrl,
-    imageName: imageFile.name,
-    imageType: imageFile.type,
+    imageName,
+    imageType,
   }
   const db = await openDb()
   await new Promise<void>((resolve, reject) => {
@@ -102,13 +109,16 @@ export async function removeQueuedReport(id: string): Promise<void> {
 }
 
 export async function flushOfflineQueue(
-  submit: (data: QueuedReport['data'], file: File) => Promise<void>,
+  submit: (data: QueuedReport['data'], file?: File) => Promise<void>,
 ): Promise<number> {
   const items = await listQueuedReports()
   let flushed = 0
   for (const item of items) {
     try {
-      const file = dataUrlToFile(item.imageDataUrl, item.imageName, item.imageType)
+      const file =
+        item.imageDataUrl && item.imageName
+          ? dataUrlToFile(item.imageDataUrl, item.imageName, item.imageType || 'image/jpeg')
+          : undefined
       await submit(item.data, file)
       await removeQueuedReport(item.id)
       flushed++
@@ -120,7 +130,7 @@ export async function flushOfflineQueue(
 }
 
 export function registerOfflineSync(
-  submit: (data: QueuedReport['data'], file: File) => Promise<void>,
+  submit: (data: QueuedReport['data'], file?: File) => Promise<void>,
 ): () => void {
   const run = () => {
     if (!navigator.onLine) return

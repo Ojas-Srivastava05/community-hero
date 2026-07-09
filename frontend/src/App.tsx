@@ -27,6 +27,7 @@ import { ScorecardsPage } from './pages/Scorecards'
 import { NotificationsPage } from './pages/Notifications'
 import { EmbedMapPage } from './pages/EmbedMap'
 import { NotFoundPage } from './pages/NotFound'
+import { AdminModeProvider, AdminRouteGuard } from './lib/admin-mode'
 import { GoogleMapsProvider } from './components/civic/GoogleMapsProvider'
 import './index.css'
 
@@ -34,10 +35,12 @@ export default function App() {
   return (
     <I18nProvider>
     <AuthProvider>
+      <AdminModeProvider>
       <LocationProvider>
         <GoogleMapsProvider>
         <PointsToastProvider>
         <BrowserRouter>
+          <AdminRouteGuard />
           <ErrorBoundary>
           <Routes>
             <Route path="/" element={<RouteBoundary><LandingPage /></RouteBoundary>} />
@@ -69,6 +72,7 @@ export default function App() {
         </PointsToastProvider>
         </GoogleMapsProvider>
       </LocationProvider>
+      </AdminModeProvider>
     </AuthProvider>
     </I18nProvider>
   )

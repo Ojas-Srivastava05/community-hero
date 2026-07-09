@@ -3,6 +3,11 @@ import type { AgentStep, ProofComparison } from '../lib/shared-constants'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
+type ApiFetchOptions = {
+  /** Retry 429/503 in-place instead of redirecting to /waiting (use for analyze UX). */
+  inlineRetry?: boolean
+}
+
 function redirectToWaiting(retryAfterHeader: string | null, reason?: 'rate_limit' | 'overload') {
   if (typeof window === 'undefined' || window.location.pathname.startsWith('/waiting')) return
   let retry = 30
@@ -15,7 +20,12 @@ function redirectToWaiting(retryAfterHeader: string | null, reason?: 'rate_limit
   window.location.assign(`/waiting?retry=${retry}&return=${returnTo}${reasonParam}`)
 }
 
-async function apiFetch(path: string, init?: RequestInit, retries = 3): Promise<Response> {
+async function apiFetch(
+  path: string,
+  init?: RequestInit,
+  retries = 3,
+  opts?: ApiFetchOptions,
+): Promise<Response> {
   const url = path.startsWith('http') ? path : `${API_BASE}${path}`
   let lastError: unknown
   for (let attempt = 0; attempt < retries; attempt++) {
@@ -23,23 +33,40 @@ async function apiFetch(path: string, init?: RequestInit, retries = 3): Promise<
       const res = await fetch(url, init)
       if (res.ok) return res
       if (res.status === 429 || res.status === 503) {
-        redirectToWaiting(
-          res.headers.get('Retry-After'),
-          res.status === 503 ? 'overload' : 'rate_limit',
+        if (opts?.inlineRetry && attempt < retries - 1) {
+          const waitMs = res.headers.get('Retry-After')
+            ? Math.max(1000, parseInt(res.headers.get('Retry-After')!, 10) * 1000)
+            : 1200 * (attempt + 1)
+          await new Promise((r) => setTimeout(r, waitMs))
+          continue
+        }
+        if (!opts?.inlineRetry) {
+          redirectToWaiting(
+            res.headers.get('Retry-After'),
+            res.status === 503 ? 'overload' : 'rate_limit',
+          )
+        }
+        throw new Error(
+          res.status === 503
+            ? 'Vision service busy — try again in a moment'
+            : 'Rate limited — please wait a moment',
         )
-        throw new Error(res.status === 503 ? 'Service temporarily unavailable' : 'Rate limited — please wait a moment')
       }
       if (res.status < 500) return res
       const body = await res.text().catch(() => '')
       lastError = new Error(body || `HTTP ${res.status}`)
     } catch (e) {
       lastError = e
+      if (opts?.inlineRetry && attempt < retries - 1) {
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)))
+        continue
+      }
     }
-    if (attempt < retries - 1) {
+    if (attempt < retries - 1 && !opts?.inlineRetry) {
       await new Promise((r) => setTimeout(r, 800 * (attempt + 1)))
     }
   }
-  throw lastError instanceof Error ? lastError : new Error('API unavailable — server may be waking up')
+  throw lastError instanceof Error ? lastError : new Error('API unavailable')
 }
 
 async function parseApiError(res: Response): Promise<never> {
@@ -64,15 +91,20 @@ export async function apiAnalyzeImage(
   file: File,
   token: string,
   hint?: string,
-): Promise<{ analysis: IssueAnalysis; agentSteps?: AgentStep[] }> {
+): Promise<{ analysis: IssueAnalysis; agentSteps?: AgentStep[]; visionSource?: string }> {
   const fd = new FormData()
   fd.append('image', file)
-  if (hint) fd.append('hint', hint)
-  const res = await apiFetch('/api/reports/analyze', {
-    method: 'POST',
-    headers: await authHeaders(token),
-    body: fd,
-  })
+  if (hint?.trim()) fd.append('hint', hint.trim())
+  const res = await apiFetch(
+    '/api/reports/analyze',
+    {
+      method: 'POST',
+      headers: await authHeaders(token),
+      body: fd,
+    },
+    4,
+    { inlineRetry: true },
+  )
   if (!res.ok) await parseApiError(res)
   return res.json()
 }
@@ -178,11 +210,16 @@ export async function apiCreateReport(
 export async function apiTranscribeAudio(file: Blob, token: string, mimeType?: string) {
   const fd = new FormData()
   fd.append('audio', file, `voice.${(mimeType || 'audio/webm').includes('mp4') ? 'm4a' : 'webm'}`)
-  const res = await apiFetch('/api/reports/transcribe', {
-    method: 'POST',
-    headers: await authHeaders(token),
-    body: fd,
-  })
+  const res = await apiFetch(
+    '/api/reports/transcribe',
+    {
+      method: 'POST',
+      headers: await authHeaders(token),
+      body: fd,
+    },
+    4,
+    { inlineRetry: true },
+  )
   if (!res.ok) await parseApiError(res)
   return res.json() as Promise<{ transcript: string; title: string; description: string }>
 }

@@ -2,18 +2,33 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { Home, Map, Activity, User, Plus } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/lib/i18n'
+import { useAdminMode } from '@/lib/admin-mode'
+import { AdminNav } from './AdminNav'
 
-const tabs = [
-  { to: '/', label: 'Home', icon: Home, end: true },
-  { to: '/map', label: 'Map', icon: Map },
-  { to: '/activity', label: 'Activity', icon: Activity },
-  { to: '/profile', label: 'Profile', icon: User },
-]
+function useTabs() {
+  const { t } = useI18n()
+  return [
+    { to: '/', label: t('nav.home'), icon: Home, end: true as const },
+    { to: '/map', label: t('nav.map'), icon: Map, end: false as const },
+    { to: '/activity', label: t('nav.activity'), icon: Activity, end: false as const },
+    { to: '/profile', label: t('nav.profile'), icon: User, end: false as const },
+  ]
+}
 
 export function BottomNav({ hiddenOn = [] }: { hiddenOn?: string[] }) {
   const { pathname } = useLocation()
+  const { t } = useI18n()
+  const { isAdmin, checking } = useAdminMode()
+  const tabs = useTabs()
   if (hiddenOn.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     return null
+  }
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    return null
+  }
+  if (!checking && isAdmin) {
+    return <AdminNav />
   }
   return (
     <nav
@@ -28,7 +43,7 @@ export function BottomNav({ hiddenOn = [] }: { hiddenOn?: string[] }) {
         <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05, rotate: 4 }} className="relative mx-auto -mt-8">
           <NavLink
             to="/report"
-            aria-label="Report issue"
+            aria-label={t('nav.report')}
             className="relative grid size-16 place-items-center rounded-full bg-coral text-paper ink-glow"
           >
             <span className="absolute inset-0 -z-10 rounded-full bg-coral/40 blur-xl" />

@@ -120,3 +120,40 @@ export async function runInsightsBatch(): Promise<InsightsBatchResult> {
 
   return result
 }
+
+export type IssueInsightResult = {
+  narrative: string
+  hotspotScore: number
+  wardOpenCount: number
+  recurring: boolean
+  predictive: boolean
+}
+
+/** Agent 6 — real-time insight for a single new report (not just batch scheduled). */
+export async function runInsightsForIssue(issue: {
+  id: string
+  category: string
+  wardId?: string
+  geohash?: string
+  lat: number
+  lng: number
+}): Promise<IssueInsightResult> {
+  const { issues } = await fetchIssuesAndUpvotes(300)
+  const ward = issue.wardId || 'unknown'
+  const openInWard = issues.filter(
+    (i) => i.wardId === ward && !['Resolved', 'Closed', 'Draft'].includes(i.status),
+  ).length
+  const hotspots = computeHotspots(issues, undefined, 24)
+  const prefix = (issue.geohash || '').slice(0, 6)
+  const cell = hotspots.find((h) => h.geohash.startsWith(prefix) || prefix.startsWith(h.geohash.slice(0, 4)))
+  const recurring = detectRecurringIssues(issues).some(
+    (r) => r.category === issue.category && r.geohash6 === prefix.slice(0, 6),
+  )
+  const hotspotScore = cell?.score ?? 0
+  const predictive = Boolean(cell?.predictive)
+  const narrative = predictive
+    ? `Predictive hotspot: ${issue.category} in ${ward} — ${openInWard} open nearby, risk score ${hotspotScore.toFixed(0)}.`
+    : `${issue.category} in ${ward} joins ${openInWard} open ward issues${recurring ? ' (recurring pattern)' : ''}.`
+
+  return { narrative, hotspotScore, wardOpenCount: openInWard, recurring, predictive }
+}

@@ -56,24 +56,30 @@ export function confidenceGateUpdates(confidence: number): Record<string, unknow
   return {}
 }
 
-export const NON_CIVIC_KEYWORDS = [
-  'selfie',
-  'portrait',
-  'food',
-  'restaurant',
-  'pet',
-  'dog',
-  'cat',
-  'meme',
-  'screenshot',
-  'dating',
+export const HARD_NON_CIVIC_KEYWORDS = [
   'nude',
   'porn',
   'gambling',
-  'advertisement',
-  'product',
-  'shopping',
 ]
+
+/** Only block when no civic context — e.g. "food" appears in "food containers" in waste dumps */
+export const SOFT_NON_CIVIC_KEYWORDS = [
+  'selfie',
+  'portrait',
+  'restaurant menu',
+  'pet photo',
+  'dog photo',
+  'cat photo',
+  'meme',
+  'screenshot',
+  'dating',
+  'advertisement',
+  'product review',
+  'shopping haul',
+]
+
+/** @deprecated use HARD + SOFT lists */
+export const NON_CIVIC_KEYWORDS = [...HARD_NON_CIVIC_KEYWORDS, ...SOFT_NON_CIVIC_KEYWORDS]
 
 export const CIVIC_KEYWORDS = [
   'pothole',

@@ -1,27 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiApproveIssue, apiBulkUpdateStatus, apiListIssues, apiUpdateStatus, apiVerifyResolution } from '../lib/api'
+import { motion } from 'framer-motion'
+import { AlertTriangle, Camera, Download, Scale } from 'lucide-react'
+import { apiApproveIssue, apiListIssues, apiUpdateStatus, apiVerifyResolution } from '../lib/api'
 import { useRequireAdmin } from '../lib/admin'
+import { AdminShell } from '@/components/layout/AdminShell'
 import { GlassCard } from '@/components/civic/GlassCard'
 import { PageSkeleton } from '@/components/PageSkeleton'
-import { AppShell, PageHeader } from '@/components/layout/AppShell'
-import { fadeUp, stagger } from '../lib/motion'
-import { motion } from 'framer-motion'
-import { AlertTriangle, Camera, ClipboardList, Download, Scale } from 'lucide-react'
-import { slaHoursLeft } from '@/lib/issue-ui'
-import { buildDispatchPlan, estimateCostOfInaction, formatInr } from '../lib/authority-copilot'
 import { ResolutionVerificationBadge } from '@/components/civic/ResolutionVerificationBadge'
+import { fadeUp, stagger } from '../lib/motion'
+import { slaHoursLeft } from '@/lib/issue-ui'
 import type { Issue } from '../../../shared/types'
 import type { ProofComparison } from '../lib/shared-constants'
 
-const STATUSES = ['Draft', 'Submitted', 'Community Verified', 'Assigned', 'In Progress', 'Resolved', 'Closed']
+type QueueTab = 'judge' | 'dispatch' | 'urgent' | 'active' | 'done' | 'all'
 
 function isJudgeReview(issue: Issue): boolean {
   return issue.status === 'Draft' || issue.aiMetadata?.needs_review === true
-}
-
-function needsProof(status: string) {
-  return status === 'Resolved' || status === 'Closed'
 }
 
 function exportCsv(issues: Issue[]) {
@@ -33,8 +28,7 @@ function exportCsv(issues: Issue[]) {
       return `"${str.replace(/"/g, '""')}"`
     }).join(','),
   )
-  const csv = [headers.join(','), ...rows].join('\n')
-  const blob = new Blob([csv], { type: 'text/csv' })
+  const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -43,17 +37,25 @@ function exportCsv(issues: Issue[]) {
   URL.revokeObjectURL(url)
 }
 
+const TABS: { id: QueueTab; label: string; hint: string }[] = [
+  { id: 'judge', label: 'Judge', hint: 'Low-confidence — approve or reject' },
+  { id: 'dispatch', label: 'New', hint: 'Submitted & verified — assign work' },
+  { id: 'urgent', label: 'SLA breach', hint: 'Past deadline — act now' },
+  { id: 'active', label: 'In progress', hint: 'Assigned or being fixed' },
+  { id: 'done', label: 'Resolved', hint: 'Closed loop' },
+  { id: 'all', label: 'All', hint: 'Full list' },
+]
+
 export function AdminPage() {
   const { user, loading, isAdmin, accessDenied, signInWithGoogle, signInWithDemo, signingIn } =
     useRequireAdmin('/dashboard', { redirect: false })
   const [issues, setIssues] = useState<Issue[]>([])
-  const [filter, setFilter] = useState('open')
+  const [tab, setTab] = useState<QueueTab>('dispatch')
   const [proofFiles, setProofFiles] = useState<Record<string, File>>({})
   const [proofPreview, setProofPreview] = useState<Record<string, ProofComparison>>({})
-  const [pendingStatus, setPendingStatus] = useState<Record<string, string>>({})
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [bulkStatus, setBulkStatus] = useState('In Progress')
+  const [proofFor, setProofFor] = useState<string | null>(null)
   const [approvingId, setApprovingId] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   const load = () =>
     apiListIssues(100, { includeDemo: true, includeDraft: true, sortByPriority: true }).then((r) =>
@@ -64,46 +66,56 @@ export function AdminPage() {
     if (isAdmin) load()
   }, [isAdmin])
 
-  const updateStatus = async (id: string, status: string, proof?: File) => {
+  const counts = useMemo(
+    () => ({
+      judge: issues.filter(isJudgeReview).length,
+      dispatch: issues.filter((i) => ['Submitted', 'Community Verified'].includes(i.status)).length,
+      urgent: issues.filter((i) => i.slaBreached && !['Resolved', 'Closed', 'Draft'].includes(i.status)).length,
+      active: issues.filter((i) => ['Assigned', 'In Progress'].includes(i.status)).length,
+      done: issues.filter((i) => ['Resolved', 'Closed'].includes(i.status)).length,
+    }),
+    [issues],
+  )
+
+  const displayed = useMemo(() => {
+    const list = issues.filter((i) => {
+      if (tab === 'judge') return isJudgeReview(i)
+      if (tab === 'dispatch') return ['Submitted', 'Community Verified'].includes(i.status)
+      if (tab === 'urgent') return i.slaBreached && !['Resolved', 'Closed', 'Draft'].includes(i.status)
+      if (tab === 'active') return ['Assigned', 'In Progress'].includes(i.status)
+      if (tab === 'done') return ['Resolved', 'Closed'].includes(i.status)
+      return true
+    })
+    return [...list].sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0))
+  }, [issues, tab])
+
+  const nextPriority = useMemo(() => {
+    return (
+      issues
+        .filter((i) => !['Resolved', 'Closed', 'Draft'].includes(i.status))
+        .sort((a, b) => {
+          if (a.slaBreached !== b.slaBreached) return a.slaBreached ? -1 : 1
+          return (b.priorityScore ?? 0) - (a.priorityScore ?? 0)
+        })[0] ?? null
+    )
+  }, [issues])
+
+  const setStatus = async (id: string, status: string, proof?: File) => {
     if (!user) return
-    const token = await user.getIdToken()
-    await apiUpdateStatus(id, status, token, proof)
-    setPendingStatus((p) => {
-      const next = { ...p }
-      delete next[id]
-      return next
-    })
-    setProofFiles((p) => {
-      const next = { ...p }
-      delete next[id]
-      return next
-    })
-    load()
-  }
-
-  const onStatusSelect = (issue: Issue, status: string) => {
-    if (needsProof(status)) {
-      setPendingStatus((p) => ({ ...p, [issue.id]: status }))
-      return
+    setBusyId(id)
+    try {
+      const token = await user.getIdToken()
+      await apiUpdateStatus(id, status, token, proof)
+      setProofFor(null)
+      setProofFiles((p) => {
+        const n = { ...p }
+        delete n[id]
+        return n
+      })
+      await load()
+    } finally {
+      setBusyId(null)
     }
-    updateStatus(issue.id, status)
-  }
-
-  const toggleSelect = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  const runBulkUpdate = async () => {
-    if (!user || selected.size === 0) return
-    const token = await user.getIdToken()
-    await apiBulkUpdateStatus([...selected], bulkStatus, token)
-    setSelected(new Set())
-    load()
   }
 
   const approveIssue = async (id: string) => {
@@ -118,55 +130,22 @@ export function AdminPage() {
     }
   }
 
-  const displayed = useMemo(() => {
-    const filtered = issues.filter((i) => {
-      if (filter === 'draft') return isJudgeReview(i)
-      if (filter === 'breached') return Boolean(i.slaBreached) && !['Resolved', 'Closed'].includes(i.status)
-      if (filter === 'open') return !['Resolved', 'Closed', 'Draft'].includes(i.status)
-      return true
-    })
-    return [...filtered].sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0))
-  }, [issues, filter])
-
-  const topDispatch = useMemo(() => {
-    const open = issues
-      .filter((i) => !['Resolved', 'Closed', 'Draft'].includes(i.status))
-      .slice()
-      .sort((a, b) => {
-        if (a.slaBreached !== b.slaBreached) return a.slaBreached ? -1 : 1
-        return (b.priorityScore ?? b.severity * 10) - (a.priorityScore ?? a.severity * 10)
-      })
-    return open[0] ?? null
-  }, [issues])
-
-  const topPlan = topDispatch ? buildDispatchPlan(topDispatch) : null
-  const topCost = topDispatch ? estimateCostOfInaction(topDispatch) : null
-
-  const breachCount = useMemo(
-    () => issues.filter((i) => i.slaBreached && !['Resolved', 'Closed'].includes(i.status)).length,
-    [issues],
-  )
-
-  const draftCount = useMemo(() => issues.filter((i) => isJudgeReview(i)).length, [issues])
-
   if (loading) {
     return (
-      <AppShell>
-        <PageHeader title="Admin" subtitle="Loading…" />
+      <AdminShell title="Operations queue" subtitle="Loading…">
         <PageSkeleton rows={5} />
-      </AppShell>
+      </AdminShell>
     )
   }
 
   if (!user) {
     return (
-      <AppShell>
-        <PageHeader title="Admin" />
-        <div className="space-y-3 px-5 py-16 text-center">
-          <p className="mb-2 text-ink-muted">Admin sign-in required</p>
+      <AdminShell title="Authority sign-in">
+        <div className="space-y-3 py-12 text-center">
+          <p className="text-sm text-ink-muted">Municipal operators only — not the citizen report flow.</p>
           <button
             type="button"
-            className="w-full max-w-xs rounded-2xl bg-coral px-8 py-3 text-sm font-bold text-paper ink-glow"
+            className="w-full rounded-2xl bg-indigo py-4 text-sm font-bold text-paper"
             disabled={signingIn}
             onClick={() => signInWithDemo('admin')}
           >
@@ -174,202 +153,189 @@ export function AdminPage() {
           </button>
           <button
             type="button"
-            className="w-full max-w-xs rounded-2xl border border-rule px-8 py-3 text-sm font-bold text-ink"
+            className="w-full rounded-2xl border border-rule py-3 text-sm font-bold text-ink"
             disabled={signingIn}
             onClick={() => signInWithGoogle()}
           >
-            {signingIn ? 'Opening Google…' : 'Sign in with Google'}
+            Sign in with Google
           </button>
         </div>
-      </AppShell>
+      </AdminShell>
     )
   }
 
   if (!isAdmin || accessDenied) {
     return (
-      <AppShell>
-        <PageHeader title="Admin" subtitle="Access denied" />
-        <div className="space-y-3 px-5 py-16 text-center">
-          <p className="text-ink-muted">Admin privileges required.</p>
+      <AdminShell title="Access denied">
+        <div className="space-y-3 py-12 text-center">
+          <p className="text-sm text-ink-muted">This console requires admin privileges.</p>
           <button
             type="button"
-            className="mx-auto block max-w-xs rounded-2xl bg-coral px-8 py-3 text-sm font-bold text-paper ink-glow"
+            className="rounded-2xl bg-indigo px-8 py-3 text-sm font-bold text-paper"
             disabled={signingIn}
             onClick={() => signInWithDemo('admin')}
           >
-            {signingIn ? 'Signing in…' : 'Switch to demo authority'}
+            Switch to demo authority
           </button>
-          <Link to="/dashboard" className="block text-sm font-semibold text-coral">
-            Back to dashboard
-          </Link>
         </div>
-      </AppShell>
+      </AdminShell>
     )
   }
 
   return (
-    <AppShell>
-      <PageHeader
-        title="Admin panel"
-        subtitle={`SLA queue · ${breachCount} breached`}
-        right={<Link to="/admin/analytics" className="text-xs font-bold text-coral">Analytics</Link>}
-      />
-      <main className="space-y-3 px-5 pt-4">
-        {displayed.length === 0 && (
-          <GlassCard className="text-center text-sm text-ink-muted">
-            No issues in this queue. Seed demo data or clear filters.
-          </GlassCard>
-        )}
-        <div className="flex flex-wrap items-center gap-2">
-          {(['open', 'draft', 'breached', 'all'] as const).map((f) => (
-            <button
-              key={f}
-              type="button"
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${filter === f ? 'bg-coral text-paper' : 'paper'}`}
-              onClick={() => setFilter(f)}
-            >
-              {f === 'breached'
-                ? `breached (${breachCount})`
-                : f === 'draft'
-                  ? `judge (${draftCount})`
-                  : f}
-            </button>
-          ))}
+    <AdminShell
+      title="Operations queue"
+      subtitle={`${counts.dispatch} new · ${counts.urgent} SLA breach · ${counts.judge} judge`}
+      right={
+        <button
+          type="button"
+          onClick={() => exportCsv(displayed)}
+          className="flex items-center gap-1 rounded-full border border-paper/20 px-2.5 py-1 text-[10px] font-bold text-paper/80"
+        >
+          <Download className="size-3" /> CSV
+        </button>
+      }
+    >
+      {nextPriority && (
+        <GlassCard className="mb-4 border border-indigo/25 bg-indigo-soft/30">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo">Highest priority</p>
+          <p className="mt-1 text-sm font-bold text-ink">{nextPriority.title}</p>
+          <p className="text-[11px] text-ink-muted">
+            {nextPriority.category.replace(/_/g, ' ')} · priority {nextPriority.priorityScore ?? '—'}
+            {nextPriority.slaBreached ? ' · SLA breached' : ''}
+          </p>
+          <Link to={`/issues/${nextPriority.id}`} className="mt-2 inline-block text-xs font-bold text-indigo">
+            Open ticket →
+          </Link>
+        </GlassCard>
+      )}
+
+      <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto pb-1">
+        {TABS.map((t) => (
           <button
+            key={t.id}
             type="button"
-            className="ml-auto flex items-center gap-1 rounded-full border border-rule px-3 py-1 text-xs font-semibold text-ink"
-            onClick={() => exportCsv(displayed)}
+            onClick={() => setTab(t.id)}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${
+              tab === t.id ? 'bg-indigo text-paper' : 'border border-rule bg-paper text-ink'
+            }`}
           >
-            <Download className="size-3" /> Export CSV
+            {t.label}
+            {t.id !== 'all' && counts[t.id as keyof typeof counts] > 0 && (
+              <span className="ml-1 opacity-80">({counts[t.id as keyof typeof counts]})</span>
+            )}
           </button>
-        </div>
+        ))}
+      </div>
+      <p className="mb-3 text-[11px] text-ink-muted">{TABS.find((t) => t.id === tab)?.hint}</p>
 
-        {topDispatch && topPlan && topCost && (
-          <GlassCard className="space-y-2 border border-coral/25 bg-coral-soft/20">
-            <div className="flex items-center gap-2">
-              <ClipboardList className="size-4 text-coral" />
-              <p className="text-xs font-bold uppercase tracking-wider text-coral">Authority co-pilot · next dispatch</p>
-            </div>
-            <p className="text-sm font-bold text-ink">{topDispatch.title}</p>
-            <p className="text-[11px] text-ink-muted">
-              {topPlan.priorityBand} · {topPlan.crew} · window {topPlan.windowHours}h · {topCost.label}
-            </p>
-            <p className="text-[11px] text-ink-muted">
-              Materials: {topPlan.materials.join(' · ')} · Weekly risk {formatInr(topCost.weeklyInr)}
-            </p>
-            <ul className="space-y-1">
-              {topPlan.checklist.slice(0, 3).map((c) => (
-                <li key={c} className="text-[11px] text-ink">
-                  · {c}
-                </li>
-              ))}
-            </ul>
-            <Link to={`/issues/${topDispatch.id}`} className="inline-block text-xs font-bold text-coral">
-              Open ticket →
-            </Link>
-          </GlassCard>
-        )}
-
-        {selected.size > 0 && (
-          <GlassCard className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-ink">{selected.size} selected</span>
-            <select
-              className="rounded-lg border border-rule bg-paper px-2 py-1 text-xs"
-              value={bulkStatus}
-              onChange={(e) => setBulkStatus(e.target.value)}
-            >
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-            <button type="button" className="rounded-lg bg-coral px-3 py-1 text-xs font-bold text-paper" onClick={runBulkUpdate}>
-              Apply bulk
-            </button>
-          </GlassCard>
-        )}
-
-        <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-3">
+      {displayed.length === 0 ? (
+        <GlassCard className="text-center text-sm text-ink-muted">No tickets in this queue.</GlassCard>
+      ) : (
+        <motion.ul variants={stagger} initial="hidden" animate="show" className="space-y-3">
           {displayed.map((issue) => {
-            const pending = pendingStatus[issue.id]
-            const showProof = pending && needsProof(pending)
-            const judgeReview = isJudgeReview(issue)
+            const judge = isJudgeReview(issue)
             const confidence =
               typeof issue.aiMetadata?.confidence === 'number'
                 ? Math.round((issue.aiMetadata.confidence as number) * 100)
                 : null
+            const showProof = proofFor === issue.id
+
             return (
-              <motion.div key={issue.id} variants={fadeUp}>
+              <motion.li key={issue.id} variants={fadeUp}>
                 <GlassCard
-                  className={`space-y-2 ${issue.slaBreached ? 'border border-[oklch(0.5_0.22_25/0.4)]' : ''} ${judgeReview ? 'border border-amber/40 bg-amber-soft/30' : ''}`}
+                  className={`space-y-3 ${issue.slaBreached ? 'border border-coral/40' : ''} ${judge ? 'border border-amber/40 bg-amber-soft/20' : ''}`}
                 >
-                  <div className="flex items-start gap-2">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(issue.id)}
-                      onChange={() => toggleSelect(issue.id)}
-                      className="mt-1"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-ink">{issue.title}</p>
-                      <p className="text-xs text-ink-muted">
-                        {issue.category} · severity {issue.severity}
-                        {issue.priorityScore != null && ` · priority ${issue.priorityScore}`}
-                        {confidence !== null && ` · ${confidence}% AI confidence`}
-                      </p>
-                      <p className="text-xs text-ink">
-                        Status: <span className="text-coral">{issue.status}</span>
-                        {judgeReview && (
-                          <span className="ml-2 inline-flex items-center gap-0.5 font-bold text-amber">
-                            <Scale className="size-3" /> Judge review
-                          </span>
-                        )}
-                        {issue.slaBreached && (
-                          <span className="ml-2 inline-flex items-center gap-0.5 font-bold text-[oklch(0.5_0.22_25)]">
-                            <AlertTriangle className="size-3" /> SLA breached
-                          </span>
-                        )}
-                        {!issue.slaBreached && slaHoursLeft(issue) !== null && !['Resolved', 'Closed'].includes(issue.status) && (
-                          <span className="ml-2 text-ink-muted">· {slaHoursLeft(issue)}h to SLA</span>
-                        )}
-                      </p>
-                    </div>
+                  <div>
+                    <p className="text-sm font-bold text-ink">{issue.title}</p>
+                    <p className="mt-1 text-[11px] text-ink-muted">
+                      {issue.category.replace(/_/g, ' ')} · severity {issue.severity}
+                      {issue.priorityScore != null && ` · priority ${issue.priorityScore}`}
+                      {confidence != null && ` · ${confidence}% AI`}
+                    </p>
+                    <p className="mt-1 text-xs">
+                      <span className="font-semibold text-indigo">{issue.status}</span>
+                      {judge && (
+                        <span className="ml-2 inline-flex items-center gap-0.5 font-bold text-amber">
+                          <Scale className="size-3" /> Needs judge
+                        </span>
+                      )}
+                      {issue.slaBreached && (
+                        <span className="ml-2 inline-flex items-center gap-0.5 font-bold text-coral">
+                          <AlertTriangle className="size-3" /> SLA breach
+                        </span>
+                      )}
+                      {!issue.slaBreached && slaHoursLeft(issue) != null && !['Resolved', 'Closed'].includes(issue.status) && (
+                        <span className="ml-2 text-ink-muted">{slaHoursLeft(issue)}h to SLA</span>
+                      )}
+                    </p>
                   </div>
-                  {judgeReview && (
-                    <div className="flex flex-wrap gap-2">
+
+                  <div className="flex flex-wrap gap-2">
+                    {judge && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={approvingId === issue.id}
+                          onClick={() => approveIssue(issue.id)}
+                          className="rounded-lg bg-coral px-3 py-2 text-xs font-bold text-paper disabled:opacity-50"
+                        >
+                          {approvingId === issue.id ? 'Publishing…' : 'Approve & publish'}
+                        </button>
+                        <Link
+                          to={`/issues/${issue.id}`}
+                          className="rounded-lg border border-rule px-3 py-2 text-xs font-bold text-ink"
+                        >
+                          Review
+                        </Link>
+                      </>
+                    )}
+                    {!judge && ['Submitted', 'Community Verified'].includes(issue.status) && (
                       <button
                         type="button"
-                        disabled={approvingId === issue.id}
-                        onClick={() => approveIssue(issue.id)}
-                        className="rounded-lg bg-coral px-3 py-2 text-xs font-bold text-paper disabled:opacity-50"
+                        disabled={busyId === issue.id}
+                        onClick={() => setStatus(issue.id, 'In Progress')}
+                        className="rounded-lg bg-indigo px-3 py-2 text-xs font-bold text-paper disabled:opacity-50"
                       >
-                        {approvingId === issue.id ? 'Publishing…' : 'Approve & publish'}
+                        Start work
                       </button>
-                      <Link
-                        to={`/issues/${issue.id}`}
-                        className="rounded-lg border border-rule px-3 py-2 text-xs font-bold text-ink"
+                    )}
+                    {!judge && issue.status === 'Assigned' && (
+                      <button
+                        type="button"
+                        disabled={busyId === issue.id}
+                        onClick={() => setStatus(issue.id, 'In Progress')}
+                        className="rounded-lg bg-indigo px-3 py-2 text-xs font-bold text-paper disabled:opacity-50"
                       >
-                        Review details
-                      </Link>
-                    </div>
-                  )}
-                  <select
-                    className="w-full rounded-lg border border-rule bg-paper p-2 text-xs text-ink"
-                    value={pending || issue.status}
-                    onChange={(e) => onStatusSelect(issue, e.target.value)}
-                  >
-                    {STATUSES.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
+                        Mark in progress
+                      </button>
+                    )}
+                    {!judge && issue.status === 'In Progress' && (
+                      <button
+                        type="button"
+                        onClick={() => setProofFor(issue.id)}
+                        className="rounded-lg bg-leaf px-3 py-2 text-xs font-bold text-paper"
+                      >
+                        Mark resolved
+                      </button>
+                    )}
+                    <Link
+                      to={`/issues/${issue.id}`}
+                      className="rounded-lg border border-rule px-3 py-2 text-xs font-bold text-ink"
+                    >
+                      Details
+                    </Link>
+                  </div>
+
                   {showProof && (
-                    <div className="space-y-2 rounded-xl border border-coral/30 bg-coral-soft/20 p-3">
-                      <p className="flex items-center gap-1.5 text-[11px] font-bold text-coral">
-                        <Camera className="size-3.5" /> Proof photo required for {pending}
+                    <div className="space-y-2 rounded-xl border border-leaf/30 bg-leaf-soft/20 p-3">
+                      <p className="flex items-center gap-1.5 text-[11px] font-bold text-leaf">
+                        <Camera className="size-3.5" /> Upload after photo to close ticket
                       </p>
                       <input
                         type="file"
                         accept="image/*"
-                        className="w-full text-xs text-ink"
+                        className="w-full text-xs"
                         onChange={async (e) => {
                           const f = e.target.files?.[0]
                           if (!f || !user) return
@@ -380,9 +346,9 @@ export function AdminPage() {
                             setProofPreview((p) => ({ ...p, [issue.id]: comparison }))
                           } catch {
                             setProofPreview((p) => {
-                              const next = { ...p }
-                              delete next[issue.id]
-                              return next
+                              const n = { ...p }
+                              delete n[issue.id]
+                              return n
                             })
                           }
                         }}
@@ -392,20 +358,20 @@ export function AdminPage() {
                       )}
                       <button
                         type="button"
-                        disabled={!proofFiles[issue.id]}
-                        onClick={() => updateStatus(issue.id, pending, proofFiles[issue.id])}
-                        className="w-full rounded-lg bg-coral py-2 text-xs font-bold text-paper disabled:opacity-40"
+                        disabled={!proofFiles[issue.id] || busyId === issue.id}
+                        onClick={() => setStatus(issue.id, 'Resolved', proofFiles[issue.id])}
+                        className="w-full rounded-lg bg-leaf py-2 text-xs font-bold text-paper disabled:opacity-40"
                       >
-                        Confirm with proof
+                        Confirm resolved
                       </button>
                     </div>
                   )}
                 </GlassCard>
-              </motion.div>
+              </motion.li>
             )
           })}
-        </motion.div>
-      </main>
-    </AppShell>
+        </motion.ul>
+      )}
+    </AdminShell>
   )
 }

@@ -14,7 +14,7 @@
 |------|--------|
 | 1 | Open **incognito** browser (phone preferred) |
 | 2 | Confirm `/api/health` → `status: ok` |
-| 3 | Prefer **demo login** (not Google OAuth on stage): `/login` → **Enter as demo citizen** |
+| 3 | Prefer **Submit without login** (not Google OAuth on stage): `/report` → **Submit without login** — no personal email or phone |
 | 4 | Second tab: `/login` → **Enter as demo authority** (for admin / resolve) |
 | 5 | Close unrelated tabs; enable Do Not Disturb |
 | 6 | Optional: grant location, or rely on map pin fallback |
@@ -25,17 +25,19 @@
 
 ## Timed script with click paths
 
-### 0:00 — 0:20 | Landing + demo sign-in
+### 0:00 — 0:20 | Landing + submit without login
 
-**Say:** "Community Hero turns citizen photos into accountable civic records. Live on Cloud Run—not a prototype."
+**Say:** "Community Hero turns citizen photos into accountable civic records—and you can **submit without login**. No personal email or phone required."
 
 | Time | Click path | Show |
 |------|------------|------|
-| 0:00 | Open production URL `/` | Light coral/paper UI, live issue counts |
-| 0:05 | Tap **Try demo** (or **Sign in** → demo citizen) | Instant auth — no Google popup |
-| 0:15 | Land on home authenticated | Report / Explore map CTAs |
+| 0:00 | Open production URL `/` | Light coral/paper UI, **No login required** badge |
+| 0:05 | Tap **Submit without login** → `/report` → same button | One-tap access — no Google popup, no personal details |
+| 0:15 | Capture flow unlocked | Photo / AI classify CTAs |
 
-**Checkpoint:** Demo citizen signs in without OAuth errors.
+**Checkpoint:** Judge sees privacy-first reporting before any OAuth prompt.
+
+**Judge line:** "Citizens can report anonymously—no account signup, no personal data."
 
 ---
 

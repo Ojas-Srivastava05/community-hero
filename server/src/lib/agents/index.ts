@@ -5,6 +5,7 @@ import { runVisionAgent } from './vision'
 import { runDedupAgent } from './dedup'
 import { runRoutingAgent } from './routing'
 import { runCitizenCommunicator } from './communicator'
+import { runInsightsForIssue } from './insights'
 import { issueEmbeddingText } from '../embeddings'
 import { REVIEW_CONFIDENCE_THRESHOLD, confidenceGateUpdates, type AgentEvent } from './types'
 import {
@@ -20,7 +21,7 @@ export { confidenceGateUpdates, REVIEW_CONFIDENCE_THRESHOLD } from './types'
 export { awardPoints, currentWeekKey, type AwardResult } from '../gamification'
 
 export { computePriorityScore } from '../priority'
-export { runInsightsBatch } from './insights'
+export { runInsightsBatch, runInsightsForIssue } from './insights'
 export { computeSlaBreached, checkAndApplySlaBreach, enrichIssuesWithSla } from './sla'
 export { getSlaHours } from './routing'
 export { runCitizenCommunicator } from './communicator'
@@ -67,6 +68,7 @@ export async function runAgentPipeline(input: RunPipelineInput) {
     wardId,
     title = '',
     description = '',
+    analysis: visionAnalysis,
     imageBuffer,
     imageMime,
     createdAt = new Date().toISOString(),
@@ -78,7 +80,7 @@ export async function runAgentPipeline(input: RunPipelineInput) {
   const now = new Date().toISOString()
 
   // Agent 1: Intake
-  const intake = await runIntakeAgent(imageBuffer, description, title, description)
+  const intake = await runIntakeAgent(imageBuffer, description, title, description, visionAnalysis?.category)
   agentsRun.push('intake')
   const intakeEv: AgentEvent = {
     type: 'intake',
@@ -172,12 +174,28 @@ export async function runAgentPipeline(input: RunPipelineInput) {
   events.push(commEv)
   emitStep(onEvent, commEv)
 
-  // Agent 6: insights logged as scheduled (batch runs separately)
+  // Agent 6: real-time insights for this report
   agentsRun.push('insights')
+  let insightDetail = 'Analyzing ward patterns…'
+  let insightMeta: Record<string, unknown> | undefined
+  try {
+    const insight = await runInsightsForIssue({
+      id: issueId,
+      category: analysis.category,
+      wardId: wardId || `area-${dedup.geohash.slice(0, 5)}`,
+      geohash: dedup.geohash,
+      lat: input.lat,
+      lng: input.lng,
+    })
+    insightDetail = insight.narrative
+    insightMeta = insight
+  } catch {
+    insightDetail = 'Ward insight queued for batch refresh'
+  }
   const insightsEv: AgentEvent = {
     type: 'insights',
     actorId: 'insights-agent',
-    payload: { scheduled: true },
+    payload: { narrative: insightDetail, realtime: true },
     timestamp: now,
   }
   events.push(insightsEv)
@@ -185,7 +203,7 @@ export async function runAgentPipeline(input: RunPipelineInput) {
     id: 'insights',
     label: 'Insights Agent',
     status: 'done',
-    detail: 'Hotspot batch scheduled',
+    detail: insightDetail,
   })
 
   const needsReview = analysis.confidence < REVIEW_CONFIDENCE_THRESHOLD
@@ -210,6 +228,9 @@ export async function runAgentPipeline(input: RunPipelineInput) {
 
   if (dedup.duplicates.length > 0) {
     updates['aiMetadata.duplicate_suggestions'] = dedup.duplicates
+  }
+  if (insightMeta) {
+    updates['aiMetadata.insight'] = insightMeta
   }
 
   await db.collection('issues').doc(issueId).update(updates)

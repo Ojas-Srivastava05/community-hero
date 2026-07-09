@@ -8,10 +8,12 @@ import { GlassCard, SectionHeader } from '@/components/civic/GlassCard'
 import { CivicMap } from '@/components/civic/CivicMap'
 import { DashboardSkeleton } from '@/components/PageSkeleton'
 import { useLocation } from '../lib/location'
+import { useI18n } from '../lib/i18n'
 import { useDashboardStore } from '../stores/useDashboardStore'
 import { fadeUp, fadeUpChart, stagger } from '../lib/motion'
 
 export function DashboardPage() {
+  const { t } = useI18n()
   const { location } = useLocation()
   const { summary, hotspots, trends, loading, loadAll } = useDashboardStore()
 
@@ -35,7 +37,7 @@ export function DashboardPage() {
   if (loading && !summary) {
     return (
       <AppShell>
-        <PageHeader title="Civic dashboard" subtitle="Loading…" />
+        <PageHeader title={t('dashboard.title')} subtitle={t('common.loading')} />
         <DashboardSkeleton />
       </AppShell>
     )
@@ -80,7 +82,7 @@ export function DashboardPage() {
   return (
     <AppShell>
       <PageHeader
-        title="Civic dashboard"
+        title={t('dashboard.title')}
         subtitle={location ? `${location.label} · live` : 'Live data'}
         right={
           <div className="flex items-center gap-3">

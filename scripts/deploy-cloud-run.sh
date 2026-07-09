@@ -57,7 +57,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --port=8080 \
   --memory=512Mi \
   --min-instances=1 \
-  --update-env-vars="FIREBASE_PROJECT_ID=${PROJECT_ID},NODE_ENV=production,ADMIN_EMAILS=srivastavaojas454@gmail.com,FIREBASE_STORAGE_BUCKET=community-hero-vibe2ship-uploads,INCLUDE_DEMO_ANALYTICS=1,GOOGLE_MAPS_API_KEY=${VITE_GOOGLE_MAPS_API_KEY:-}${GEMINI_API_KEY:+,GEMINI_API_KEY=${GEMINI_API_KEY}}${ADMIN_SECRET:+,ADMIN_SECRET=${ADMIN_SECRET}}" \
+  --update-env-vars="FIREBASE_PROJECT_ID=${PROJECT_ID},NODE_ENV=production,GCP_REGION=${REGION},GEMINI_USE_VERTEX=1,ADMIN_EMAILS=srivastavaojas454@gmail.com,FIREBASE_STORAGE_BUCKET=community-hero-vibe2ship-uploads,INCLUDE_DEMO_ANALYTICS=1,GOOGLE_MAPS_API_KEY=${VITE_GOOGLE_MAPS_API_KEY:-}${GEMINI_API_KEY:+,GEMINI_API_KEY=${GEMINI_API_KEY}}${ADMIN_SECRET:+,ADMIN_SECRET=${ADMIN_SECRET}}" \
 
 URL=$(gcloud run services describe "${SERVICE_NAME}" --project="${PROJECT_ID}" --region="${REGION}" --format='value(status.url)')
 echo ""

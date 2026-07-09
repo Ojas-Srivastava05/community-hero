@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Award, Bell, ChevronRight, FileText, Lock, Settings, Shield, Sparkles, Trophy } from 'lucide-react'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { GlassCard, Chip } from '@/components/civic/GlassCard'
 import { useAuth } from '../lib/auth'
+import { useAdminMode } from '../lib/admin-mode'
+import { useI18n } from '../lib/i18n'
 import { useLocation } from '../lib/location'
 import { apiGetProfile, apiListNotifications, apiUpdateProfile } from '../lib/api'
 import { resolveIsAdmin } from '../lib/admin'
@@ -23,6 +25,8 @@ const ALL_BADGES = [
 
 export function ProfilePage() {
   const { user, signInWithGoogle, logout, signingIn } = useAuth()
+  const { isAdmin, checking } = useAdminMode()
+  const { t } = useI18n()
   const { location } = useLocation()
   const [admin, setAdmin] = useState(false)
   const [points, setPoints] = useState(0)
@@ -74,9 +78,21 @@ export function ProfilePage() {
   const initials = user?.displayName?.split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase() || 'CH'
   const areaLabel = location?.label || 'Near you'
 
+  if (user && checking) {
+    return (
+      <AppShell>
+        <PageHeader title={t('profile.title')} />
+        <div className="px-5 py-16 text-center text-sm text-ink-muted">Loading…</div>
+      </AppShell>
+    )
+  }
+  if (user && isAdmin) {
+    return <Navigate to="/admin" replace />
+  }
+
   return (
     <AppShell>
-      <PageHeader title="Profile" />
+      <PageHeader title={t('profile.title')} />
       <motion.section variants={stagger} initial="hidden" animate="show" className="px-5 pt-4">
         <motion.div variants={fadeUp}>
           <GlassCard className="text-center">

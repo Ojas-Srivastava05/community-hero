@@ -8,7 +8,7 @@ const BASE_INR: Record<string, number> = {
   water_leak: 32_000,
   drainage: 28_000,
   streetlight: 8_000,
-  waste: 6_000,
+  waste: 14_000,
   signage: 5_000,
   encroachment: 15_000,
   other: 10_000,
@@ -19,6 +19,8 @@ export type CostOfInaction = {
   weeklyInr: number
   label: string
   drivers: string[]
+  /** Transparent formula for demos / Q&A */
+  formula: string
 }
 
 export function estimateCostOfInaction(issue: Issue): CostOfInaction {
@@ -28,6 +30,7 @@ export function estimateCostOfInaction(issue: Issue): CostOfInaction {
   const breachMul = issue.slaBreached ? 1.45 : 1
   const dailyInr = Math.round(base * severityMul * boostMul * breachMul)
   const weeklyInr = dailyInr * 7
+  const formula = `₹${base.toLocaleString('en-IN')} (${issue.category} base) × ${severityMul.toFixed(2)} (severity ${issue.severity}/5) × ${boostMul.toFixed(2)} (community boosts) × ${breachMul.toFixed(2)} (SLA)`
   const drivers = [
     `${categoryLabel(issue.category)} baseline repair risk`,
     `Severity ${issue.severity}/5 multiplier`,
@@ -42,6 +45,7 @@ export function estimateCostOfInaction(issue: Issue): CostOfInaction {
     weeklyInr,
     label: `Est. ₹${dailyInr.toLocaleString('en-IN')}/day if unresolved`,
     drivers,
+    formula,
   }
 }
 

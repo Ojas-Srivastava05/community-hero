@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useAuth } from '../lib/auth'
-import { LanguagePicker, useI18n } from '../lib/i18n'
+import { useI18n } from '../lib/i18n'
 import { AppShell } from '@/components/layout/AppShell'
-import { Link, Navigate } from 'react-router-dom'
+import { NoLoginCallout } from '@/components/civic/NoLoginFeature'
+import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { PostLoginRedirect } from '../lib/post-login-redirect'
 
 function authErrorMessage(err: unknown): string {
   if (err instanceof Error && err.message) return err.message
@@ -14,7 +16,7 @@ export function LoginPage() {
   const { user, signInWithGoogle, signInWithDemo, signInAsGuest, signingIn, configured } = useAuth()
   const { t } = useI18n()
   const [error, setError] = useState<string | null>(null)
-  if (user) return <Navigate to="/" replace />
+  if (user) return <PostLoginRedirect />
 
   const run = async (action: () => Promise<void>) => {
     setError(null)
@@ -30,13 +32,13 @@ export function LoginPage() {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="px-5 py-20 text-center"
+        className="px-5 pb-12 pt-16 text-center"
       >
-        <div className="mb-6 flex justify-center">
-          <LanguagePicker />
+        <h1 className="display text-2xl font-bold text-ink">{t('feature.noLogin.title')}</h1>
+        <p className="mt-2 text-sm text-ink-muted">{t('feature.noLogin.hint')}</p>
+        <div className="mt-5">
+          <NoLoginCallout />
         </div>
-        <h1 className="display text-2xl font-bold text-ink">Sign in</h1>
-        <p className="mt-2 text-sm text-ink-muted">Report issues, earn civic points, and chat with Civic AI — or try the demo instantly.</p>
         {!configured && (
           <p className="mt-4 rounded-xl border border-coral/30 bg-coral-soft px-3 py-2 text-left text-xs text-coral" role="alert">
             Firebase is not configured in this build. Demo sign-in will not work until the app is redeployed with VITE_FIREBASE_* keys.
@@ -47,36 +49,37 @@ export function LoginPage() {
             {error}
           </p>
         )}
-        <div className="mt-8 space-y-3">
+        <div className="mt-6 space-y-3">
           <button
             type="button"
             disabled={signingIn}
             onClick={() => run(() => signInWithDemo('citizen'))}
             className="w-full rounded-2xl bg-coral py-4 text-sm font-bold text-paper ink-glow"
           >
-            {signingIn ? 'Signing in…' : t('login.demoCitizen')}
+            {signingIn ? 'Starting…' : t('login.demoCitizen')}
+          </button>
+          <p className="text-center text-[11px] text-ink-muted">{t('report.demoCitizenHint')}</p>
+          <button
+            type="button"
+            disabled={signingIn}
+            onClick={() => run(() => signInAsGuest())}
+            className="w-full rounded-2xl border border-leaf/35 bg-leaf-soft py-4 text-sm font-bold text-leaf"
+          >
+            {signingIn ? 'Starting…' : t('feature.noLogin.guest')}
           </button>
           <button
             type="button"
             disabled={signingIn}
             onClick={() => run(() => signInWithDemo('admin'))}
-            className="w-full rounded-2xl border border-coral/40 bg-coral-soft py-4 text-sm font-bold text-coral"
+            className="w-full rounded-2xl border border-coral/40 bg-coral-soft py-3 text-sm font-bold text-coral"
           >
             {t('login.demoAdmin')}
           </button>
           <button
             type="button"
             disabled={signingIn}
-            onClick={() => run(() => signInAsGuest())}
-            className="w-full rounded-2xl border border-rule py-4 text-sm font-bold text-ink"
-          >
-            {signingIn ? 'Signing in…' : t('login.guest')}
-          </button>
-          <button
-            type="button"
-            disabled={signingIn}
             onClick={() => run(() => signInWithGoogle())}
-            className="w-full rounded-2xl border border-rule py-4 text-sm font-bold text-ink"
+            className="w-full rounded-2xl border border-rule py-3 text-xs font-semibold text-ink-muted"
           >
             {signingIn ? 'Opening Google…' : t('login.google')}
           </button>

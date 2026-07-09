@@ -1,14 +1,16 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Camera, Check, ChevronLeft, Film, Loader2, LogIn, MapPin, Mic, RefreshCw, Sparkles, Video, Zap } from 'lucide-react'
+import { Camera, Check, ChevronLeft, Film, Loader2, MapPin, Mic, RefreshCw, ShieldCheck, Sparkles, Video, Zap } from 'lucide-react'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { GlassCard, Chip } from '@/components/civic/GlassCard'
+import { NoLoginBadge, NoLoginCallout } from '@/components/civic/NoLoginFeature'
 import { CivicMap } from '@/components/civic/CivicMap'
 import { InvalidMediaCard, type InvalidMediaReason } from '@/components/civic/InvalidMediaCard'
 import { PlacesAutocomplete } from '@/components/civic/PlacesAutocomplete'
 import { useAuth } from '../lib/auth'
-import { LanguagePicker, useI18n } from '../lib/i18n'
+import { useAdminMode } from '../lib/admin-mode'
+import { useI18n } from '../lib/i18n'
 import { useLocation } from '../lib/location'
 import { apiAnalyzeImage, apiCreateReport, apiListIssues, apiMergeIssue, apiReverseGeocode, apiTranscribeAudio } from '../lib/api'
 import { validateAndPreprocessImage } from '../lib/image-media'
@@ -29,6 +31,7 @@ const SEVERITY_LEVELS = [1, 2, 3, 4, 5] as const
 
 export function ReportWizardPage() {
   const { user, signInWithGoogle, signInWithDemo, signInAsGuest, signingIn } = useAuth()
+  const { isAdmin, checking } = useAdminMode()
   const { t, locale, confidenceThreshold } = useI18n()
   const { location, loading: locLoading, error: locError, refresh } = useLocation()
   const navigate = useNavigate()
@@ -45,6 +48,7 @@ export function ReportWizardPage() {
   const [analyzing, setAnalyzing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [analysis, setAnalysis] = useState<IssueAnalysis | null>(null)
+  const [visionSource, setVisionSource] = useState<string | null>(null)
   const [duplicates, setDuplicates] = useState<{ id: string; title: string }[]>([])
   const [serverDupes, setServerDupes] = useState<{ createdId: string; dupes: { id: string; title: string }[] } | null>(null)
   const [mergeIntoId, setMergeIntoId] = useState<string | undefined>()
@@ -127,20 +131,25 @@ export function ReportWizardPage() {
           safety_risk: data.safety_risk !== undefined ? Boolean(data.safety_risk) : undefined,
           department: data.department !== undefined ? String(data.department) : undefined,
         },
-        [imageFile],
+        [imageFile].filter(Boolean) as File[],
         token,
       )
     })
   }, [user])
 
-  const runAnalysis = async (imageFile: File) => {
+  const runAnalysis = async (imageFile: File, hintText?: string) => {
     if (!user) return
     setAnalyzing(true)
     setPipelineRunning(true)
     try {
       const token = await user.getIdToken()
-      const { analysis: a, agentSteps } = await apiAnalyzeImage(imageFile, token)
+      const hint =
+        hintText?.trim() ||
+        [form.title, form.description].filter((s) => s?.trim()).join(' ').trim() ||
+        undefined
+      const { analysis: a, agentSteps, visionSource: src } = await apiAnalyzeImage(imageFile, token, hint)
       setAnalysis(a)
+      setVisionSource(src ?? 'gemini')
       setPipelineSteps(agentSteps || [])
       setForm((prev) => ({ ...prev, title: a.title, description: a.description, category: a.category, severity: a.severity }))
     } catch (e) {
@@ -231,8 +240,9 @@ export function ReportWizardPage() {
       return
     }
     if (!navigator.onLine) {
-      if (!file) {
-        setError('Offline — add a photo to queue this report')
+      const hasContent = Boolean(file) || form.description.trim().length >= 8
+      if (!hasContent) {
+        setError('Offline — add a photo or description/voice to queue this report')
         return
       }
       try {
@@ -422,6 +432,18 @@ export function ReportWizardPage() {
 
   const hasLocation: boolean = form.lat !== 0 && form.lng !== 0
 
+  if (user && checking) {
+    return (
+      <AppShell hideNav>
+        <div className="flex min-h-[50vh] items-center justify-center text-sm text-ink-muted">Loading…</div>
+      </AppShell>
+    )
+  }
+  if (user && isAdmin) {
+    navigate('/admin', { replace: true })
+    return null
+  }
+
   return (
     <AppShell hideNav>
       <PageHeader
@@ -429,15 +451,15 @@ export function ReportWizardPage() {
         subtitle={`Step ${step + 1} of 3 — ${steps[step]}`}
         right={
           <div className="flex items-center gap-2">
-            <LanguagePicker />
+            {!user && <NoLoginBadge />}
             <button
-              type="button"
-              aria-label={step === 0 ? 'Back to home' : 'Previous step'}
-              onClick={() => (step === 0 ? navigate('/') : setStep(step - 1))}
-              className="grid size-9 place-items-center rounded-xl border border-rule"
-            >
-              <ChevronLeft className="size-4 text-ink" />
-            </button>
+            type="button"
+            aria-label={step === 0 ? 'Back to home' : 'Previous step'}
+            onClick={() => (step === 0 ? navigate('/') : setStep(step - 1))}
+            className="grid size-9 place-items-center rounded-xl border border-rule"
+          >
+            <ChevronLeft className="size-4 text-ink" />
+          </button>
           </div>
         }
       />
@@ -485,15 +507,19 @@ export function ReportWizardPage() {
                 <InvalidMediaCard reason={invalidMedia} onRetake={retakePhoto} />
               )}
               {!user ? (
-                <div className="space-y-2">
-                  <button type="button" disabled={signingIn} onClick={() => signInWithDemo('citizen')} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-coral py-4 text-sm font-bold text-paper ink-glow">
-                    <LogIn className="size-4" /> {signingIn ? 'Signing in…' : t('report.demoCitizen')}
+                <div className="space-y-3">
+                  <NoLoginCallout />
+                  <button type="button" disabled={signingIn} onClick={() => signInWithDemo('citizen')} className="flex w-full flex-col items-center justify-center gap-1 rounded-2xl bg-coral py-4 text-sm font-bold text-paper ink-glow">
+                    <span className="flex items-center gap-2">
+                      <ShieldCheck className="size-4" /> {signingIn ? 'Starting…' : t('report.demoCitizen')}
+                    </span>
+                    <span className="text-[11px] font-medium text-paper/85">{t('report.demoCitizenHint')}</span>
                   </button>
-                  <button type="button" disabled={signingIn} onClick={() => signInAsGuest()} className="w-full rounded-2xl border border-coral/40 bg-coral-soft py-3 text-sm font-semibold text-coral">
-                    {signingIn ? 'Signing in…' : t('login.guest')}
+                  <button type="button" disabled={signingIn} onClick={() => signInAsGuest()} className="w-full rounded-2xl border border-leaf/35 bg-leaf-soft py-3 text-sm font-semibold text-leaf">
+                    {signingIn ? 'Starting…' : t('feature.noLogin.guest')}
                   </button>
-                  <button type="button" disabled={signingIn} onClick={() => signInWithGoogle()} className="w-full rounded-2xl border border-rule py-3 text-sm font-semibold text-ink">
-                    {signingIn ? 'Opening Google…' : t('report.signIn')}
+                  <button type="button" disabled={signingIn} onClick={() => signInWithGoogle()} className="w-full rounded-2xl border border-rule py-3 text-xs font-semibold text-ink-muted">
+                    {signingIn ? 'Opening Google…' : t('feature.noLogin.optionalGoogle')}
                   </button>
                 </div>
               ) : (
@@ -557,6 +583,19 @@ export function ReportWizardPage() {
                   <p className="mt-2 text-sm text-ink">{form.description}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <Chip tone="coral">{Math.round(analysis.confidence * 100)}% confidence</Chip>
+                    {visionSource && visionSource !== 'gemini' && visionSource !== 'cache' && (
+                      <Chip tone="indigo">
+                        {visionSource === 'degraded_unknown'
+                          ? 'Vision busy — add description'
+                          : 'Text-assisted (vision busy)'}
+                      </Chip>
+                    )}
+                    {(visionSource === 'gemini' || visionSource === 'cache') && (
+                      <Chip tone="indigo">Gemini Vision</Chip>
+                    )}
+                    {visionSource === 'vertex' && (
+                      <Chip tone="indigo">Vertex AI Vision</Chip>
+                    )}
                     {(analysis.department || form.category) && (
                       <Chip tone="indigo">
                         {analysis.department || form.category.replace(/_/g, ' ')}
@@ -582,6 +621,16 @@ export function ReportWizardPage() {
               <div>
                 <label className="text-xs font-semibold text-ink-muted">Description</label>
                 <textarea rows={4} className="mt-2 w-full rounded-2xl border border-rule bg-paper p-3 text-sm text-ink outline-none focus:ring-2 focus:ring-coral/30" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                {file && visionSource && visionSource.startsWith('degraded') && (
+                  <button
+                    type="button"
+                    className="mt-2 text-xs font-bold text-coral"
+                    disabled={analyzing}
+                    onClick={() => void runAnalysis(file, `${form.title} ${form.description}`.trim())}
+                  >
+                    Re-analyze with description (e.g. &quot;garbage dump&quot;)
+                  </button>
+                )}
               </div>
               <div>
                 <label className="text-xs font-semibold text-ink-muted">Category</label>
@@ -620,7 +669,7 @@ export function ReportWizardPage() {
             </div>
           )}
           {step === 2 && (
-            <div className="space-y-4">
+            <div className="space-y-4 pb-8">
               <GlassCard>
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold text-ink-muted">Location</p>
@@ -713,6 +762,11 @@ export function ReportWizardPage() {
                       </div>
                     </GlassCard>
                   )}
+                  {error && (
+                    <p className="rounded-xl border border-sev-critical/30 bg-sev-critical/10 px-4 py-3 text-sm text-sev-critical" role="alert">
+                      {error}
+                    </p>
+                  )}
                   <button type="button" disabled={submitting || !hasLocation} onClick={submit} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-coral py-4 text-sm font-bold text-paper ink-glow disabled:opacity-50">
                     {submitting ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
                     {mergeIntoId ? 'Merge into existing report' : t('report.submit')}
@@ -721,7 +775,11 @@ export function ReportWizardPage() {
               )}
             </div>
           )}
-          {error && <p className="mt-4 rounded-xl border border-sev-critical/30 bg-sev-critical/10 px-4 py-3 text-sm text-sev-critical">{error}</p>}
+          {error && step !== 2 && (
+            <p className="mt-4 rounded-xl border border-sev-critical/30 bg-sev-critical/10 px-4 py-3 text-sm text-sev-critical" role="alert">
+              {error}
+            </p>
+          )}
         </motion.div>
       </AnimatePresence>
     </AppShell>

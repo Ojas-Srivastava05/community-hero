@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowUpRight, Bell, Flame, Loader2, LogIn, MapPin, Sparkles, TrendingUp, Zap } from 'lucide-react'
+import { ArrowUpRight, Bell, Flame, Loader2, MapPin, ShieldCheck, Sparkles, TrendingUp, Zap } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
+import { PageSkeleton } from '@/components/PageSkeleton'
 import { SectionHeader } from '@/components/civic/GlassCard'
 import { LiveIndicator } from '@/components/civic/LiveIndicator'
 import { SeverityBadge } from '@/components/civic/SeverityBadge'
 import { VerificationBadges } from '@/components/civic/VerificationBadges'
 import { apiAnalyticsSummary, apiHotspots } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import { useAdminMode } from '../lib/admin-mode'
+import { useI18n } from '../lib/i18n'
 import { useLocation } from '../lib/location'
 import { useLiveIssues } from '../lib/use-live-issues'
 import { sortByDistance } from '../lib/geo'
@@ -42,7 +45,9 @@ function useTicker(value: number, enabled: boolean) {
 }
 
 export function LandingPage() {
-  const { user, signInWithDemo, signingIn } = useAuth()
+  const { user } = useAuth()
+  const { isAdmin, checking } = useAdminMode()
+  const { t } = useI18n()
   const { location, loading: locLoading, error: locError } = useLocation()
   const { issues: liveIssues, loading: issuesLoading, livePulse } = useLiveIssues({
     lat: location?.lat,
@@ -90,6 +95,17 @@ export function LandingPage() {
   const resolvedCount = useTicker(stats.resolved, !dataLoading)
   const totalCount = useTicker(stats.total, !dataLoading)
 
+  if (user && checking) {
+    return (
+      <AppShell>
+        <PageSkeleton rows={4} />
+      </AppShell>
+    )
+  }
+  if (user && isAdmin) {
+    return <Navigate to="/admin" replace />
+  }
+
   return (
     <AppShell>
       <section className="relative px-5 pt-6 pb-4">
@@ -109,10 +125,10 @@ export function LandingPage() {
             {!user && (
               <motion.div whileTap={{ scale: 0.92 }}>
                 <Link
-                  to="/login"
-                  className="inline-flex h-10 items-center gap-1.5 rounded-full border border-rule bg-paper px-3 text-xs font-bold text-ink"
+                  to="/report"
+                  className="inline-flex h-10 items-center gap-1.5 rounded-full border border-leaf/30 bg-leaf-soft px-3 text-xs font-bold text-leaf"
                 >
-                  <LogIn className="size-3.5" /> Sign in
+                  <ShieldCheck className="size-3.5" /> {t('feature.noLogin.badge')}
                 </Link>
               </motion.div>
             )}
@@ -140,6 +156,12 @@ export function LandingPage() {
         <p className="mt-3 max-w-[34ch] text-sm text-ink-muted">
           Snap a civic issue. AI files the report, routes it to the right department, and your neighbours boost it.
         </p>
+        {!user && (
+          <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-leaf">
+            <ShieldCheck className="size-3.5" />
+            {t('feature.noLogin.hint')}
+          </p>
+        )}
 
         <motion.div variants={stagger} initial="hidden" animate="show" className="mt-5 flex flex-wrap gap-2">
           <motion.div variants={fadeUp}>
@@ -147,7 +169,7 @@ export function LandingPage() {
               to="/report"
               className="inline-flex h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-paper ink-glow active:scale-95 transition-transform"
             >
-              <Sparkles className="size-4" /> Report something
+              <Sparkles className="size-4" /> {t('feature.noLogin.cta')}
             </Link>
           </motion.div>
           <motion.div variants={fadeUp}>
@@ -158,18 +180,6 @@ export function LandingPage() {
               <MapPin className="size-4" /> Explore map
             </Link>
           </motion.div>
-          {!user && (
-            <motion.div variants={fadeUp}>
-              <button
-                type="button"
-                disabled={signingIn}
-                onClick={() => signInWithDemo('citizen')}
-                className="inline-flex h-11 items-center gap-2 rounded-full border border-coral/40 bg-coral-soft px-4 text-sm font-bold text-coral active:scale-95 transition-transform disabled:opacity-60"
-              >
-                <LogIn className="size-4" /> {signingIn ? 'Signing in…' : 'Try demo'}
-              </button>
-            </motion.div>
-          )}
         </motion.div>
         {locError && <p className="mt-2 text-xs text-amber">Location unavailable — showing all issues</p>}
       </section>

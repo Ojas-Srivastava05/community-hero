@@ -1,7 +1,9 @@
 import { GoogleGenerativeAI, SchemaType, type FunctionDeclarationsTool } from '@google/generative-ai'
-import type { IssueAnalysis } from '../types/shared'
+import type { IssueAnalysis, Category } from '../types/shared'
+import { DEPARTMENTS } from '../types/shared'
 import { ApiError, ErrorCodes, isApiError } from './errors'
 import { getCachedAnalysis, setCachedAnalysis, sha256 } from './geminiCache'
+import { isVertexPreferred, liteModel, vertexChat, vertexGenerateContent, vertexTextModel } from './vertex-gemini'
 
 const ALLOWED_IMAGE_MIMES = /^image\/(jpeg|png|webp|gif|heic|heif)$/i
 const MIN_IMAGE_BYTES = 1024
@@ -10,8 +12,13 @@ const genAI = process.env.GEMINI_API_KEY
   ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
   : null
 
-const ANALYSIS_PROMPT = `Analyze this civic issue image for an Indian urban context. Return ONLY valid JSON:
-{"category":"pothole|water_leak|streetlight|waste|road_damage|drainage|signage|encroachment|other","severity":1-5,"title":"short title","description":"detail","department":"BBMP department name","safety_risk":boolean,"confidence":0-1,"estimated_fix_days":"e.g. 5-7 days"}`
+export const GEMINI_MODEL_VISION = process.env.GEMINI_MODEL_VISION || 'gemini-2.5-flash'
+export const GEMINI_MODEL_LITE = process.env.GEMINI_MODEL_LITE || 'gemini-2.5-flash-lite'
+
+const ANALYSIS_PROMPT = `Analyze this civic issue image for an Indian urban context. Look for: garbage dumps, illegal waste dumping, litter piles, potholes, water leaks, broken streetlights, drainage floods, road damage, encroachment.
+Return ONLY valid JSON:
+{"category":"pothole|water_leak|streetlight|waste|road_damage|drainage|signage|encroachment|other","severity":1-5,"title":"short title","description":"detail","department":"BBMP department name","safety_risk":boolean,"confidence":0-1,"estimated_fix_days":"e.g. 5-7 days"}
+For obvious illegal dumping / large garbage piles use category waste, severity 4-5, confidence 0.9+.`
 
 /** Appendix V — all 7 citizen assistant tools */
 const CIVIC_TOOLS: FunctionDeclarationsTool[] = [
@@ -113,11 +120,89 @@ function hiPrefix(): string {
   return '🇮🇳 हिंदी: '
 }
 
+export type VisionSource = 'gemini' | 'vertex' | 'cache' | 'degraded_keyword' | 'degraded_unknown'
+
+export type AnalyzeImageResult = {
+  analysis: IssueAnalysis
+  visionSource: VisionSource
+}
+
+const CATEGORY_KEYWORDS: { category: Category; words: string[] }[] = [
+  { category: 'waste', words: ['waste', 'garbage', 'trash', 'rubbish', 'litter', 'dump', 'dumping', 'landfill', 'styrofoam', 'plastic', 'filth', 'sanitation', 'bin'] },
+  { category: 'pothole', words: ['pothole', 'potholes', 'crater', 'road hole'] },
+  { category: 'road_damage', words: ['road damage', 'cracked road', 'broken road', 'asphalt'] },
+  { category: 'water_leak', words: ['water leak', 'leak', 'pipe burst', 'sewage', 'overflow'] },
+  { category: 'drainage', words: ['drain', 'drainage', 'stormwater', 'flood', 'flooding', 'clogged'] },
+  { category: 'streetlight', words: ['streetlight', 'street light', 'lamp', 'light pole', 'dark street'] },
+  { category: 'signage', words: ['signage', 'sign board', 'billboard', 'traffic sign'] },
+  { category: 'encroachment', words: ['encroach', 'illegal stall', 'hawker', 'footpath'] },
+]
+
+function classifyFromHint(hint?: string): { category: Category; matchStrength: 'strong' | 'weak' | 'none'; title: string } {
+  const h = (hint || '').toLowerCase().trim()
+  if (!h) return { category: 'other', matchStrength: 'none', title: 'Civic issue reported' }
+
+  let best: Category = 'other'
+  let bestScore = 0
+  for (const row of CATEGORY_KEYWORDS) {
+    const score = row.words.filter((w) => h.includes(w)).length
+    if (score > bestScore) {
+      bestScore = score
+      best = row.category
+    }
+  }
+  if (bestScore >= 2 || (bestScore === 1 && best !== 'other')) {
+    const title =
+      best === 'waste'
+        ? 'Illegal waste dumping / garbage accumulation'
+        : hint!.slice(0, 80)
+    return { category: best, matchStrength: 'strong', title }
+  }
+  if (bestScore === 1) {
+    return { category: best, matchStrength: 'weak', title: hint!.slice(0, 80) }
+  }
+  return { category: 'other', matchStrength: 'none', title: hint!.slice(0, 80) }
+}
+
+function smartFallbackAnalysis(hint?: string): AnalyzeImageResult {
+  const { category, matchStrength, title } = classifyFromHint(hint)
+  const dept = DEPARTMENTS[category]?.name ?? 'General Civic'
+  const severity =
+    category === 'waste' && matchStrength === 'strong'
+      ? 5
+      : matchStrength === 'strong'
+        ? 4
+        : matchStrength === 'weak'
+          ? 3
+          : 3
+  const confidence =
+    matchStrength === 'strong' ? 0.88 : matchStrength === 'weak' ? 0.8 : 0.58
+  const visionSource: VisionSource =
+    matchStrength === 'none' ? 'degraded_unknown' : 'degraded_keyword'
+
+  return {
+    visionSource,
+    analysis: {
+      category,
+      severity,
+      title,
+      description:
+        matchStrength === 'none'
+          ? 'Vision AI was busy — add a short description (e.g. “garbage dump”) for accurate routing.'
+          : `${title}. Classified from your description while vision AI was busy — please verify.`,
+      department: dept,
+      safety_risk: category === 'pothole' || (category === 'waste' && severity >= 4),
+      confidence,
+      estimated_fix_days: category === 'waste' ? '2-4 days' : '5-7 days',
+    },
+  }
+}
+
 export async function analyzeImage(
   buffer: Buffer,
   mimeType: string,
   hint?: string,
-): Promise<IssueAnalysis> {
+): Promise<AnalyzeImageResult> {
   if (buffer.length < MIN_IMAGE_BYTES) {
     throw new ApiError(ErrorCodes.INVALID_MEDIA, 'Image too small or blank')
   }
@@ -127,38 +212,62 @@ export async function analyzeImage(
 
   const hash = sha256(buffer)
   const cached = getCachedAnalysis(hash)
-  if (cached) return cached
-
-  if (!genAI) {
-    const analysis = fallbackAnalysis(hint)
-    setCachedAnalysis(hash, analysis)
-    return analysis
+  if (cached && (cached.confidence ?? 0) >= 0.65) {
+    return { analysis: cached, visionSource: 'cache' }
   }
 
-  try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
-      generationConfig: { responseMimeType: 'application/json' },
-    })
-    const result = await model.generateContent([
-      { text: ANALYSIS_PROMPT + (hint ? `\nContext: ${hint}` : '') },
-      { inlineData: { data: buffer.toString('base64'), mimeType } },
-    ])
-    const text = result.response.text()
-    const parsed = JSON.parse(text) as IssueAnalysis
-    const analysis = { ...parsed, confidence: parsed.confidence ?? 0.85 }
-    setCachedAnalysis(hash, analysis)
-    return analysis
-  } catch (e) {
-    if (isApiError(e)) throw e
-    const msg = String(e)
-    if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('depleted')) {
-      throw new ApiError(ErrorCodes.SERVICE_UNAVAILABLE, 'Vision service temporarily unavailable — try again shortly', 503)
+  const prompt = ANALYSIS_PROMPT + (hint ? `\nContext: ${hint}` : '')
+  const imagePart = { inlineData: { data: buffer.toString('base64'), mimeType } }
+
+  const tryVertex = async (): Promise<AnalyzeImageResult | null> => {
+    try {
+      const text = await vertexGenerateContent([{ text: prompt }, imagePart], { json: true })
+      const parsed = JSON.parse(text) as IssueAnalysis
+      const analysis = { ...parsed, confidence: parsed.confidence ?? 0.88 }
+      setCachedAnalysis(hash, analysis)
+      return { analysis, visionSource: 'vertex' }
+    } catch (e) {
+      console.warn('Vertex vision failed:', e)
+      return null
     }
-    const analysis = fallbackAnalysis(hint)
-    setCachedAnalysis(hash, analysis)
-    return analysis
   }
+
+  const tryApiKey = async (): Promise<AnalyzeImageResult | null> => {
+    if (!genAI) return null
+    try {
+      const model = genAI.getGenerativeModel({
+        model: GEMINI_MODEL_VISION,
+        generationConfig: { responseMimeType: 'application/json' },
+      })
+      const result = await model.generateContent([{ text: prompt }, imagePart])
+      const text = result.response.text()
+      const parsed = JSON.parse(text) as IssueAnalysis
+      const analysis = { ...parsed, confidence: parsed.confidence ?? 0.85 }
+      setCachedAnalysis(hash, analysis)
+      return { analysis, visionSource: 'gemini' }
+    } catch (e) {
+      if (isApiError(e)) throw e
+      console.warn('AI Studio vision failed:', e)
+      return null
+    }
+  }
+
+  // Production: Vertex first (GCP billing). AI Studio prepay credits may be empty.
+  if (isVertexPreferred()) {
+    const vertex = await tryVertex()
+    if (vertex) return vertex
+    const api = await tryApiKey()
+    if (api) return api
+  } else {
+    const api = await tryApiKey()
+    if (api) return api
+    const vertex = await tryVertex()
+    if (vertex) return vertex
+  }
+
+  const fb = smartFallbackAnalysis(hint)
+  // Do not cache degraded fallbacks — they block real Vertex/Gemini on retry
+  return fb
 }
 
 async function keywordFallback(
@@ -249,8 +358,68 @@ async function keywordFallback(
   }
 
   return prefix + (hindi
-    ? 'AI सहायक के लिए GEMINI_API_KEY आवश्यक है। नक्शा या मेरी रिपोर्ट देखें।'
-    : 'AI assistant requires GEMINI_API_KEY on the server. Try asking about issues near me, my reports, or hotspots — those work without full AI.')
+    ? 'मैं नक्शा, आपकी रिपोर्ट, या हॉटस्पॉट के बारे में मदद कर सकता/सकती हूँ। जैसे: "मेरे पास क्या मुद्दे हैं?"'
+    : 'I can help with issues near you, your reports, hotspots, or how to file a report. Try: "issues near me" or "my reports".')
+}
+
+/** Prefetch live civic data for Vertex chat (no function-calling on Vertex lite). */
+async function prefetchToolContext(
+  last: string,
+  toolHandler: (name: string, args: Record<string, unknown>) => Promise<unknown>,
+): Promise<string> {
+  const lower = last.toLowerCase()
+  const blocks: string[] = []
+
+  const add = async (label: string, fn: () => Promise<unknown>) => {
+    try {
+      const data = await fn()
+      blocks.push(`${label}:\n${JSON.stringify(data).slice(0, 2500)}`)
+    } catch {
+      blocks.push(`${label}: (unavailable)`)
+    }
+  }
+
+  await Promise.all([
+    add('findNearbyIssues', () => toolHandler('findNearbyIssues', { radius_km: 8 })),
+    add('getMyReports', () => toolHandler('getMyReports', {})),
+    add('getHotspots', () => toolHandler('getHotspots', {})),
+  ])
+
+  if (lower.includes('search') || lower.includes('find') || lower.includes('pothole') || lower.includes('garbage') || lower.includes('waste')) {
+    const q = last.replace(/search|find/gi, '').trim() || 'civic'
+    await add('searchIssues', () => toolHandler('searchIssues', { query: q }))
+  }
+  const issueIdMatch = last.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
+  if (issueIdMatch) {
+    await add('getIssueById', () => toolHandler('getIssueById', { issue_id: issueIdMatch[0] }))
+  }
+  if (lower.includes('department') || lower.includes('sla')) {
+    await add('getDepartmentInfo', () => toolHandler('getDepartmentInfo', { department_id: 'waste' }))
+  }
+  if (lower.includes('status') || lower.includes('explain')) {
+    const statusMatch = last.match(/Submitted|Community Verified|Assigned|In Progress|Resolved|Closed/i)
+    await add('explainStatus', () => toolHandler('explainStatus', { status: statusMatch?.[0] || 'Submitted' }))
+  }
+
+  return blocks.join('\n\n')
+}
+
+async function vertexChatGrounded(
+  messages: { role: string; content: string }[],
+  systemInstruction: string,
+  toolHandler: (name: string, args: Record<string, unknown>) => Promise<unknown>,
+): Promise<string> {
+  const last = messages[messages.length - 1]?.content || ''
+  const toolContext = await prefetchToolContext(last, toolHandler)
+  const history = messages
+    .map((m) => `${m.role === 'assistant' ? 'Assistant' : 'User'}: ${m.content}`)
+    .join('\n')
+  const prompt = `LIVE TOOL DATA (only source of truth — never invent beyond this):\n${toolContext}\n\nConversation:\n${history}\n\nReply to the latest user message. Be concise, friendly, and cite real data from LIVE TOOL DATA only.`
+
+  return vertexGenerateContent([{ text: prompt }], {
+    model: vertexTextModel(),
+    systemInstruction,
+  })
 }
 
 export async function chatWithTools(
@@ -259,14 +428,29 @@ export async function chatWithTools(
 ): Promise<string> {
   const lastMessage = messages[messages.length - 1]?.content || ''
   const hindi = isHindiMessage(lastMessage)
+  const systemInstruction = SYSTEM_PROMPT + (hindi ? '\nRespond in Hindi when the user writes in Hindi.' : '')
+
+  if (isVertexPreferred()) {
+    try {
+      return await vertexChatGrounded(messages, systemInstruction, toolHandler)
+    } catch (e) {
+      console.warn('Vertex grounded chat failed:', e)
+      try {
+        const text = await vertexChat(messages, systemInstruction)
+        return hindi && !text.startsWith(hiPrefix()) ? hiPrefix() + text : text
+      } catch (e2) {
+        console.warn('Vertex chat failed:', e2)
+      }
+    }
+  }
 
   if (!genAI) return keywordFallback(messages, toolHandler)
 
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash-lite',
+      model: GEMINI_MODEL_LITE,
       tools: CIVIC_TOOLS,
-      systemInstruction: SYSTEM_PROMPT + (hindi ? '\nRespond in Hindi when the user writes in Hindi.' : ''),
+      systemInstruction,
     })
 
     const history = messages.slice(0, -1).map((m) => ({
@@ -321,29 +505,49 @@ export async function chatWithTools(
 }
 
 export async function generateInsight(summary: Record<string, unknown>): Promise<string> {
-  if (!genAI) {
-    return `Based on ${summary.open ?? 0} open and ${summary.resolved ?? 0} resolved issues nearby, waste and road categories often need the most attention. Preventive sweeps in high-density clusters are recommended.`
+  const prompt = `Write 2 sentences of civic insight for a dashboard card. Data: ${JSON.stringify(summary)}. No hallucination beyond data.`
+  const fallback = `Based on ${summary.open ?? 0} open and ${summary.resolved ?? 0} resolved issues nearby, waste and road categories often need the most attention. Preventive sweeps in high-density clusters are recommended.`
+
+  if (isVertexPreferred()) {
+    try {
+      return await vertexGenerateContent([{ text: prompt }], { model: vertexTextModel() })
+    } catch (e) {
+      console.warn('Vertex insight failed:', e)
+    }
   }
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
-  const result = await model.generateContent(
-    `Write 2 sentences of civic insight for a dashboard card. Data: ${JSON.stringify(summary)}. No hallucination beyond data.`,
-  )
-  return result.response.text()
+  if (!genAI) return fallback
+  try {
+    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL_LITE })
+    const result = await model.generateContent(prompt)
+    return result.response.text()
+  } catch {
+    return fallback
+  }
 }
 
 export async function generateTrendNarrative(trends: Record<string, unknown>): Promise<string> {
-  if (!genAI) {
-    const byCategory = trends.byCategory as Record<string, number> | undefined
-    const top = byCategory ? Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0] : undefined
-    return top
-      ? `${top[0].replace(/_/g, ' ')} leads with ${top[1]} reports in the current window.`
-      : 'Trend data is building as citizens report issues.'
+  const byCategory = trends.byCategory as Record<string, number> | undefined
+  const top = byCategory ? Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0] : undefined
+  const fallback = top
+    ? `${top[0].replace(/_/g, ' ')} leads with ${top[1]} reports in the current window.`
+    : 'Trend data is building as citizens report issues.'
+  const prompt = `Write 2-3 sentences summarizing civic issue trends for a dashboard. Data only — no invention: ${JSON.stringify(trends)}`
+
+  if (isVertexPreferred()) {
+    try {
+      return await vertexGenerateContent([{ text: prompt }], { model: vertexTextModel() })
+    } catch (e) {
+      console.warn('Vertex trend narrative failed:', e)
+    }
   }
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
-  const result = await model.generateContent(
-    `Write 2-3 sentences summarizing civic issue trends for a dashboard. Data only — no invention: ${JSON.stringify(trends)}`,
-  )
-  return result.response.text()
+  if (!genAI) return fallback
+  try {
+    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL_LITE })
+    const result = await model.generateContent(prompt)
+    return result.response.text()
+  } catch {
+    return fallback
+  }
 }
 
 export async function compareBeforeAfter(
@@ -352,6 +556,29 @@ export async function compareBeforeAfter(
   beforeMime: string,
   afterMime: string,
 ): Promise<{ improved: boolean; summary: string; confidence: number }> {
+  const prompt = `Compare BEFORE and AFTER civic repair photos. Return JSON only:
+{"improved":boolean,"summary":"one sentence for citizens","confidence":0.0-1.0}
+improved=true only if the AFTER photo shows the reported issue is clearly fixed.`
+  const parts = [
+    { text: prompt },
+    { inlineData: { data: beforeBuffer.toString('base64'), mimeType: beforeMime } },
+    { inlineData: { data: afterBuffer.toString('base64'), mimeType: afterMime } },
+  ]
+  const parseResult = (raw: { improved?: boolean; summary?: string; confidence?: number }, textFallback?: string) => ({
+    improved: Boolean(raw.improved),
+    summary: raw.summary || textFallback || 'Repair documented.',
+    confidence: typeof raw.confidence === 'number' ? Math.min(1, Math.max(0, raw.confidence)) : 0.7,
+  })
+
+  if (isVertexPreferred()) {
+    try {
+      const text = await vertexGenerateContent(parts, { json: true })
+      return parseResult(JSON.parse(text) as { improved?: boolean; summary?: string; confidence?: number })
+    } catch (e) {
+      console.warn('Vertex compare failed:', e)
+    }
+  }
+
   if (!genAI) {
     return {
       improved: true,
@@ -361,29 +588,12 @@ export async function compareBeforeAfter(
   }
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_MODEL_VISION,
       generationConfig: { responseMimeType: 'application/json' },
     })
-    const result = await model.generateContent([
-      {
-        text: `Compare BEFORE and AFTER civic repair photos. Return JSON only:
-{"improved":boolean,"summary":"one sentence for citizens","confidence":0.0-1.0}
-improved=true only if the AFTER photo shows the reported issue is clearly fixed.`,
-      },
-      { inlineData: { data: beforeBuffer.toString('base64'), mimeType: beforeMime } },
-      { inlineData: { data: afterBuffer.toString('base64'), mimeType: afterMime } },
-    ])
+    const result = await model.generateContent(parts)
     try {
-      const raw = JSON.parse(result.response.text()) as {
-        improved?: boolean
-        summary?: string
-        confidence?: number
-      }
-      return {
-        improved: Boolean(raw.improved),
-        summary: raw.summary || 'Repair documented.',
-        confidence: typeof raw.confidence === 'number' ? Math.min(1, Math.max(0, raw.confidence)) : 0.7,
-      }
+      return parseResult(JSON.parse(result.response.text()) as { improved?: boolean; summary?: string; confidence?: number })
     } catch {
       return { improved: true, summary: result.response.text() || 'Repair documented.', confidence: 0.6 }
     }
@@ -397,23 +607,7 @@ improved=true only if the AFTER photo shows the reported issue is clearly fixed.
 }
 
 function fallbackAnalysis(hint?: string): IssueAnalysis {
-  const h = (hint || '').toLowerCase()
-  let category: IssueAnalysis['category'] = 'other'
-  if (h.includes('pothole') || h.includes('road')) category = 'pothole'
-  else if (h.includes('water') || h.includes('leak')) category = 'water_leak'
-  else if (h.includes('light')) category = 'streetlight'
-  else if (h.includes('waste') || h.includes('garbage')) category = 'waste'
-
-  return {
-    category,
-    severity: 4,
-    title: hint || 'Civic issue reported',
-    description: 'AI analysis pending — please verify details.',
-    department: 'Roads & Infrastructure',
-    safety_risk: category === 'pothole',
-    confidence: 0.75,
-    estimated_fix_days: '5-7 days',
-  }
+  return smartFallbackAnalysis(hint).analysis
 }
 
 /** Transcribe a civic voice note into title + description for the report wizard. */
@@ -421,6 +615,29 @@ export async function transcribeAudio(
   buffer: Buffer,
   mimeType: string,
 ): Promise<{ transcript: string; title: string; description: string }> {
+  const mime = mimeType.split(';')[0] || 'audio/webm'
+  const prompt = `Transcribe this Indian civic issue voice note. Return JSON only:
+{"transcript":"full transcript","title":"short civic title ≤8 words","description":"1-2 sentence issue description for municipal staff"}
+If audio is unclear, still return best-effort transcript.`
+  const parts = [
+    { text: prompt },
+    { inlineData: { data: buffer.toString('base64'), mimeType: mime } },
+  ]
+  const parseTranscript = (raw: { transcript?: string; title?: string; description?: string }, textFallback?: string) => ({
+    transcript: raw.transcript || textFallback || '',
+    title: raw.title || 'Voice civic report',
+    description: raw.description || raw.transcript || textFallback || '',
+  })
+
+  if (isVertexPreferred()) {
+    try {
+      const text = await vertexGenerateContent(parts, { json: true })
+      return parseTranscript(JSON.parse(text) as { transcript?: string; title?: string; description?: string })
+    } catch (e) {
+      console.warn('Vertex transcribe failed:', e)
+    }
+  }
+
   if (!genAI) {
     return {
       transcript: '',
@@ -428,32 +645,23 @@ export async function transcribeAudio(
       description: 'Audio transcription requires GEMINI_API_KEY.',
     }
   }
-  const mime = mimeType.split(';')[0] || 'audio/webm'
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    generationConfig: { responseMimeType: 'application/json' },
-  })
-  const result = await model.generateContent([
-    {
-      text: `Transcribe this Indian civic issue voice note. Return JSON only:
-{"transcript":"full transcript","title":"short civic title ≤8 words","description":"1-2 sentence issue description for municipal staff"}
-If audio is unclear, still return best-effort transcript.`,
-    },
-    { inlineData: { data: buffer.toString('base64'), mimeType: mime } },
-  ])
   try {
-    const raw = JSON.parse(result.response.text()) as {
-      transcript?: string
-      title?: string
-      description?: string
-    }
-    return {
-      transcript: raw.transcript || '',
-      title: raw.title || 'Voice civic report',
-      description: raw.description || raw.transcript || '',
+    const model = genAI.getGenerativeModel({
+      model: GEMINI_MODEL_VISION,
+      generationConfig: { responseMimeType: 'application/json' },
+    })
+    const result = await model.generateContent(parts)
+    try {
+      return parseTranscript(JSON.parse(result.response.text()) as { transcript?: string; title?: string; description?: string })
+    } catch {
+      const text = result.response.text().trim()
+      return parseTranscript({}, text)
     }
   } catch {
-    const text = result.response.text().trim()
-    return { transcript: text, title: 'Voice civic report', description: text.slice(0, 280) }
+    return {
+      transcript: '',
+      title: 'Voice report',
+      description: 'Audio transcription temporarily unavailable.',
+    }
   }
 }

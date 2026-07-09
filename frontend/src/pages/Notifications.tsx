@@ -6,6 +6,7 @@ import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { GlassCard } from '@/components/civic/GlassCard'
 import { PageSkeleton } from '@/components/PageSkeleton'
 import { useAuth } from '../lib/auth'
+import { useI18n } from '../lib/i18n'
 import { apiListNotifications, apiMarkAllNotificationsRead, apiMarkNotificationRead } from '../lib/api'
 import { fadeUp, stagger } from '../lib/motion'
 import { cn } from '@/lib/utils'
@@ -22,6 +23,7 @@ type NotificationItem = {
 
 export function NotificationsPage() {
   const { user, signInWithDemo, signingIn } = useAuth()
+  const { t } = useI18n()
   const [items, setItems] = useState<NotificationItem[]>([])
   const [unread, setUnread] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -68,7 +70,7 @@ export function NotificationsPage() {
   if (!user) {
     return (
       <AppShell>
-        <PageHeader title="Notifications" subtitle="Status updates on your reports" />
+        <PageHeader title={t('notifications.title')} subtitle="Status updates on your reports" />
         <div className="px-5 pt-8 text-center">
           <Bell className="mx-auto size-10 text-ink-muted" />
           <p className="mt-3 text-sm text-ink-muted">Sign in to see issue status alerts.</p>
@@ -88,7 +90,7 @@ export function NotificationsPage() {
   return (
     <AppShell>
       <PageHeader
-        title="Notifications"
+        title={t('notifications.title')}
         subtitle={unread > 0 ? `${unread} unread` : 'All caught up'}
         right={
           unread > 0 ? (
@@ -108,7 +110,7 @@ export function NotificationsPage() {
         <PageSkeleton />
       ) : items.length === 0 ? (
         <div className="px-5 pt-8 text-center">
-          <p className="text-sm text-ink-muted">No notifications yet. Report an issue to get status updates.</p>
+          <p className="text-sm text-ink-muted">{t('notifications.empty')}</p>
           <Link to="/report" className="mt-4 inline-block text-sm font-bold text-coral">
             Report an issue →
           </Link>

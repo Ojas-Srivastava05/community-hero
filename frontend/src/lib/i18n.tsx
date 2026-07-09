@@ -1,5 +1,16 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { Languages } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { CONFIDENCE_THRESHOLD } from './shared-constants'
+import {
+  APP_STRINGS,
+  BN_STRINGS,
+  HI_STRINGS,
+  KN_STRINGS,
+  MR_STRINGS,
+  TA_STRINGS,
+  TE_STRINGS,
+} from './i18n/strings'
 
 export type Locale = 'en' | 'hi' | 'mr' | 'ta' | 'bn' | 'te' | 'kn'
 
@@ -16,12 +27,14 @@ export const LOCALES: { id: Locale; label: string; native: string }[] = [
 type Dict = Record<string, string>
 
 const en: Dict = {
+  ...APP_STRINGS,
   'report.title': 'Report an issue',
   'report.step.capture': 'Capture',
   'report.step.describe': 'Describe',
   'report.step.confirm': 'Confirm',
   'report.signIn': 'Sign in to submit',
-  'report.demoCitizen': 'Try as demo citizen',
+  'report.demoCitizen': 'Submit without login',
+  'report.demoCitizenHint': 'Demo access — no personal email or phone required',
   'report.photo': 'Photo',
   'report.video': 'Video',
   'report.voice': 'Voice',
@@ -32,10 +45,10 @@ const en: Dict = {
   'report.offlineQueued': 'Saved offline — will submit when back online',
   'report.listening': 'Listening… tap to stop',
   'report.voiceHint': 'Speak the issue in your language — we fill the form',
-  'login.demoCitizen': 'Enter as demo citizen',
+  'login.demoCitizen': 'Submit without login',
   'login.demoAdmin': 'Enter as demo authority',
-  'login.google': 'Continue with Google',
-  'login.guest': 'Continue as guest',
+  'login.google': 'Optional: sign in with Google',
+  'login.guest': 'Fully anonymous guest',
   'proof.verified': 'AI verified fix',
   'proof.mismatch': 'AI could not verify fix',
   'proof.slider': 'Drag to compare before / after',
@@ -49,12 +62,14 @@ const en: Dict = {
 
 const hi: Dict = {
   ...en,
+  ...HI_STRINGS,
   'report.title': 'समस्या दर्ज करें',
   'report.step.capture': 'फोटो',
   'report.step.describe': 'विवरण',
   'report.step.confirm': 'पुष्टि',
   'report.signIn': 'जमा करने के लिए साइन इन करें',
-  'report.demoCitizen': 'डेमो नागरिक के रूप में आज़माएँ',
+  'report.demoCitizen': 'बिना लॉगिन के दर्ज करें',
+  'report.demoCitizenHint': 'डेमो एक्सेस — व्यक्तिगत ईमेल या फ़ोन की ज़रूरत नहीं',
   'report.photo': 'फोटो',
   'report.video': 'वीडियो',
   'report.voice': 'आवाज़',
@@ -82,6 +97,7 @@ const hi: Dict = {
 
 const mr: Dict = {
   ...en,
+  ...MR_STRINGS,
   'report.title': 'समस्या नोंदवा',
   'report.step.capture': 'छायाचित्र',
   'report.step.describe': 'वर्णन',
@@ -107,6 +123,7 @@ const mr: Dict = {
 
 const ta: Dict = {
   ...en,
+  ...TA_STRINGS,
   'report.title': 'சிக்கலைப் பதிவு செய்',
   'report.step.capture': 'படம்',
   'report.step.describe': 'விவரம்',
@@ -132,6 +149,7 @@ const ta: Dict = {
 
 const bn: Dict = {
   ...en,
+  ...BN_STRINGS,
   'report.title': 'সমস্যা রিপোর্ট করুন',
   'report.step.capture': 'ছবি',
   'report.step.describe': 'বিবরণ',
@@ -157,6 +175,7 @@ const bn: Dict = {
 
 const te: Dict = {
   ...en,
+  ...TE_STRINGS,
   'report.title': 'సమస్యను నివేదించండి',
   'report.step.capture': 'ఫోటో',
   'report.step.describe': 'వివరణ',
@@ -182,6 +201,7 @@ const te: Dict = {
 
 const kn: Dict = {
   ...en,
+  ...KN_STRINGS,
   'report.title': 'ಸಮಸ್ಯೆಯನ್ನು ವರದಿ ಮಾಡಿ',
   'report.step.capture': 'ಫೋಟೋ',
   'report.step.describe': 'ವಿವರ',
@@ -247,15 +267,26 @@ export function useI18n() {
   return ctx
 }
 
-export function LanguagePicker({ className }: { className?: string }) {
+export function LanguagePicker({
+  className,
+  compact,
+}: {
+  className?: string
+  /** Inline toolbar style (map search bar). */
+  compact?: boolean
+}) {
   const { locale, setLocale, locales, t } = useI18n()
   return (
-    <label className={className}>
+    <label className={cn('inline-flex items-center gap-1', className)}>
+      <Languages className={cn('text-ink-muted', compact ? 'size-3.5' : 'size-4')} aria-hidden />
       <span className="sr-only">{t('lang.toggle')}</span>
       <select
         value={locale}
         onChange={(e) => setLocale(e.target.value as Locale)}
-        className="rounded-full border border-rule bg-paper px-3 py-1 text-xs font-semibold text-ink"
+        className={cn(
+          'rounded-full border border-rule bg-paper font-semibold text-ink outline-none focus:ring-2 focus:ring-coral/30',
+          compact ? 'max-w-[5.25rem] truncate px-2 py-1 text-[10px]' : 'px-3 py-1 text-xs',
+        )}
         aria-label={t('lang.toggle')}
       >
         {locales.map((l) => (

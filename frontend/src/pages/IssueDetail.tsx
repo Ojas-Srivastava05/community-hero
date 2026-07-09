@@ -435,6 +435,7 @@ export function IssueDetailPage() {
                   </li>
                 ))}
               </ul>
+              <p className="mt-2 text-[10px] text-ink-muted">Formula: {cost.formula}</p>
             </GlassCard>
           </motion.div>
         )}

@@ -27,6 +27,6 @@ export async function runVisionAgent(
     }
   }
 
-  const analysis = await analyzeImage(imageBuffer, mimeType, hint)
+  const { analysis } = await analyzeImage(imageBuffer, mimeType, hint)
   return { analysis }
 }

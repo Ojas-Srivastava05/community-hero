@@ -94,6 +94,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!auth) throw new Error('Firebase is not configured')
       const { token } = await apiDemoToken(role)
       await signInWithCustomToken(auth, token)
+      const signedIn = auth.currentUser
+      if (signedIn) await signedIn.getIdToken(true)
     } finally {
       signInLock.current = false
       setSigningIn(false)

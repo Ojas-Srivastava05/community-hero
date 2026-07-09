@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
 import { sendError, ErrorCodes } from '../lib/errors'
+import { db } from '../lib/firebase-admin'
 
 type Bucket = { count: number; resetAt: number }
 
@@ -11,7 +12,12 @@ function rateLimitsEnabled(): boolean {
   return flag !== 'false' && flag !== '0'
 }
 
-function check(key: string, limit: number, windowMs: number): { ok: boolean; retryAfterSec?: number; remaining?: number } {
+function useFirestoreStore(): boolean {
+  if (process.env.NODE_ENV === 'test' || process.env.RATE_LIMIT_ENABLED === 'memory') return false
+  return process.env.RATE_LIMIT_STORE === 'firestore' || process.env.NODE_ENV === 'production'
+}
+
+function checkMemory(key: string, limit: number, windowMs: number): { ok: boolean; retryAfterSec?: number; remaining?: number } {
   const now = Date.now()
   const bucket = buckets.get(key)
   if (!bucket || now > bucket.resetAt) {
@@ -29,23 +35,61 @@ function check(key: string, limit: number, windowMs: number): { ok: boolean; ret
   return { ok: true, remaining: Math.max(0, limit - bucket.count) }
 }
 
+async function checkFirestore(
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<{ ok: boolean; retryAfterSec?: number; remaining?: number }> {
+  const now = Date.now()
+  const ref = db.collection('rate_limits').doc(key.replace(/\//g, '_'))
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref)
+    const data = snap.data() as { count?: number; resetAt?: number } | undefined
+    if (!data || !data.resetAt || now > data.resetAt) {
+      tx.set(ref, { count: 1, resetAt: now + windowMs, updatedAt: new Date().toISOString() })
+      return { ok: true, remaining: limit - 1 }
+    }
+    if ((data.count ?? 0) >= limit) {
+      return {
+        ok: false,
+        retryAfterSec: Math.max(1, Math.ceil((data.resetAt - now) / 1000)),
+        remaining: 0,
+      }
+    }
+    const next = (data.count ?? 0) + 1
+    tx.update(ref, { count: next, updatedAt: new Date().toISOString() })
+    return { ok: true, remaining: Math.max(0, limit - next) }
+  })
+}
+
 export function rateLimit(limit: number, windowMs: number, keyFn: (req: Request) => string) {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     if (!rateLimitsEnabled()) {
       next()
       return
     }
     const key = keyFn(req)
-    const result = check(key, limit, windowMs)
-    if (result.remaining !== undefined) {
-      res.setHeader('X-RateLimit-Remaining', String(result.remaining))
+    try {
+      const result = useFirestoreStore()
+        ? await checkFirestore(key, limit, windowMs)
+        : checkMemory(key, limit, windowMs)
+      if (result.remaining !== undefined) {
+        res.setHeader('X-RateLimit-Remaining', String(result.remaining))
+      }
+      if (!result.ok) {
+        if (result.retryAfterSec) res.setHeader('Retry-After', String(result.retryAfterSec))
+        sendError(res, 429, ErrorCodes.RATE_LIMITED, 'Rate limit exceeded. Try again later.')
+        return
+      }
+      next()
+    } catch {
+      const fallback = checkMemory(key, limit, windowMs)
+      if (!fallback.ok) {
+        sendError(res, 429, ErrorCodes.RATE_LIMITED, 'Rate limit exceeded. Try again later.')
+        return
+      }
+      next()
     }
-    if (!result.ok) {
-      if (result.retryAfterSec) res.setHeader('Retry-After', String(result.retryAfterSec))
-      sendError(res, 429, ErrorCodes.RATE_LIMITED, 'Rate limit exceeded. Try again later.')
-      return
-    }
-    next()
   }
 }
 

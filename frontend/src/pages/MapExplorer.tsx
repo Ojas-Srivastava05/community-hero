@@ -10,6 +10,7 @@ import { SeverityBadge } from '@/components/civic/SeverityBadge'
 import { VerificationBadges } from '@/components/civic/VerificationBadges'
 import { Chip } from '@/components/civic/GlassCard'
 import { MapExplorerSkeleton } from '@/components/PageSkeleton'
+import { LanguagePicker } from '@/lib/i18n'
 import { useLocation } from '../lib/location'
 import { apiHotspots } from '../lib/api'
 import { useLiveIssues } from '../lib/use-live-issues'
@@ -120,7 +121,7 @@ export function MapExplorerPage() {
 
   return (
     <AppShell bare>
-      <div className="relative h-[calc(100dvh-5.5rem)] w-full">
+      <div className="relative h-[calc(100dvh-env(safe-area-inset-bottom))] w-full">
         <CivicMap
           center={center}
           zoom={12}
@@ -179,9 +180,9 @@ export function MapExplorerPage() {
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-          className="absolute inset-x-0 top-0 z-20 px-4 pt-4"
+          className="absolute inset-x-0 top-0 z-20 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]"
         >
-          <div className="glass-strong flex items-center gap-2 rounded-2xl px-3 py-2.5">
+          <div className="glass-strong flex items-center gap-1.5 rounded-2xl px-2.5 py-2">
             <Link
               to="/"
               aria-label="Back to home"
@@ -200,13 +201,14 @@ export function MapExplorerPage() {
               placeholder="Search area or issue"
               className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-muted"
             />
+            <LanguagePicker compact className="shrink-0" />
             <LiveIndicator active={livePulse} />
             <button
               type="button"
               aria-pressed={showFilters}
               aria-label={showFilters ? 'Hide filters' : 'Show filters'}
               onClick={toggleFilters}
-              className={cn('grid size-8 place-items-center rounded-lg border border-rule', showFilters && 'bg-coral-soft text-coral')}
+              className={cn('grid size-8 shrink-0 place-items-center rounded-lg border border-rule', showFilters && 'bg-coral-soft text-coral')}
             >
               <Filter className="size-4 text-ink" />
             </button>
@@ -239,7 +241,10 @@ export function MapExplorerPage() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.15 }}
           whileTap={{ scale: 0.92 }}
-          className="absolute right-4 top-52 z-20 grid size-11 place-items-center rounded-xl glass-strong"
+          className={cn(
+            'absolute right-3 z-20 grid size-11 place-items-center rounded-xl glass-strong',
+            showFilters ? 'top-[10.5rem]' : 'top-[4.75rem]',
+          )}
         >
           <Layers className="size-5 text-ink" />
         </motion.button>
@@ -251,7 +256,7 @@ export function MapExplorerPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 24 }}
               transition={{ type: 'spring', stiffness: 280, damping: 26 }}
-              className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+1.25rem)] z-20 px-3"
+              className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+6.25rem)] z-30 px-3"
             >
               <Link to={`/issues/${issue.id}`} className="paper relative block overflow-hidden">
                 <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-ink/20" />
