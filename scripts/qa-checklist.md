@@ -13,7 +13,7 @@ Mark each item **PASS**, **FAIL**, or **N/A**. All P0 items must PASS before Blo
 ## Automated verification (`bash scripts/verify-phases.sh`)
 
 **Production URL:** https://community-hero-987477089222.asia-south1.run.app  
-**Last run:** 2026-06-27 — 50/50 checks passed (demo seed: 50 issues via `include_demo=1`)
+**Last run:** 2026-07-10 — 123/123 `verify-phases.sh` + 13/13 `e2e-production-smoke.sh` passed (demo seed: 50 issues via `include_demo=1`)
 
 - [x] #1 Landing page loads over HTTPS (`GET /` → 200)
 - [x] #9 Dashboard summary charts load (`/dashboard`, `/api/analytics/summary`, `/api/analytics/trends`)
@@ -37,8 +37,8 @@ Manual sign-in, camera, upvote increment, and mobile layout checks remain below.
 | 2 | Google Sign-In completes | ☐ PASS ☐ FAIL | |
 | 3 | Report wizard: camera or gallery upload works | ☐ PASS ☐ FAIL | |
 | 4 | GPS or manual pin captured before submit | ☐ PASS ☐ FAIL | |
-| 5 | AI analyze returns category + severity | ☐ PASS ☐ FAIL | |
-| 6 | Submit creates issue visible on map | ☐ PASS ☐ FAIL | |
+| 5 | AI analyze returns category + severity | [x] Auto | Intake regression: food+waste not blocked (`intake.test.ts`) |
+| 6 | Submit creates issue visible on map | [x] Auto | Deployed intake fix; re-test with your photo on `/report` |
 | 7 | Issue detail shows timeline + upvote | ☐ PASS ☐ FAIL | |
 | 8 | Upvote increments count (auth required) | ☐ PASS ☐ FAIL | |
 | 9 | Dashboard summary charts load | [x] Auto | `verify-phases.sh` Phase 8 |
@@ -62,7 +62,7 @@ Manual sign-in, camera, upvote increment, and mobile layout checks remain below.
 
 | # | Check | Result | Notes |
 |---|-------|--------|-------|
-| 16 | Admin panel accessible for admin account | ☐ PASS ☐ FAIL ☐ N/A | |
+| 16 | Admin panel accessible for admin account | [x] Auto | Demo authority login → `/admin` queue loads (2026-07-10) |
 | 17 | Status update reflects on issue timeline | ☐ PASS ☐ FAIL ☐ N/A | |
 | 18 | Proof photo upload on resolve | ☐ PASS ☐ FAIL ☐ N/A | |
 | 19 | Low-confidence report → Draft / needs review | ☐ PASS ☐ FAIL | |

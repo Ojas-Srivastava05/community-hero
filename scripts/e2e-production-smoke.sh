@@ -60,22 +60,11 @@ check_post_json "demo citizen token" "$BASE/api/auth/demo-token" '{"role":"citiz
 check_post_json "demo admin token" "$BASE/api/auth/demo-token" '{"role":"admin"}' '"token".*"role":"admin"'
 
 # Intake regression: waste reports mentioning food must not be hard-blocked at keyword layer
-INTAKE_OK=$(node --import tsx -e "
-import { runIntakeAgent } from './server/src/lib/agents/intake.ts';
-const r = await runIntakeAgent(
-  Buffer.alloc(2048, 1),
-  'food waste and containers in garbage pile',
-  'Garbage dump',
-  'Large pile of food waste attracting animals',
-  'waste',
-);
-if (!r.ok) { console.error('blocked:', r.reason); process.exit(1); }
-console.log('ok');
-" 2>/dev/null || echo fail)
-if [[ "$INTAKE_OK" == "ok" ]]; then
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if (cd "$ROOT/server" && node --import tsx --test src/lib/agents/intake.test.ts >/dev/null 2>&1); then
   echo "OK   intake food-in-waste not blocked"
 else
-  echo "FAIL intake food-in-waste — $INTAKE_OK"
+  echo "FAIL intake food-in-waste regression tests"
   FAIL=1
 fi
 
