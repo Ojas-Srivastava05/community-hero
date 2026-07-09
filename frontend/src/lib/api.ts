@@ -1,4 +1,5 @@
 import type { Issue, IssueAnalysis } from '../../../shared/types'
+import type { AgentStep, ProofComparison } from '../lib/shared-constants'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -63,7 +64,7 @@ export async function apiAnalyzeImage(
   file: File,
   token: string,
   hint?: string,
-): Promise<{ analysis: IssueAnalysis }> {
+): Promise<{ analysis: IssueAnalysis; agentSteps?: AgentStep[] }> {
   const fd = new FormData()
   fd.append('image', file)
   if (hint) fd.append('hint', hint)
@@ -100,6 +101,7 @@ export async function apiCreateReport(
   needsReview?: boolean
   code?: string
   pointsEarned?: { pointsAwarded: number; badgesEarned?: string[]; streakBonus?: number }
+  agentSteps?: AgentStep[]
 }> {
   const fd = new FormData()
   Object.entries(data).forEach(([k, v]) => {
@@ -367,6 +369,50 @@ export async function apiEnsureUser(token: string, profile: { displayName?: stri
     method: 'POST',
     headers: { ...(await authHeaders(token)), 'Content-Type': 'application/json' },
     body: JSON.stringify(profile),
+  })
+  if (!res.ok) await parseApiError(res)
+  return res.json()
+}
+
+export async function apiDemoToken(role: 'citizen' | 'admin'): Promise<{ token: string; role: string }> {
+  const res = await apiFetch('/api/auth/demo-token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role }),
+  })
+  if (!res.ok) await parseApiError(res)
+  return res.json()
+}
+
+export type DepartmentScorecard = {
+  departmentId: string
+  total: number
+  open: number
+  resolved: number
+  resolutionRate: number
+  slaCompliance: number | null
+  avgTurnaroundHours: number | null
+  grade: 'A' | 'B' | 'C' | 'D'
+  score: number
+}
+
+export async function apiScorecards(): Promise<{ scorecards: DepartmentScorecard[]; generatedAt: string }> {
+  const res = await apiFetch('/api/analytics/scorecards')
+  if (!res.ok) await parseApiError(res)
+  return res.json()
+}
+
+export async function apiVerifyResolution(
+  id: string,
+  proof: File,
+  token: string,
+): Promise<{ comparison: ProofComparison }> {
+  const fd = new FormData()
+  fd.append('proof', proof)
+  const res = await apiFetch(`/api/reports/${id}/verify-resolution`, {
+    method: 'POST',
+    headers: await authHeaders(token),
+    body: fd,
   })
   if (!res.ok) await parseApiError(res)
   return res.json()

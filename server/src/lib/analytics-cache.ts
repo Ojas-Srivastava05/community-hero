@@ -14,6 +14,7 @@ export type IssueRow = {
   wardId?: string
   departmentId?: string
   slaDeadline?: string
+  slaBreached?: boolean
   isDemo?: boolean
   reporterId?: string
 }

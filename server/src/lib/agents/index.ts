@@ -13,6 +13,8 @@ import {
   POINTS,
   type AwardResult,
 } from '../gamification'
+import { eventsToAgentSteps } from '../agent-steps'
+import type { AgentStep } from '../../types/shared-constants'
 
 export { confidenceGateUpdates, REVIEW_CONFIDENCE_THRESHOLD } from './types'
 export { awardPoints, currentWeekKey, type AwardResult } from '../gamification'
@@ -84,7 +86,7 @@ export async function runAgentPipeline(input: RunPipelineInput) {
     for (const ev of events) {
       await db.collection('issues').doc(issueId).collection('events').add(ev)
     }
-    return { needsReview: true, agents: agentsRun }
+    return { needsReview: true, agents: agentsRun, agentSteps: eventsToAgentSteps(events) }
   }
 
   // Agent 2: Vision
@@ -182,7 +184,14 @@ export async function runAgentPipeline(input: RunPipelineInput) {
     })
   }
 
-  return { needsReview, agents: agentsRun, analysis, routing, pointsEarned }
+  return {
+    needsReview,
+    agents: agentsRun,
+    analysis,
+    routing,
+    pointsEarned,
+    agentSteps: eventsToAgentSteps(events),
+  }
 }
 
 export async function canUserUpvote(userId: string): Promise<boolean> {

@@ -10,12 +10,14 @@ import {
 } from 'react'
 import {
   onAuthStateChanged,
+  signInWithCustomToken,
   signInWithPopup,
   signOut,
   type User,
 } from 'firebase/auth'
 import { getFirebaseAuth, googleProvider, isFirebaseConfigured } from './firebase'
 import { useAuthStore } from '../stores/useAuthStore'
+import { apiDemoToken, apiEnsureUser } from './api'
 
 type AuthContextValue = {
   user: User | null
@@ -23,6 +25,7 @@ type AuthContextValue = {
   signingIn: boolean
   configured: boolean
   signInWithGoogle: () => Promise<void>
+  signInWithDemo: (role: 'citizen' | 'admin') => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -50,7 +53,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (next) {
         try {
           const token = await next.getIdToken()
-          const { apiEnsureUser } = await import('./api')
           await apiEnsureUser(token, {
             displayName: next.displayName || undefined,
             email: next.email || undefined,
@@ -79,6 +81,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const signInWithDemo = useCallback(async (role: 'citizen' | 'admin') => {
+    if (signInLock.current) return
+    signInLock.current = true
+    setSigningIn(true)
+    useAuthStore.getState().setSigningIn(true)
+    try {
+      const auth = getFirebaseAuth()
+      if (!auth) throw new Error('Firebase is not configured')
+      const { token } = await apiDemoToken(role)
+      await signInWithCustomToken(auth, token)
+    } finally {
+      signInLock.current = false
+      setSigningIn(false)
+      useAuthStore.getState().setSigningIn(false)
+    }
+  }, [])
+
   const logout = useCallback(async () => {
     const auth = getFirebaseAuth()
     if (!auth) return
@@ -92,9 +111,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signingIn,
       configured: isFirebaseConfigured,
       signInWithGoogle,
+      signInWithDemo,
       logout,
     }),
-    [user, loading, signingIn, signInWithGoogle, logout],
+    [user, loading, signingIn, signInWithGoogle, signInWithDemo, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

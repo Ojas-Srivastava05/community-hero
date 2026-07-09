@@ -8,23 +8,27 @@ import { CivicMap } from '@/components/civic/CivicMap'
 import { InvalidMediaCard, type InvalidMediaReason } from '@/components/civic/InvalidMediaCard'
 import { PlacesAutocomplete } from '@/components/civic/PlacesAutocomplete'
 import { useAuth } from '../lib/auth'
+import { useI18n } from '../lib/i18n'
 import { useLocation } from '../lib/location'
 import { apiAnalyzeImage, apiCreateReport, apiListIssues, apiMergeIssue, apiReverseGeocode } from '../lib/api'
 import { validateAndPreprocessImage } from '../lib/image-media'
 import { extractVideoKeyframes, validateVideoFile } from '../lib/video-media'
 import { usePointsToast } from '@/components/civic/PointsToast'
+import { AgentPipelineStepper, buildSubmitPipelineSteps, mergePipelineSteps } from '@/components/civic/AgentPipelineStepper'
 import { cn } from '@/lib/utils'
 import { clearReportDraft, loadReportDraft, saveReportDraft } from '../lib/offline-drafts'
+import { queueOfflineReport, registerOfflineSync } from '../lib/offline-queue'
 import type { IssueAnalysis } from '../../../shared/types'
+import type { AgentStep } from '../lib/shared-constants'
 import { SeverityBadge } from '@/components/civic/SeverityBadge'
 import { apiSeverityToUi } from '@/lib/issue-ui'
 
 const CATEGORIES = ['pothole', 'water_leak', 'streetlight', 'waste', 'road_damage', 'drainage', 'signage', 'encroachment', 'other']
-const REVIEW_CONFIDENCE_THRESHOLD = 0.7
 const SEVERITY_LEVELS = [1, 2, 3, 4, 5] as const
 
 export function ReportWizardPage() {
-  const { user, signInWithGoogle, signingIn } = useAuth()
+  const { user, signInWithGoogle, signInWithDemo, signingIn } = useAuth()
+  const { t, locale, setLocale, confidenceThreshold } = useI18n()
   const { location, loading: locLoading, refresh } = useLocation()
   const navigate = useNavigate()
   const { showPoints } = usePointsToast()
@@ -53,9 +57,11 @@ export function ReportWizardPage() {
   const [error, setError] = useState('')
   const [invalidMedia, setInvalidMedia] = useState<InvalidMediaReason | null>(null)
   const [processingMedia, setProcessingMedia] = useState(false)
+  const [pipelineSteps, setPipelineSteps] = useState<AgentStep[]>([])
+  const [pipelineRunning, setPipelineRunning] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLInputElement>(null)
-  const steps = ['Capture', 'Describe', 'Confirm']
+  const steps = [t('report.step.capture'), t('report.step.describe'), t('report.step.confirm')]
 
   useEffect(() => {
     loadReportDraft()
@@ -87,18 +93,44 @@ export function ReportWizardPage() {
     }
   }, [location])
 
+  useEffect(() => {
+    if (!user) return
+    return registerOfflineSync(async (data, imageFile) => {
+      const token = await user.getIdToken()
+      await apiCreateReport(
+        {
+          title: String(data.title || ''),
+          description: String(data.description || ''),
+          category: String(data.category || 'other'),
+          severity: Number(data.severity || 3),
+          lat: Number(data.lat),
+          lng: Number(data.lng),
+          address: String(data.address || ''),
+          confidence: data.confidence !== undefined ? Number(data.confidence) : undefined,
+          safety_risk: data.safety_risk !== undefined ? Boolean(data.safety_risk) : undefined,
+          department: data.department !== undefined ? String(data.department) : undefined,
+        },
+        [imageFile],
+        token,
+      )
+    })
+  }, [user])
+
   const runAnalysis = async (imageFile: File) => {
     if (!user) return
     setAnalyzing(true)
+    setPipelineRunning(true)
     try {
       const token = await user.getIdToken()
-      const { analysis: a } = await apiAnalyzeImage(imageFile, token)
+      const { analysis: a, agentSteps } = await apiAnalyzeImage(imageFile, token)
       setAnalysis(a)
+      setPipelineSteps(agentSteps || [])
       setForm((prev) => ({ ...prev, title: a.title, description: a.description, category: a.category, severity: a.severity }))
     } catch (e) {
       setError(String(e))
     } finally {
       setAnalyzing(false)
+      setPipelineRunning(false)
     }
   }
 
@@ -177,8 +209,40 @@ export function ReportWizardPage() {
 
   const submit = async () => {
     if (!user || !file || !form.lat) return
+    if (!navigator.onLine) {
+      try {
+        await queueOfflineReport(
+          {
+            ...form,
+            ...(analysis
+              ? { confidence: analysis.confidence, safety_risk: analysis.safety_risk, department: analysis.department }
+              : {}),
+          },
+          file,
+        )
+        setError(t('report.offlineQueued'))
+        return
+      } catch {
+        setError('Offline — could not queue report')
+        return
+      }
+    }
     setSubmitting(true)
+    setPipelineRunning(true)
+    setPipelineSteps(buildSubmitPipelineSteps())
     setError('')
+    const tick = window.setInterval(() => {
+      setPipelineSteps((prev) => {
+        const runningIdx = prev.findIndex((s) => s.status === 'running')
+        if (runningIdx < 0 || runningIdx >= prev.length - 1) return prev
+        return prev.map((s, i) => {
+          if (i < runningIdx) return { ...s, status: 'done' as const }
+          if (i === runningIdx) return { ...s, status: 'done' as const }
+          if (i === runningIdx + 1) return { ...s, status: 'running' as const }
+          return s
+        })
+      })
+    }, 550)
     try {
       const token = await user.getIdToken()
       const result = await apiCreateReport(
@@ -196,6 +260,10 @@ export function ReportWizardPage() {
         [file],
         token,
       )
+      window.clearInterval(tick)
+      if (result.agentSteps?.length) {
+        setPipelineSteps(mergePipelineSteps(buildSubmitPipelineSteps(), result.agentSteps))
+      }
       const pe = result.pointsEarned
       if (pe?.pointsAwarded && pe.pointsAwarded > 0) {
         const parts = [
@@ -220,9 +288,12 @@ export function ReportWizardPage() {
 
       navigate(`/issues/${result.id}`)
     } catch (e) {
+      window.clearInterval(tick)
       setError(String(e))
     } finally {
+      window.clearInterval(tick)
       setSubmitting(false)
+      setPipelineRunning(false)
     }
   }
 
@@ -268,12 +339,21 @@ export function ReportWizardPage() {
   return (
     <AppShell hideNav>
       <PageHeader
-        title="Report an issue"
+        title={t('report.title')}
         subtitle={`Step ${step + 1} of 3 — ${steps[step]}`}
         right={
-          <button type="button" onClick={() => (step === 0 ? navigate('/') : setStep(step - 1))} className="grid size-9 place-items-center rounded-xl border border-rule">
-            <ChevronLeft className="size-4 text-ink" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setLocale(locale === 'en' ? 'hi' : 'en')}
+              className="rounded-lg border border-rule px-2 py-1 text-[10px] font-bold text-ink-muted"
+            >
+              {t('lang.toggle')}
+            </button>
+            <button type="button" onClick={() => (step === 0 ? navigate('/') : setStep(step - 1))} className="grid size-9 place-items-center rounded-xl border border-rule">
+              <ChevronLeft className="size-4 text-ink" />
+            </button>
+          </div>
         }
       />
       <div className="px-5 pt-4">
@@ -311,9 +391,14 @@ export function ReportWizardPage() {
                 <InvalidMediaCard reason={invalidMedia} onRetake={retakePhoto} />
               )}
               {!user ? (
-                <button type="button" disabled={signingIn} onClick={() => signInWithGoogle()} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-coral py-4 text-sm font-bold text-paper ink-glow">
-                  <LogIn className="size-4" /> {signingIn ? 'Opening Google…' : 'Sign in to submit'}
-                </button>
+                <div className="space-y-2">
+                  <button type="button" disabled={signingIn} onClick={() => signInWithDemo('citizen')} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-coral py-4 text-sm font-bold text-paper ink-glow">
+                    <LogIn className="size-4" /> {signingIn ? 'Signing in…' : t('report.demoCitizen')}
+                  </button>
+                  <button type="button" disabled={signingIn} onClick={() => signInWithGoogle()} className="w-full rounded-2xl border border-rule py-3 text-sm font-semibold text-ink">
+                    {signingIn ? 'Opening Google…' : t('report.signIn')}
+                  </button>
+                </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   <button type="button" onClick={() => fileRef.current?.click()} className="grid place-items-center rounded-2xl bg-coral py-4 text-sm font-bold text-paper ink-glow">
@@ -328,10 +413,13 @@ export function ReportWizardPage() {
                 <p className="flex items-center justify-center gap-2 text-[11px] text-ink-muted"><Film className="size-3.5" /> Using middle keyframe for AI analysis</p>
               )}
               {processingMedia && <p className="flex items-center justify-center gap-2 text-sm text-ink-muted"><Loader2 className="size-4 animate-spin" /> {mediaMode === 'video' ? 'Extracting keyframes…' : 'Optimizing photo…'}</p>}
-              {analyzing && <p className="flex items-center justify-center gap-2 text-sm text-coral"><Loader2 className="size-4 animate-spin" /> Analyzing…</p>}
+              {analyzing && <p className="flex items-center justify-center gap-2 text-sm text-coral"><Loader2 className="size-4 animate-spin" /> {t('report.analyzing')}</p>}
+              {(pipelineSteps.length > 0 || pipelineRunning) && (
+                <AgentPipelineStepper steps={pipelineSteps} running={pipelineRunning || analyzing || submitting} />
+              )}
               {file && user && (
                 <button type="button" disabled={!hasLocation || locLoading} onClick={() => setStep(1)} className="w-full py-2 text-xs font-semibold text-coral disabled:opacity-40">
-                  {locLoading ? 'Getting your location…' : 'Continue →'}
+                  {locLoading ? 'Getting your location…' : `${t('report.continue')} →`}
                 </button>
               )}
             </div>
@@ -345,9 +433,9 @@ export function ReportWizardPage() {
                     <SeverityBadge severity={apiSeverityToUi(form.severity)} />
                   </div>
                   <p className="mt-2 text-sm text-ink">{form.description}</p>
-                  {analysis.confidence < REVIEW_CONFIDENCE_THRESHOLD && (
+                  {analysis.confidence < confidenceThreshold && (
                     <p className="mt-2 rounded-xl border border-amber/30 bg-amber-soft/40 px-3 py-2 text-[11px] font-medium text-amber">
-                      Low confidence ({Math.round(analysis.confidence * 100)}%) — your report may need admin review before appearing on the map.
+                      {t('report.lowConfidence')} ({Math.round(analysis.confidence * 100)}%)
                     </p>
                   )}
                 </GlassCard>
@@ -388,7 +476,12 @@ export function ReportWizardPage() {
                   ))}
                 </div>
               </div>
-              <button type="button" onClick={() => setStep(2)} className="grid w-full place-items-center rounded-2xl bg-coral py-4 text-sm font-bold text-paper ink-glow">Continue</button>
+              {(pipelineSteps.length > 0 && step >= 1) && (
+                <AgentPipelineStepper steps={pipelineSteps} running={pipelineRunning || submitting} />
+              )}
+              <button type="button" onClick={() => setStep(2)} className="grid w-full place-items-center rounded-2xl bg-coral py-4 text-sm font-bold text-paper ink-glow">
+                {t('report.continue')}
+              </button>
             </div>
           )}
           {step === 2 && (
@@ -480,7 +573,7 @@ export function ReportWizardPage() {
                   )}
                   <button type="button" disabled={submitting || !hasLocation} onClick={submit} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-coral py-4 text-sm font-bold text-paper ink-glow disabled:opacity-50">
                     {submitting ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-                    {mergeIntoId ? 'Merge into existing report' : 'Submit report'}
+                    {mergeIntoId ? 'Merge into existing report' : t('report.submit')}
                   </button>
                 </>
               )}

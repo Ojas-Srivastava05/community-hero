@@ -25,6 +25,7 @@ import { CATEGORIES, DEPARTMENTS, type IssueAnalysis } from '../types/shared'
 import { sendError, ErrorCodes, sendServerError, isApiError } from '../lib/errors'
 import { runIntakeAgent } from '../lib/agents/intake'
 import { REVIEW_CONFIDENCE_THRESHOLD } from '../lib/agents/types'
+import { intakeVisionSteps } from '../lib/agent-steps'
 import { toOpen311Record } from '../lib/open311'
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } })
@@ -149,7 +150,10 @@ reportsRouter.post('/analyze', requireAuth, upload.single('image'), async (req: 
       return
     }
     const analysis = await analyzeImage(req.file.buffer, req.file.mimetype, hint)
-    res.json({ analysis })
+    res.json({
+      analysis,
+      agentSteps: intakeVisionSteps(true, undefined, analysis),
+    })
   } catch (e) {
     sendServerError(res, e)
   }
@@ -288,6 +292,7 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
     }
 
     let pointsEarned: AwardResult = { pointsAwarded: 0, badgesEarned: [] }
+    let agentSteps: import('../types/shared-constants').AgentStep[] = []
     try {
       const firstImage = files[0]
       const pipelineResult = await runAgentPipeline({
@@ -306,6 +311,7 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
       })
       await upsertThreadForIssue(id, geohash, data.title, data.category, embedding)
       pointsEarned = pipelineResult.pointsEarned ?? pointsEarned
+      agentSteps = pipelineResult.agentSteps ?? []
     } catch (agentErr) {
       console.error('Agent pipeline failed (report saved):', agentErr)
       await db.collection('issues').doc(id).update({
@@ -325,6 +331,7 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
       issue: { id, ...savedData },
       duplicateSuggestions: dupes || [],
       pointsEarned,
+      agentSteps: agentSteps,
     }
     if (needsReview) {
       responseBody.code = ErrorCodes.NEEDS_REVIEW
@@ -633,6 +640,50 @@ reportsRouter.post('/bulk-status', requireAuth, async (req: AuthedRequest, res) 
       updated.push(issueId)
     }
     res.json({ ok: true, updated })
+  } catch (e) {
+    sendServerError(res, e)
+  }
+})
+
+reportsRouter.post('/:id/verify-resolution', requireAuth, (req, res, next) => {
+  upload.single('proof')(req, res, (err) => {
+    if (err) {
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, err.message || 'Invalid proof upload')
+      return
+    }
+    next()
+  })
+}, async (req: AuthedRequest, res) => {
+  try {
+    const id = String(req.params.id)
+    if (!isAdminUser(req.user!)) {
+      sendError(res, 403, ErrorCodes.FORBIDDEN, 'Forbidden')
+      return
+    }
+    if (!req.file) {
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'Proof image required')
+      return
+    }
+    const issueDoc = await db.collection('issues').doc(id).get()
+    if (!issueDoc.exists) {
+      sendError(res, 404, ErrorCodes.NOT_FOUND, 'Not found')
+      return
+    }
+    const issueData = issueDoc.data()!
+    const beforeUrl = (issueData.imageUrls as string[] | undefined)?.[0]
+    if (!beforeUrl) {
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'Original issue image missing')
+      return
+    }
+    const beforeRes = await fetch(beforeUrl)
+    const beforeBuffer = Buffer.from(await beforeRes.arrayBuffer())
+    const comparison = await compareBeforeAfter(
+      beforeBuffer,
+      req.file.buffer,
+      beforeRes.headers.get('content-type') || 'image/jpeg',
+      req.file.mimetype,
+    )
+    res.json({ comparison })
   } catch (e) {
     sendServerError(res, e)
   }

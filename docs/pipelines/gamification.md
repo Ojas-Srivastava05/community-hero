@@ -13,7 +13,7 @@ Constants are defined once in `POINTS` (`gamification.ts`):
 
 | Action (`reason`) | Points | Awarded to | Trigger |
 |-------------------|--------|------------|---------|
-| `report` | 10 | reporter | New report, **only if** AI `confidence ≥ 0.8` |
+| `report` | 10 | reporter | New report, **only if** AI `confidence ≥ 0.7` |
 | `upvote` | 5 | voter | Each accepted upvote |
 | `neighborhood_voice` | 15 | reporter | When their issue reaches **exactly 3** upvotes |
 | `merge` | 15 | merger | Merge into a duplicate (idempotent per target per day) |
@@ -29,9 +29,8 @@ Bonuses (added on top, inside `awardPoints`):
 ### Confidence gate
 
 `shouldAwardReportPoints(confidence)` returns `true` only when `confidence ≥ POINTS_CONFIDENCE_THRESHOLD`
-(**0.8**). This is stricter than the review gate (`REVIEW_CONFIDENCE_THRESHOLD = 0.6`, which controls
-`Draft` / `needs_review`): a report can be published to the map yet earn **no** points if its
-confidence is in `[0.6, 0.8)`. Enforced in `runAgentPipeline` (`server/src/lib/agents/index.ts`).
+(**0.7**, unified `CONFIDENCE_THRESHOLD`). The same value drives `REVIEW_CONFIDENCE_THRESHOLD` for
+`Draft` / `needs_review`. Enforced in `runAgentPipeline` (`server/src/lib/agents/index.ts`).
 
 ## Badges
 

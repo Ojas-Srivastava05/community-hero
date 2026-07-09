@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiBulkUpdateStatus, apiListIssues, apiUpdateStatus } from '../lib/api'
+import { apiBulkUpdateStatus, apiListIssues, apiUpdateStatus, apiVerifyResolution } from '../lib/api'
 import { useRequireAdmin } from '../lib/admin'
 import { GlassCard } from '@/components/civic/GlassCard'
 import { PageSkeleton } from '@/components/PageSkeleton'
@@ -9,7 +9,9 @@ import { fadeUp, stagger } from '../lib/motion'
 import { motion } from 'framer-motion'
 import { AlertTriangle, Camera, Download } from 'lucide-react'
 import { slaHoursLeft } from '@/lib/issue-ui'
+import { ResolutionVerificationBadge } from '@/components/civic/ResolutionVerificationBadge'
 import type { Issue } from '../../../shared/types'
+import type { ProofComparison } from '../lib/shared-constants'
 
 const STATUSES = ['Submitted', 'Community Verified', 'Assigned', 'In Progress', 'Resolved', 'Closed']
 
@@ -41,6 +43,7 @@ export function AdminPage() {
   const [issues, setIssues] = useState<Issue[]>([])
   const [filter, setFilter] = useState('open')
   const [proofFiles, setProofFiles] = useState<Record<string, File>>({})
+  const [proofPreview, setProofPreview] = useState<Record<string, ProofComparison>>({})
   const [pendingStatus, setPendingStatus] = useState<Record<string, string>>({})
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkStatus, setBulkStatus] = useState('In Progress')
@@ -242,11 +245,26 @@ export function AdminPage() {
                         type="file"
                         accept="image/*"
                         className="w-full text-xs text-ink"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const f = e.target.files?.[0]
-                          if (f) setProofFiles((p) => ({ ...p, [issue.id]: f }))
+                          if (!f || !user) return
+                          setProofFiles((p) => ({ ...p, [issue.id]: f }))
+                          try {
+                            const token = await user.getIdToken()
+                            const { comparison } = await apiVerifyResolution(issue.id, f, token)
+                            setProofPreview((p) => ({ ...p, [issue.id]: comparison }))
+                          } catch {
+                            setProofPreview((p) => {
+                              const next = { ...p }
+                              delete next[issue.id]
+                              return next
+                            })
+                          }
                         }}
                       />
+                      {proofPreview[issue.id] && (
+                        <ResolutionVerificationBadge comparison={proofPreview[issue.id]} />
+                      )}
                       <button
                         type="button"
                         disabled={!proofFiles[issue.id]}

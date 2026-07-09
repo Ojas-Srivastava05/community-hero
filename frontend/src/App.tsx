@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './lib/auth'
+import { I18nProvider } from './lib/i18n'
 import { LocationProvider } from './lib/location'
 import { PointsToastProvider } from './components/civic/PointsToast'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -22,12 +23,14 @@ import { PrivacyPage } from './pages/Privacy'
 import { WaitingPage } from './pages/Waiting'
 import { AdminAnalyticsPage } from './pages/AdminAnalytics'
 import { ThreadDetailPage } from './pages/ThreadDetail'
+import { ScorecardsPage } from './pages/Scorecards'
 import { NotFoundPage } from './pages/NotFound'
 import { GoogleMapsProvider } from './components/civic/GoogleMapsProvider'
 import './index.css'
 
 export default function App() {
   return (
+    <I18nProvider>
     <AuthProvider>
       <LocationProvider>
         <GoogleMapsProvider>
@@ -53,6 +56,7 @@ export default function App() {
             <Route path="/admin/analytics" element={<RouteBoundary><AdminAnalyticsPage /></RouteBoundary>} />
             <Route path="/assistant" element={<RouteBoundary><AssistantPage /></RouteBoundary>} />
             <Route path="/leaderboard" element={<RouteBoundary><LeaderboardPage /></RouteBoundary>} />
+            <Route path="/scorecards" element={<RouteBoundary><ScorecardsPage /></RouteBoundary>} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
           </ErrorBoundary>
@@ -61,5 +65,6 @@ export default function App() {
         </GoogleMapsProvider>
       </LocationProvider>
     </AuthProvider>
+    </I18nProvider>
   )
 }

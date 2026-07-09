@@ -82,7 +82,12 @@ export function DashboardPage() {
       <PageHeader
         title="Civic dashboard"
         subtitle={location ? `${location.label} · live` : 'Live data'}
-        right={<Link to="/admin/analytics" className="text-xs font-bold text-coral">Deep dive</Link>}
+        right={
+          <div className="flex items-center gap-3">
+            <Link to="/scorecards" className="text-xs font-bold text-ink-muted">Scorecards</Link>
+            <Link to="/admin/analytics" className="text-xs font-bold text-coral">Deep dive</Link>
+          </div>
+        }
       />
       <motion.section variants={stagger} initial="hidden" animate="show" className="px-5 pt-4">
         <div className="grid grid-cols-2 gap-3">

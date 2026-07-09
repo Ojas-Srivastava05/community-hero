@@ -1,4 +1,5 @@
 import type { IssueAnalysis } from '../../types/shared'
+import { CONFIDENCE_THRESHOLD } from '../../types/shared-constants'
 
 export type AgentName =
   | 'intake'
@@ -45,7 +46,7 @@ export type CommunicatorResult = {
 }
 
 /** Section 20.3 — low confidence → Draft review queue */
-export const REVIEW_CONFIDENCE_THRESHOLD = 0.6
+export const REVIEW_CONFIDENCE_THRESHOLD = CONFIDENCE_THRESHOLD
 
 /** Confidence gate — Section 20.3: low confidence → Draft review queue */
 export function confidenceGateUpdates(confidence: number): Record<string, unknown> {

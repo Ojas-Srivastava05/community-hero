@@ -103,7 +103,7 @@
 ## Post-submission stretch (optional, not blocking)
 
 - Video reporting + keyframe extraction
-- Gemini embeddings dedup (Model C) — geohash-only today
+- Gemini embeddings dedup (Model C) — implemented (`text-embedding-004` + geohash)
 - MarkerClusterer library
 - [x] 16/16 mermaid diagrams + PNG exports — `docs/diagrams/` (Phase 15)
 - Full E2E browser test suite

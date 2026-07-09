@@ -60,6 +60,86 @@ async function persistHotspots(
   )
 }
 
+function gradeFromScore(score: number): 'A' | 'B' | 'C' | 'D' {
+  if (score >= 85) return 'A'
+  if (score >= 70) return 'B'
+  if (score >= 55) return 'C'
+  return 'D'
+}
+
+analyticsRouter.get('/scorecards', async (_req, res) => {
+  try {
+    const { issues } = await fetchIssuesAndUpvotes()
+    const byDept = new Map<string, {
+      departmentId: string
+      total: number
+      resolved: number
+      open: number
+      slaCompliant: number
+      slaTracked: number
+      resolutionHours: number[]
+    }>()
+
+    for (const issue of issues) {
+      const dept = issue.departmentId || 'General Civic'
+      const row = byDept.get(dept) || {
+        departmentId: dept,
+        total: 0,
+        resolved: 0,
+        open: 0,
+        slaCompliant: 0,
+        slaTracked: 0,
+        resolutionHours: [],
+      }
+      row.total++
+      const resolved = ['Resolved', 'Closed'].includes(issue.status)
+      if (resolved) {
+        row.resolved++
+        if (issue.createdAt && issue.resolvedAt) {
+          const hrs = (new Date(issue.resolvedAt).getTime() - new Date(issue.createdAt).getTime()) / 3_600_000
+          if (hrs >= 0) row.resolutionHours.push(hrs)
+        }
+      } else {
+        row.open++
+      }
+      if (issue.slaDeadline) {
+        row.slaTracked++
+        const breached = issue.slaBreached || (resolved && issue.resolvedAt && new Date(issue.resolvedAt) > new Date(issue.slaDeadline))
+        if (!breached) row.slaCompliant++
+      }
+      byDept.set(dept, row)
+    }
+
+    const scorecards = [...byDept.values()].map((row) => {
+      const resolutionRate = row.total ? Math.round((row.resolved / row.total) * 100) : 0
+      const slaCompliance = row.slaTracked ? Math.round((row.slaCompliant / row.slaTracked) * 100) : null
+      const avgTurnaroundHours = row.resolutionHours.length
+        ? Math.round(row.resolutionHours.reduce((a, b) => a + b, 0) / row.resolutionHours.length)
+        : null
+      const composite = Math.round(
+        resolutionRate * 0.45 +
+        (slaCompliance ?? 70) * 0.35 +
+        (avgTurnaroundHours !== null ? Math.max(0, 100 - avgTurnaroundHours) * 0.2 : 14),
+      )
+      return {
+        departmentId: row.departmentId,
+        total: row.total,
+        open: row.open,
+        resolved: row.resolved,
+        resolutionRate,
+        slaCompliance,
+        avgTurnaroundHours,
+        grade: gradeFromScore(composite),
+        score: composite,
+      }
+    }).sort((a, b) => b.score - a.score)
+
+    res.json({ scorecards, generatedAt: new Date().toISOString() })
+  } catch (e) {
+    sendServerError(res, e)
+  }
+})
+
 analyticsRouter.get('/summary', async (req, res) => {
   try {
     let insightsBatch: Record<string, unknown> | null = null

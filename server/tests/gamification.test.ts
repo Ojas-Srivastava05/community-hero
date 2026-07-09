@@ -13,13 +13,13 @@ import {
 } from '../src/lib/gamification'
 
 describe('Gamification point confidence gate', () => {
-  it('awards report points at threshold 0.8', () => {
+  it('awards report points at threshold 0.7', () => {
     assert.equal(shouldAwardReportPoints(POINTS_CONFIDENCE_THRESHOLD), true)
     assert.equal(shouldAwardReportPoints(0.85), true)
   })
 
-  it('blocks report points below 0.8', () => {
-    assert.equal(shouldAwardReportPoints(0.79), false)
+  it('blocks report points below 0.7', () => {
+    assert.equal(shouldAwardReportPoints(0.69), false)
     assert.equal(shouldAwardReportPoints(0.6), false)
   })
 })

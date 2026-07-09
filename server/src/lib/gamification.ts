@@ -1,7 +1,8 @@
 import { db } from './firebase-admin'
+import { CONFIDENCE_THRESHOLD } from '../types/shared-constants'
 
-/** Section 5.8 / Appendix O — report points only when AI confidence ≥ 0.8 */
-export const POINTS_CONFIDENCE_THRESHOLD = 0.8
+/** Report points only when AI confidence meets the unified threshold */
+export const POINTS_CONFIDENCE_THRESHOLD = CONFIDENCE_THRESHOLD
 
 export const POINTS = {
   report: 10,

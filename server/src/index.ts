@@ -12,6 +12,7 @@ import { geoRouter } from './routes/geo'
 import { threadsRouter } from './routes/threads'
 import { usersRouter } from './routes/users'
 import { departmentsRouter } from './routes/departments'
+import { authRouter } from './routes/auth'
 const app = express()
 const PORT = Number(process.env.PORT) || 3001
 const isProd = process.env.NODE_ENV === 'production'
@@ -60,6 +61,7 @@ app.use('/api/geo', geoRouter)
 app.use('/api/threads', threadsRouter)
 app.use('/api/users', usersRouter)
 app.use('/api/departments', departmentsRouter)
+app.use('/api/auth', authRouter)
 
 const frontendDist = path.resolve(__dirname, '../../frontend/dist')
 const spaIndex = path.join(frontendDist, 'index.html')

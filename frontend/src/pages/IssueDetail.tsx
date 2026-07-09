@@ -14,6 +14,10 @@ import { useLiveIssue } from '../lib/use-live-issue'
 import { resolveIsAdmin } from '../lib/admin'
 import { usePointsToast } from '@/components/civic/PointsToast'
 import { apiSeverityToUi, categoryLabel, issueArea, issueImage, issueReportedAt, slaHoursLeft } from '@/lib/issue-ui'
+import { BeforeAfterSlider } from '@/components/civic/BeforeAfterSlider'
+import { ResolutionVerificationBadge } from '@/components/civic/ResolutionVerificationBadge'
+import { useI18n } from '../lib/i18n'
+import type { ProofComparison } from '../lib/shared-constants'
 import { fadeUp, stagger } from '../lib/motion'
 import { cn } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
@@ -23,6 +27,7 @@ export function IssueDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
   const { showPoints } = usePointsToast()
+  const { t } = useI18n()
   const { issue, events: liveEvents, loading } = useLiveIssue(id)
   const [localIssue, setLocalIssue] = useState<Issue | null>(null)
   const [localEvents, setLocalEvents] = useState<{ type: string; timestamp: string }[]>([])
@@ -158,11 +163,14 @@ export function IssueDetailPage() {
   const isReporter = user?.uid === displayIssue.reporterId
   const canReopen = user && (isReporter || admin) && ['Resolved', 'Closed'].includes(displayIssue.status)
   const imageAlt = `${displayIssue.title} — ${categoryLabel(displayIssue.category)} report photo`
+  const proofComparison = displayIssue.aiMetadata?.proofComparison as ProofComparison | undefined
+  const beforePhoto = issueImage(displayIssue)
+  const afterPhoto = displayIssue.proofImageUrl
 
   return (
     <AppShell hideNav>
       <div className="relative">
-        <img src={displayIssue.proofImageUrl || issueImage(displayIssue)} alt={imageAlt} className="aspect-[5/6] w-full object-cover" />
+        <img src={afterPhoto || beforePhoto} alt={imageAlt} className="aspect-[5/6] w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-paper/70 via-transparent to-background" />
         <div className="absolute inset-x-0 top-0 flex items-center justify-between px-4 pt-4">
           <Link to="/map" className="grid size-10 place-items-center rounded-xl glass-strong"><ChevronLeft className="size-5 text-ink" /></Link>
@@ -220,11 +228,20 @@ export function IssueDetailPage() {
         <motion.div variants={fadeUp}>
           <VerificationBadges upvoteCount={upvotes} verificationLevel={displayIssue.verificationLevel} />
         </motion.div>
-        {displayIssue.proofImageUrl && (
+        {afterPhoto && beforePhoto && (
+          <motion.div variants={fadeUp} className="space-y-3">
+            <ResolutionVerificationBadge comparison={proofComparison} />
+            <GlassCard>
+              <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">{t('proof.slider')}</p>
+              <BeforeAfterSlider beforeUrl={beforePhoto} afterUrl={afterPhoto} className="mt-3" />
+            </GlassCard>
+          </motion.div>
+        )}
+        {afterPhoto && !beforePhoto && (
           <motion.div variants={fadeUp}>
             <GlassCard>
               <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">Resolution proof</p>
-              <img src={displayIssue.proofImageUrl} alt={`Resolution proof for ${displayIssue.title}`} className="mt-3 w-full rounded-xl object-cover" />
+              <img src={afterPhoto} alt={`Resolution proof for ${displayIssue.title}`} className="mt-3 w-full rounded-xl object-cover" />
             </GlassCard>
           </motion.div>
         )}
