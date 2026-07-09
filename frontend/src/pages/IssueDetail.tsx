@@ -1,7 +1,21 @@
 import { useEffect, useState, useRef } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowUp, ChevronLeft, Download, Loader2, MapPin, RotateCcw, Share2, AlertTriangle } from 'lucide-react'
+import {
+  ArrowUp,
+  ChevronLeft,
+  Copy,
+  Download,
+  FileText,
+  IndianRupee,
+  Loader2,
+  MapPin,
+  MessageCircle,
+  RotateCcw,
+  Scale,
+  Share2,
+  AlertTriangle,
+} from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { GlassCard, Chip } from '@/components/civic/GlassCard'
 import { SeverityBadge } from '@/components/civic/SeverityBadge'
@@ -17,6 +31,8 @@ import { apiSeverityToUi, categoryLabel, issueArea, issueImage, issueReportedAt,
 import { BeforeAfterSlider } from '@/components/civic/BeforeAfterSlider'
 import { ResolutionVerificationBadge } from '@/components/civic/ResolutionVerificationBadge'
 import { AgentPipelineStepper } from '@/components/civic/AgentPipelineStepper'
+import { buildComplaintDraft, copyComplaintDraft } from '../lib/complaint-draft'
+import { estimateCostOfInaction, formatInr } from '../lib/authority-copilot'
 import { useI18n } from '../lib/i18n'
 import type { AgentStep, ProofComparison } from '../lib/shared-constants'
 import { fadeUp, stagger } from '../lib/motion'
@@ -27,6 +43,7 @@ import type { Issue } from '../../../shared/types'
 export function IssueDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, signingIn } = useAuth()
   const { showPoints } = usePointsToast()
   const { t } = useI18n()
@@ -44,6 +61,8 @@ export function IssueDetailPage() {
   const [comments, setComments] = useState<{ id: string; authorName: string; body: string; createdAt: string }[]>([])
   const [commentBody, setCommentBody] = useState('')
   const [postingComment, setPostingComment] = useState(false)
+  const [copiedComplaint, setCopiedComplaint] = useState(false)
+  const needsReviewNav = Boolean((location.state as { needsReview?: boolean } | null)?.needsReview)
 
   useEffect(() => {
     if (!user) {
@@ -206,6 +225,20 @@ export function IssueDetailPage() {
   const proofComparison = displayIssue.aiMetadata?.proofComparison as ProofComparison | undefined
   const beforePhoto = issueImage(displayIssue)
   const afterPhoto = displayIssue.proofImageUrl
+  const confidence =
+    typeof displayIssue.aiMetadata?.confidence === 'number'
+      ? (displayIssue.aiMetadata.confidence as number)
+      : null
+  const needsReview =
+    needsReviewNav ||
+    displayIssue.status === 'Draft' ||
+    displayIssue.aiMetadata?.needs_review === true ||
+    (confidence !== null && confidence < 0.7)
+  const dupSuggestions = Array.isArray(displayIssue.aiMetadata?.duplicate_suggestions)
+    ? (displayIssue.aiMetadata.duplicate_suggestions as unknown[])
+    : []
+  const complaint = buildComplaintDraft(displayIssue)
+  const cost = estimateCostOfInaction(displayIssue)
 
   const agentStepsFromEvents: AgentStep[] = (() => {
     const ids = ['intake', 'vision', 'dedup', 'routing', 'communicator', 'insights'] as const
@@ -229,13 +262,46 @@ export function IssueDetailPage() {
     }
     if (events.length > 0) seen.add('intake')
     if (displayIssue.departmentId) seen.add('routing')
+    seen.add('dedup')
     return ids.map((id) => ({
       id,
       label: labelMap[id],
       status: (seen.has(id) ? 'done' : 'pending') as AgentStep['status'],
-      detail: id === 'routing' && displayIssue.departmentId ? `Routed to ${displayIssue.departmentId}` : undefined,
+      detail:
+        id === 'routing' && displayIssue.departmentId
+          ? `Routed to ${displayIssue.departmentId}`
+          : id === 'dedup'
+            ? dupSuggestions.length > 0
+              ? `Triple-layer match (visual + geo + semantic) · ${dupSuggestions.length} nearby`
+              : 'Triple-layer clear — visual + geo + semantic'
+            : id === 'vision' && confidence !== null
+              ? `${Math.round(confidence * 100)}% confidence${needsReview ? ' · Judge gate' : ''}`
+              : undefined,
     }))
   })()
+
+  const shareIssue = async () => {
+    const url = window.location.href
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: displayIssue.title, text: displayIssue.description, url })
+        return
+      } catch {
+        /* fall through */
+      }
+    }
+    window.open(complaint.whatsappHref, '_blank', 'noopener,noreferrer')
+  }
+
+  const onCopyComplaint = async () => {
+    try {
+      await copyComplaintDraft(displayIssue)
+      setCopiedComplaint(true)
+      window.setTimeout(() => setCopiedComplaint(false), 2000)
+    } catch {
+      /* ignore */
+    }
+  }
 
   return (
     <AppShell hideNav>
@@ -260,7 +326,7 @@ export function IssueDetailPage() {
               type="button"
               aria-label="Share issue"
               className="grid size-10 place-items-center rounded-xl glass-strong"
-              onClick={() => navigator.share?.({ title: displayIssue.title, url: window.location.href })}
+              onClick={shareIssue}
             >
               <Share2 className="size-4 text-ink" />
             </button>
@@ -296,11 +362,82 @@ export function IssueDetailPage() {
             </Chip>
           )}
         </motion.div>
+        {needsReview && (
+          <motion.div variants={fadeUp}>
+            <GlassCard className="border border-amber/40 bg-amber-soft/50">
+              <div className="flex items-start gap-3">
+                <Scale className="mt-0.5 size-5 shrink-0 text-amber" />
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-amber">Judge gate · human-in-the-loop</p>
+                  <p className="mt-1 text-sm text-ink">
+                    Vision confidence{confidence !== null ? ` ${Math.round(confidence * 100)}%` : ''} is below the review
+                    threshold. An authority must confirm category, severity, and routing before this leaves Draft.
+                  </p>
+                </div>
+              </div>
+            </GlassCard>
+          </motion.div>
+        )}
         <motion.div variants={fadeUp}>
           <GlassCard>
             <p className="text-sm leading-relaxed text-ink">{displayIssue.description}</p>
           </GlassCard>
         </motion.div>
+        <motion.div variants={fadeUp}>
+          <GlassCard className="space-y-3">
+            <div className="flex items-center gap-2">
+              <FileText className="size-4 text-coral" />
+              <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">Authority complaint draft</p>
+            </div>
+            <p className="text-[11px] text-ink-muted">
+              Formal letter to {complaint.to} — FixMyStreet-style escalation with ticket ID, SLA, and live link.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={complaint.mailtoHref}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-coral px-3 py-2 text-xs font-bold text-paper"
+              >
+                <FileText className="size-3.5" /> Email department
+              </a>
+              <a
+                href={complaint.whatsappHref}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rule bg-surface px-3 py-2 text-xs font-bold text-ink"
+              >
+                <MessageCircle className="size-3.5" /> WhatsApp
+              </a>
+              <button
+                type="button"
+                onClick={onCopyComplaint}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rule bg-surface px-3 py-2 text-xs font-bold text-ink"
+              >
+                <Copy className="size-3.5" /> {copiedComplaint ? 'Copied' : 'Copy draft'}
+              </button>
+            </div>
+          </GlassCard>
+        </motion.div>
+        {!['Resolved', 'Closed'].includes(displayIssue.status) && (
+          <motion.div variants={fadeUp}>
+            <GlassCard>
+              <div className="flex items-center gap-2">
+                <IndianRupee className="size-4 text-coral" />
+                <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">Cost of inaction</p>
+              </div>
+              <p className="mt-2 text-lg font-bold text-ink">{cost.label}</p>
+              <p className="text-[11px] text-ink-muted">
+                ~{formatInr(cost.weeklyInr)} / week if left open — demo estimate for authority prioritisation.
+              </p>
+              <ul className="mt-2 space-y-1">
+                {cost.drivers.map((d) => (
+                  <li key={d} className="text-[11px] text-ink-muted">
+                    · {d}
+                  </li>
+                ))}
+              </ul>
+            </GlassCard>
+          </motion.div>
+        )}
         <motion.div variants={fadeUp}>
           <VerificationBadges upvoteCount={upvotes} verificationLevel={displayIssue.verificationLevel} />
         </motion.div>

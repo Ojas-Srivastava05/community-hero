@@ -7,8 +7,9 @@ import { PageSkeleton } from '@/components/PageSkeleton'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { fadeUp, stagger } from '../lib/motion'
 import { motion } from 'framer-motion'
-import { AlertTriangle, Camera, Download } from 'lucide-react'
+import { AlertTriangle, Camera, ClipboardList, Download } from 'lucide-react'
 import { slaHoursLeft } from '@/lib/issue-ui'
+import { buildDispatchPlan, estimateCostOfInaction, formatInr } from '../lib/authority-copilot'
 import { ResolutionVerificationBadge } from '@/components/civic/ResolutionVerificationBadge'
 import type { Issue } from '../../../shared/types'
 import type { ProofComparison } from '../lib/shared-constants'
@@ -107,6 +108,20 @@ export function AdminPage() {
     return [...filtered].sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0))
   }, [issues, filter])
 
+  const topDispatch = useMemo(() => {
+    const open = issues
+      .filter((i) => !['Resolved', 'Closed', 'Draft'].includes(i.status))
+      .slice()
+      .sort((a, b) => {
+        if (a.slaBreached !== b.slaBreached) return a.slaBreached ? -1 : 1
+        return (b.priorityScore ?? b.severity * 10) - (a.priorityScore ?? a.severity * 10)
+      })
+    return open[0] ?? null
+  }, [issues])
+
+  const topPlan = topDispatch ? buildDispatchPlan(topDispatch) : null
+  const topCost = topDispatch ? estimateCostOfInaction(topDispatch) : null
+
   const breachCount = useMemo(
     () => issues.filter((i) => i.slaBreached && !['Resolved', 'Closed'].includes(i.status)).length,
     [issues],
@@ -202,6 +217,32 @@ export function AdminPage() {
             <Download className="size-3" /> Export CSV
           </button>
         </div>
+
+        {topDispatch && topPlan && topCost && (
+          <GlassCard className="space-y-2 border border-coral/25 bg-coral-soft/20">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="size-4 text-coral" />
+              <p className="text-xs font-bold uppercase tracking-wider text-coral">Authority co-pilot · next dispatch</p>
+            </div>
+            <p className="text-sm font-bold text-ink">{topDispatch.title}</p>
+            <p className="text-[11px] text-ink-muted">
+              {topPlan.priorityBand} · {topPlan.crew} · window {topPlan.windowHours}h · {topCost.label}
+            </p>
+            <p className="text-[11px] text-ink-muted">
+              Materials: {topPlan.materials.join(' · ')} · Weekly risk {formatInr(topCost.weeklyInr)}
+            </p>
+            <ul className="space-y-1">
+              {topPlan.checklist.slice(0, 3).map((c) => (
+                <li key={c} className="text-[11px] text-ink">
+                  · {c}
+                </li>
+              ))}
+            </ul>
+            <Link to={`/issues/${topDispatch.id}`} className="inline-block text-xs font-bold text-coral">
+              Open ticket →
+            </Link>
+          </GlassCard>
+        )}
 
         {selected.size > 0 && (
           <GlassCard className="flex flex-wrap items-center gap-2">

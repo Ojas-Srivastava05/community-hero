@@ -564,9 +564,14 @@ export function ReportWizardPage() {
                     )}
                   </div>
                   {analysis.confidence < confidenceThreshold && (
-                    <p className="mt-2 rounded-xl border border-amber/30 bg-amber-soft/40 px-3 py-2 text-[11px] font-medium text-amber">
-                      {t('report.lowConfidence')} — report may enter draft review
-                    </p>
+                    <div className="mt-2 rounded-xl border border-amber/40 bg-amber-soft/50 px-3 py-2 text-left">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-amber">Judge gate · human-in-the-loop</p>
+                      <p className="mt-1 text-[11px] font-medium text-ink">
+                        {t('report.lowConfidence')} — Vision confidence {Math.round(analysis.confidence * 100)}% is below
+                        the review threshold. Submit still works; the ticket enters Draft for authority confirmation
+                        (Prastab-style Judge, shipped as a real gate).
+                      </p>
+                    </div>
                   )}
                 </GlassCard>
               )}

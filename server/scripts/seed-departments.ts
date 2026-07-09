@@ -42,7 +42,7 @@ async function main() {
         categories: meta.categories,
         serviceCodes: meta.serviceCodes,
         slaHoursBySeverity: meta.slaHoursBySeverity,
-        contactEmail: `${id}@bbmp.gov.in`,
+        contactEmail: DEPARTMENTS[meta.categories[0] as keyof typeof DEPARTMENTS]?.contactEmail || `${id}@bbmp.gov.in`,
         createdAt: now,
         updatedAt: now,
       },

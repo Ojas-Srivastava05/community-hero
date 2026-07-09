@@ -62,7 +62,9 @@
 | Time | Click path | Show |
 |------|------------|------|
 | 0:45 | On `/issues/:id` | Photo, title, category, **department** chip, severity |
-| 0:50 | Scroll **Timeline** | Agent events: created, routing, status |
+| 0:48 | Point at **Email department / WhatsApp / Copy draft** | Formal complaint mailto — FixMyStreet-style escalation |
+| 0:50 | Point at **Cost of inaction** | ₹/day estimate for authority prioritisation |
+| 0:52 | Scroll **agent stepper** | Dedup: **visual + geo + semantic**; Judge gate if Draft |
 | 0:55 | Tap **Boost ↑** | Toast confirmation; count increments |
 | 1:00 | Show verification badges | Acknowledged → Community Verified → Priority |
 | 1:05 | Point at **SLA** + **department** chips | Agent routing output |
@@ -119,12 +121,12 @@
 
 | Time | Click path | Show |
 |------|------------|------|
-| 2:30 | Demo authority tab → `/admin` | Issue queue |
+| 2:30 | Demo authority tab → `/admin` | **Authority co-pilot** dispatch card + issue queue |
 | 2:35 | Point at SLA breach filter / status update | Accountability |
 | 2:40 | Mention before/after AI verification | Resolution proof |
 | 2:45 | Close: GitHub + Cloud Run + Gemini 2.5 + Firebase | |
 
-**Closing line:** "We're the only finalist with municipal Open311 export, a six-agent audit trail, 76 automated tests, and a live multi-city demo — built to ship, not just to pitch. Questions?"
+**Closing line:** "We're the only finalist with municipal Open311 export, a six-agent audit trail, Judge HITL, authority co-pilot, 76 automated tests, and a live multi-city demo — built to ship, not just to pitch. Questions?"
 
 **If asked about AI Studio:** Open https://aistudio.google.com/apps — "We started in Google AI Studio Build mode, exported to GitHub, and productionized on Cloud Run with Firebase Auth, Firestore, and Gemini 2.5 Flash. The AI Studio app stays live through judging."
 

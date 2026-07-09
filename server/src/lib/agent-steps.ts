@@ -19,8 +19,8 @@ function detailForEvent(ev: AgentEvent): string {
       return `${String(p.category || 'issue')} · severity ${p.severity ?? '?'} · ${Math.round(Number(p.confidence ?? 0) * 100)}% confidence`
     case 'dedup':
       return Number(p.duplicateCount) > 0
-        ? `${p.duplicateCount} similar report(s) nearby`
-        : 'No duplicates found'
+        ? `Triple-layer match (visual + geo + semantic) · ${p.duplicateCount} nearby`
+        : 'Triple-layer clear — visual + geo + semantic'
     case 'routing':
       return `${String(p.department || 'Department')} · SLA ${p.slaHours ?? '?'}h`
     case 'status_narrative':

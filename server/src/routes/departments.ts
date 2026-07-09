@@ -13,6 +13,7 @@ departmentsRouter.get('/', (_req, res) => {
       metadata: {
         category,
         department: dept.name,
+        contact_email: dept.contactEmail,
         sla_hours: dept.slaHours,
       },
     }
