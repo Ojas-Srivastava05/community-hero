@@ -39,7 +39,8 @@ function exportCsv(issues: Issue[]) {
 }
 
 export function AdminPage() {
-  const { user, loading, isAdmin, accessDenied, signInWithGoogle, signingIn } = useRequireAdmin()
+  const { user, loading, isAdmin, accessDenied, signInWithGoogle, signInWithDemo, signingIn } =
+    useRequireAdmin('/dashboard', { redirect: false })
   const [issues, setIssues] = useState<Issue[]>([])
   const [filter, setFilter] = useState('open')
   const [proofFiles, setProofFiles] = useState<Record<string, File>>({})
@@ -52,8 +53,8 @@ export function AdminPage() {
     apiListIssues(100, { includeDemo: true, sortByPriority: true }).then((r) => setIssues(r.issues))
 
   useEffect(() => {
-    load()
-  }, [])
+    if (isAdmin) load()
+  }, [isAdmin])
 
   const updateStatus = async (id: string, status: string, proof?: File) => {
     if (!user) return
@@ -124,28 +125,49 @@ export function AdminPage() {
     return (
       <AppShell>
         <PageHeader title="Admin" />
-        <div className="px-5 py-16 text-center">
-          <p className="mb-4 text-ink-muted">Admin sign-in required</p>
-          <button type="button" className="rounded-2xl bg-coral px-8 py-3 text-sm font-bold text-paper ink-glow" disabled={signingIn} onClick={() => signInWithGoogle()}>
-            {signingIn ? 'Opening Google…' : 'Sign in'}
+        <div className="space-y-3 px-5 py-16 text-center">
+          <p className="mb-2 text-ink-muted">Admin sign-in required</p>
+          <button
+            type="button"
+            className="w-full max-w-xs rounded-2xl bg-coral px-8 py-3 text-sm font-bold text-paper ink-glow"
+            disabled={signingIn}
+            onClick={() => signInWithDemo('admin')}
+          >
+            {signingIn ? 'Signing in…' : 'Enter as demo authority'}
+          </button>
+          <button
+            type="button"
+            className="w-full max-w-xs rounded-2xl border border-rule px-8 py-3 text-sm font-bold text-ink"
+            disabled={signingIn}
+            onClick={() => signInWithGoogle()}
+          >
+            {signingIn ? 'Opening Google…' : 'Sign in with Google'}
           </button>
         </div>
       </AppShell>
     )
   }
 
-  if (!isAdmin) {
-    if (accessDenied) {
-      return (
-        <AppShell>
-          <PageHeader title="Admin" subtitle="Access denied" />
-          <div className="px-5 py-16 text-center text-ink-muted">
-            <p>Admin privileges required.</p>
-          </div>
-        </AppShell>
-      )
-    }
-    return null
+  if (!isAdmin || accessDenied) {
+    return (
+      <AppShell>
+        <PageHeader title="Admin" subtitle="Access denied" />
+        <div className="space-y-3 px-5 py-16 text-center">
+          <p className="text-ink-muted">Admin privileges required.</p>
+          <button
+            type="button"
+            className="mx-auto block max-w-xs rounded-2xl bg-coral px-8 py-3 text-sm font-bold text-paper ink-glow"
+            disabled={signingIn}
+            onClick={() => signInWithDemo('admin')}
+          >
+            {signingIn ? 'Signing in…' : 'Switch to demo authority'}
+          </button>
+          <Link to="/dashboard" className="block text-sm font-semibold text-coral">
+            Back to dashboard
+          </Link>
+        </div>
+      </AppShell>
+    )
   }
 
   return (
@@ -156,6 +178,11 @@ export function AdminPage() {
         right={<Link to="/admin/analytics" className="text-xs font-bold text-coral">Analytics</Link>}
       />
       <main className="space-y-3 px-5 pt-4">
+        {displayed.length === 0 && (
+          <GlassCard className="text-center text-sm text-ink-muted">
+            No issues in this queue. Seed demo data or clear filters.
+          </GlassCard>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           {['open', 'breached', 'all'].map((f) => (
             <button

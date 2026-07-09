@@ -5,9 +5,9 @@ import { Link, Navigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 
 export function LoginPage() {
-  const { user, signInWithGoogle, signInWithDemo, signingIn } = useAuth()
+  const { user, signInWithGoogle, signInWithDemo, signInAsGuest, signingIn } = useAuth()
   const { t, locale, setLocale } = useI18n()
-  if (user) return <Navigate to="/profile" replace />
+  if (user) return <Navigate to="/" replace />
 
   return (
     <AppShell>
@@ -41,6 +41,14 @@ export function LoginPage() {
             className="w-full rounded-2xl border border-coral/40 bg-coral-soft py-4 text-sm font-bold text-coral"
           >
             {t('login.demoAdmin')}
+          </button>
+          <button
+            type="button"
+            disabled={signingIn}
+            onClick={() => signInAsGuest()}
+            className="w-full rounded-2xl border border-rule py-4 text-sm font-bold text-ink"
+          >
+            {signingIn ? 'Signing in…' : 'Continue as guest'}
           </button>
           <button
             type="button"

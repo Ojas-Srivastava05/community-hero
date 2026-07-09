@@ -1,10 +1,10 @@
 # Appendix I — 3-Minute Judge Demo Script
 
-**Product:** CIVICPULSE AI (Community Hero)  
+**Product:** Community Hero (CIVICPULSE AI)  
 **Production URL:** https://community-hero-987477089222.asia-south1.run.app  
 **Backup URL:** https://community-hero-eight.vercel.app  
 **Target duration:** 2:50 (10-second buffer before hard 3:00 cap)  
-**Seed ward:** `DEMO_WARD_001` — run `make seed` if map is sparse
+**Seed ward:** multi-city demo issues — run `make seed` if map is sparse
 
 ---
 
@@ -12,13 +12,12 @@
 
 | Step | Action |
 |------|--------|
-| 1 | Open **incognito** browser on demo device (phone preferred for authenticity) |
-| 2 | Navigate to production URL; confirm `/api/health` returns `status: ok` |
-| 3 | Sign in with Google test account (not personal if privacy concern) |
-| 4 | Open second incognito tab on backup device for upvote demo OR pick pre-upvoted seeded issue |
-| 5 | Pre-load admin account in separate tab if showing status update |
-| 6 | Close unrelated tabs; enable Do Not Disturb |
-| 7 | If presenting, mirror phone to projector; test HDMI/wireless |
+| 1 | Open **incognito** browser (phone preferred) |
+| 2 | Confirm `/api/health` → `status: ok` |
+| 3 | Prefer **demo login** (not Google OAuth on stage): `/login` → **Enter as demo citizen** |
+| 4 | Second tab: `/login` → **Enter as demo authority** (for admin / resolve) |
+| 5 | Close unrelated tabs; enable Do Not Disturb |
+| 6 | Optional: grant location, or rely on map pin fallback |
 
 **Failure fallbacks:** See [`REHEARSAL-CHECKLIST.md`](REHEARSAL-CHECKLIST.md)
 
@@ -26,110 +25,108 @@
 
 ## Timed script with click paths
 
-### 0:00 — 0:20 | Landing + context
+### 0:00 — 0:20 | Landing + demo sign-in
 
-**Say:** "Community Hero turns citizen photos into accountable civic records. This is live on Cloud Run—not a prototype."
+**Say:** "Community Hero turns citizen photos into accountable civic records. Live on Cloud Run—not a prototype."
 
 | Time | Click path | Show |
 |------|------------|------|
-| 0:00 | Open `https://community-hero-987477089222.asia-south1.run.app/` | Landing hero, Civic Glass dark UI |
-| 0:05 | Scroll if needed | Sign-in CTA, live issue count (if displayed) |
-| 0:10 | Click **Sign in with Google** | Google OAuth popup |
-| 0:15 | Complete sign-in | Redirect to map or home authenticated state |
+| 0:00 | Open production URL `/` | Light coral/paper UI, live issue counts |
+| 0:05 | Tap **Try demo** (or **Sign in** → demo citizen) | Instant auth — no Google popup |
+| 0:15 | Land on home authenticated | Report / Explore map CTAs |
 
-**Checkpoint:** Auth succeeds without `auth/unauthorized-domain` error.
+**Checkpoint:** Demo citizen signs in without OAuth errors.
 
 ---
 
 ### 0:20 — 0:45 | Map explorer
 
-**Say:** "Every report is geotagged and visible to the community. Severity colors help triage at a glance."
+**Say:** "Every report is geotagged. Severity colors help triage at a glance — 48 issues across five Indian cities."
 
 | Time | Click path | Show |
 |------|------------|------|
-| 0:20 | Navigate to `/map` (bottom nav **Map** or URL bar) | Google Maps or list fallback |
-| 0:25 | Tap **Filters** → select **Pothole** (or category with seeded data) | Filtered markers |
-| 0:30 | Tap a **red/orange marker** (high severity) | Issue preview or navigate to detail |
-| 0:35 | If preview card: tap **View details** | Issue detail page loads |
-| 0:40 | Point at map pin location | Address / ward label |
+| 0:20 | Bottom nav **Map** | Google Maps + markers + bottom nav still visible |
+| 0:25 | Tap **Filters** → **Pothole** | Filtered markers |
+| 0:30 | Tap a high-severity marker | Preview card |
+| 0:35 | Tap the card | Issue detail |
+| 0:40 | Point at location / ward | Address label |
 
-**Checkpoint:** At least one seeded issue visible. If empty: `make seed` on server or use direct issue URL from seed output.
+**Checkpoint:** Seeded issues visible. If empty: `make seed`.
 
 ---
 
-### 0:45 — 1:10 | Issue detail + upvote
+### 0:45 — 1:10 | Issue detail + boost
 
-**Say:** "Neighbors upvote to verify. At three votes, status becomes Community Verified—reducing duplicate noise."
+**Say:** "Neighbors boost to verify. At three boosts, status becomes Community Verified—reducing duplicate noise."
 
 | Time | Click path | Show |
 |------|------------|------|
-| 0:45 | On `/issues/:id` | Photo, title, category chip, severity |
-| 0:50 | Scroll to **Timeline** | Events: ai_analysis, routing, status |
-| 0:55 | Tap **Upvote** (heart/thumb) | Toast confirmation; count increments |
-| 1:00 | Show **Verification level** badge | Tier 1/2/3 indicator |
-| 1:05 | Point at **SLA countdown** / department | Agent routing output |
+| 0:45 | On `/issues/:id` | Photo, title, category, **department** chip, severity |
+| 0:50 | Scroll **Timeline** | Agent events: created, routing, status |
+| 0:55 | Tap **Boost ↑** | Toast confirmation; count increments |
+| 1:00 | Show verification badges | Acknowledged → Community Verified → Priority |
+| 1:05 | Point at **SLA** + **department** chips | Agent routing output |
 
-**Alternate:** Second device upvotes same issue to show tier jump (prep issue at 2 votes in seed).
+**Alternate:** Open a **Resolved** issue with before/after slider (seeded proof photos).
 
 ---
 
 ### 1:10 — 1:50 | Report wizard + AI analyze
 
-**Say:** "Three taps: photo, GPS, confirm. Gemini classifies in under three seconds."
+**Say:** "Photo or video, GPS or manual pin. Gemini 2.5 Flash classifies in under three seconds — six agents take it from there."
 
 | Time | Click path | Show |
 |------|------------|------|
-| 1:10 | Navigate to `/report` (FAB or **Report** nav) | Step 1 — camera capture |
-| 1:15 | Tap **Take photo** or **Upload** | Use seed pothole image if live camera awkward |
-| 1:20 | Allow **location** permission | GPS indicator green |
-| 1:25 | Tap **Next** → Step 2 | Loading: "AI analyzing..." |
-| 1:35 | Review AI card | Category, severity, title, confidence % |
-| 1:40 | Edit one field (optional) | Form is editable |
-| 1:45 | Tap **Next** → Step 3 confirm map pin | Mini-map with pin |
-| 1:48 | Tap **Submit** | Success toast; redirect to issue or map |
+| 1:10 | Bottom nav **+** Report | Step 1 — capture |
+| 1:15 | Upload seed pothole photo | Preview |
+| 1:20 | Watch **Analyzing…** + agent stepper | Live vision call |
+| 1:30 | Continue → AI card | Category, severity, **confidence %**, department |
+| 1:40 | Confirm map pin (or tap map if GPS denied) | Mini-map |
+| 1:45 | Submit | Redirect to issue; agent pipeline on timeline |
 
-**Shortcut:** If time tight or Gemini unavailable, stop at Step 2 AI card—say "submit would persist to Firestore and trigger six agents."
+**Shortcut:** If time tight, stop at AI card — "submit triggers intake, vision, dedup, routing, SLA, priority."
 
 ---
 
-### 1:50 — 2:10 | Impact dashboard
+### 1:50 — 2:10 | Impact dashboard + scorecards
 
-**Say:** "Municipal stakeholders see KPIs, trends, and predictive hotspots—not just a ticket queue."
+**Say:** "Municipal stakeholders see KPIs, predictive hotspots, and department scorecards — not just a ticket queue."
 
 | Time | Click path | Show |
 |------|------------|------|
-| 1:50 | Navigate to `/dashboard` | KPI tiles: open, resolved, avg resolution |
-| 1:55 | Scroll to **Trends chart** | Recharts line/bar by category |
-| 2:00 | Point at **Hotspot** card | Ward risk score, geohash cluster |
-| 2:05 | Read **AI insight** snippet (if present) | Gemini narrative |
+| 1:50 | Home bento **Impact** or Profile → dashboard | KPI tiles |
+| 1:55 | Hotspot cards + AI insight | Predictive clusters |
+| 2:00 | Tap **Scorecards** | A–D department grades |
+| 2:05 | Optional: Open311 export from admin issue | Municipal integration |
 
 ---
 
 ### 2:10 — 2:30 | Civic assistant
 
-**Say:** "Natural language over live data—function calling, not hallucinated addresses."
+**Say:** "Natural language over live data — function calling, not hallucinated addresses."
 
 | Time | Click path | Show |
 |------|------------|------|
-| 2:10 | Navigate to `/assistant` | Chat UI |
-| 2:12 | Type: **"What open potholes are near me?"** | Send |
-| 2:18 | Wait for response | Tool-grounded issue list or summary |
-| 2:25 | Optional second query: **"How many issues are resolved this week?"** | Analytics-aware reply |
+| 2:10 | Home bento **Ask AI** | Chat UI |
+| 2:12 | Tap prompt: **"What open potholes are near me?"** | Tool-grounded reply |
+| 2:22 | Optional: **"How many issues are resolved this week?"** | Analytics-aware reply |
 
 ---
 
-### 2:30 — 2:50 | Admin resolve (optional) + close
+### 2:30 — 2:50 | Admin + close
 
-**Say:** "Admins close the loop with proof photos. Every step is on the public timeline."
+**Say:** "Admins close the loop with proof photos. Every step is on the public timeline. Built to plug into real municipal systems via Open311."
 
 | Time | Click path | Show |
 |------|------------|------|
-| 2:30 | Navigate to `/admin` (admin account) | Issue queue |
-| 2:35 | Select issue → **In Progress** | Status update + timeline event |
-| 2:40 | Skip full resolve if low time | Mention proof upload capability |
-| 2:45 | **Close tab to GitHub** or show slide 14 | Repo + Google Doc links |
+| 2:30 | Demo authority tab → `/admin` | Issue queue |
+| 2:35 | Point at SLA breach filter / status update | Accountability |
+| 2:40 | Mention before/after AI verification | Resolution proof |
+| 2:45 | Close: GitHub + Cloud Run + Gemini 2.5 + Firebase | |
 
-**Closing line:** "Open source on GitHub, live on Cloud Run, built on Gemini and Firebase. Questions?"
+**Closing line:** "We're the only finalist with municipal Open311 export, a six-agent audit trail, 76 automated tests, and a live multi-city demo — built to ship, not just to pitch. Questions?"
+
+**If asked about AI Studio:** "We started in Google AI Studio Build mode, exported to GitHub, and productionized on Cloud Run with Firebase Auth, Firestore, and Gemini 2.5 Flash."
 
 ---
 
@@ -137,11 +134,12 @@
 
 | Likely question | Answer pointer |
 |-----------------|----------------|
-| How is this different from Swachhata? | `docs/COMPETITIVE-MATRIX.md` — agents + vision + hotspots |
+| How is this different from Swachhata? | `docs/COMPETITIVE-MATRIX.md` — agents + vision + hotspots + Open311 |
 | Security? | `firestore.rules`, server-side auth, rate limits `/waiting` on 429 |
 | Agent architecture? | `docs/diagrams/mermaid/04-agent-workflow.mmd` |
 | Open311? | `GET /api/analytics/export/open311` |
 | Scale? | Geohash indexes, Cloud Run autoscale, L2 Gemini cache |
+| vs streaming agent UIs? | Six specialized agents with Firestore audit trail — municipal depth over chat theatre |
 
 ---
 
@@ -149,11 +147,11 @@
 
 | Block | Duration | Cumulative |
 |-------|----------|------------|
-| Landing + sign-in | 0:20 | 0:20 |
+| Landing + demo sign-in | 0:20 | 0:20 |
 | Map + issue | 0:25 | 0:45 |
-| Upvote + timeline | 0:25 | 1:10 |
+| Boost + timeline | 0:25 | 1:10 |
 | Report wizard | 0:40 | 1:50 |
-| Dashboard | 0:20 | 2:10 |
+| Dashboard + scorecards | 0:20 | 2:10 |
 | Assistant | 0:20 | 2:30 |
 | Admin + close | 0:20 | 2:50 |
 

@@ -11,11 +11,12 @@ export async function resolveIsAdmin(user: User): Promise<boolean> {
   return apiCheckAdmin(token)
 }
 
-export function useRequireAdmin(redirectTo = '/dashboard') {
-  const { user, loading, signInWithGoogle, signingIn } = useAuth()
+export function useRequireAdmin(redirectTo = '/dashboard', options?: { redirect?: boolean }) {
+  const { user, loading, signInWithGoogle, signInWithDemo, signingIn } = useAuth()
   const navigate = useNavigate()
   const [checking, setChecking] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
+  const shouldRedirect = options?.redirect !== false
 
   useEffect(() => {
     if (loading) return
@@ -29,14 +30,22 @@ export function useRequireAdmin(redirectTo = '/dashboard') {
       if (cancelled) return
       setIsAdmin(admin)
       setChecking(false)
-      if (!admin) navigate(redirectTo, { replace: true })
+      if (!admin && shouldRedirect) navigate(redirectTo, { replace: true })
     })
     return () => {
       cancelled = true
     }
-  }, [user, loading, navigate, redirectTo])
+  }, [user, loading, navigate, redirectTo, shouldRedirect])
 
   const accessDenied = !loading && !checking && Boolean(user) && !isAdmin
 
-  return { user, loading: loading || checking, isAdmin, accessDenied, signInWithGoogle, signingIn }
+  return {
+    user,
+    loading: loading || checking,
+    isAdmin,
+    accessDenied,
+    signInWithGoogle,
+    signInWithDemo,
+    signingIn,
+  }
 }

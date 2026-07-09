@@ -10,6 +10,7 @@ import {
 } from 'react'
 import {
   onAuthStateChanged,
+  signInAnonymously,
   signInWithCustomToken,
   signInWithPopup,
   signOut,
@@ -24,8 +25,10 @@ type AuthContextValue = {
   loading: boolean
   signingIn: boolean
   configured: boolean
+  isAnonymous: boolean
   signInWithGoogle: () => Promise<void>
   signInWithDemo: (role: 'citizen' | 'admin') => Promise<void>
+  signInAsGuest: () => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -98,6 +101,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const signInAsGuest = useCallback(async () => {
+    if (signInLock.current) return
+    signInLock.current = true
+    setSigningIn(true)
+    useAuthStore.getState().setSigningIn(true)
+    try {
+      const auth = getFirebaseAuth()
+      if (!auth) throw new Error('Firebase is not configured')
+      await signInAnonymously(auth)
+    } finally {
+      signInLock.current = false
+      setSigningIn(false)
+      useAuthStore.getState().setSigningIn(false)
+    }
+  }, [])
+
   const logout = useCallback(async () => {
     const auth = getFirebaseAuth()
     if (!auth) return
@@ -110,11 +129,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       signingIn,
       configured: isFirebaseConfigured,
+      isAnonymous: Boolean(user?.isAnonymous),
       signInWithGoogle,
       signInWithDemo,
+      signInAsGuest,
       logout,
     }),
-    [user, loading, signingIn, signInWithGoogle, signInWithDemo, logout],
+    [user, loading, signingIn, signInWithGoogle, signInWithDemo, signInAsGuest, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

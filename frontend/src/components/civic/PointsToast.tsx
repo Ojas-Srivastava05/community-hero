@@ -29,8 +29,12 @@ export function PointsToastProvider({ children }: { children: ReactNode }) {
               className="flex items-center gap-2 rounded-full border border-coral/30 bg-paper/95 px-4 py-2.5 shadow-lg backdrop-blur-sm"
             >
               <Sparkles className="size-4 text-coral" />
-              <span className="text-sm font-bold text-coral">+{t.points} civic points</span>
-              {t.message && <span className="text-xs text-ink-muted">{t.message}</span>}
+              {t.points > 0 ? (
+                <span className="text-sm font-bold text-coral">+{t.points} civic points</span>
+              ) : (
+                <span className="text-sm font-bold text-ink">{t.message || 'Saved'}</span>
+              )}
+              {t.points > 0 && t.message && <span className="text-xs text-ink-muted">{t.message}</span>}
             </motion.div>
           ))}
         </AnimatePresence>

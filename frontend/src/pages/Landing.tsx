@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowUpRight, Bell, Flame, Loader2, MapPin, Sparkles, TrendingUp, Zap } from 'lucide-react'
+import { ArrowUpRight, Bell, Flame, Loader2, LogIn, MapPin, Sparkles, TrendingUp, Zap } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { SectionHeader } from '@/components/civic/GlassCard'
 import { LiveIndicator } from '@/components/civic/LiveIndicator'
 import { SeverityBadge } from '@/components/civic/SeverityBadge'
 import { VerificationBadges } from '@/components/civic/VerificationBadges'
 import { apiAnalyticsSummary, apiHotspots } from '../lib/api'
+import { useAuth } from '../lib/auth'
 import { useLocation } from '../lib/location'
 import { useLiveIssues } from '../lib/use-live-issues'
 import { sortByDistance } from '../lib/geo'
@@ -41,6 +42,7 @@ function useTicker(value: number, enabled: boolean) {
 }
 
 export function LandingPage() {
+  const { user, signInWithDemo, signingIn } = useAuth()
   const { location, loading: locLoading, error: locError } = useLocation()
   const { issues: liveIssues, loading: issuesLoading, livePulse } = useLiveIssues({
     lat: location?.lat,
@@ -95,7 +97,7 @@ export function LandingPage() {
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
             <div className="flex items-center gap-2 text-xs font-semibold text-ink-muted">
               <span className="size-2 rounded-full bg-leaf animate-pulse" />
-              CivicPulse · {cityLabel}
+              Community Hero · {cityLabel}
               <LiveIndicator active={livePulse} />
             </div>
             <div className="mt-1 flex items-center gap-1.5 text-sm font-bold text-ink">
@@ -103,15 +105,27 @@ export function LandingPage() {
               {locLoading ? 'Locating…' : areaLabel}
             </div>
           </motion.div>
-          <motion.div whileTap={{ scale: 0.92 }}>
-            <Link
-              to="/activity"
-              className="relative grid size-10 place-items-center rounded-full border border-rule bg-paper"
-              aria-label="Notifications"
-            >
-              <Bell className="size-4" />
-            </Link>
-          </motion.div>
+          <div className="flex items-center gap-2">
+            {!user && (
+              <motion.div whileTap={{ scale: 0.92 }}>
+                <Link
+                  to="/login"
+                  className="inline-flex h-10 items-center gap-1.5 rounded-full border border-rule bg-paper px-3 text-xs font-bold text-ink"
+                >
+                  <LogIn className="size-3.5" /> Sign in
+                </Link>
+              </motion.div>
+            )}
+            <motion.div whileTap={{ scale: 0.92 }}>
+              <Link
+                to="/activity"
+                className="relative grid size-10 place-items-center rounded-full border border-rule bg-paper"
+                aria-label="Notifications"
+              >
+                <Bell className="size-4" />
+              </Link>
+            </motion.div>
+          </div>
         </div>
 
         <motion.h1
@@ -144,6 +158,18 @@ export function LandingPage() {
               <MapPin className="size-4" /> Explore map
             </Link>
           </motion.div>
+          {!user && (
+            <motion.div variants={fadeUp}>
+              <button
+                type="button"
+                disabled={signingIn}
+                onClick={() => signInWithDemo('citizen')}
+                className="inline-flex h-11 items-center gap-2 rounded-full border border-coral/40 bg-coral-soft px-4 text-sm font-bold text-coral active:scale-95 transition-transform disabled:opacity-60"
+              >
+                <LogIn className="size-4" /> {signingIn ? 'Signing in…' : 'Try demo'}
+              </button>
+            </motion.div>
+          )}
         </motion.div>
         {locError && <p className="mt-2 text-xs text-amber">Location unavailable — showing all issues</p>}
       </section>
@@ -315,7 +341,7 @@ export function LandingPage() {
         >
           <BentoLink to="/dashboard" tone="leaf" label="Impact" sub="Charts & insight" />
           <BentoLink to="/leaderboard" tone="amber" label="Leaderboard" sub="Civic points" />
-          <BentoLink to="/my-reports" tone="indigo" label="My reports" sub="SLA tracking" />
+          <BentoLink to="/scorecards" tone="indigo" label="Scorecards" sub="Dept grades A–D" />
           <BentoLink to="/assistant" tone="coral" label="Ask AI" sub="Civic assistant" />
         </motion.div>
       </section>

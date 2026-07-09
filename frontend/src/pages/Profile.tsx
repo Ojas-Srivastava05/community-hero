@@ -141,6 +141,7 @@ export function ProfilePage() {
         <Row to="/my-reports" icon={FileText} label="My reports" />
         <Row to="/leaderboard" icon={Award} label="Leaderboard" />
         <Row to="/dashboard" icon={Sparkles} label="Civic dashboard" />
+        <Row to="/scorecards" icon={Award} label="Department scorecards" hint="A–D grades" />
         <Row to="/assistant" icon={Sparkles} label="Civic AI assistant" hint="New" />
         {admin && <Row to="/admin" icon={Shield} label="Admin console" />}
       </motion.section>
@@ -182,10 +183,10 @@ export function ProfilePage() {
         <Row to="/gamification-rules" icon={Award} label="Gamification rules" hint="Points & badges" />
         <Row to="/terms" icon={FileText} label="Terms of use" />
         <Row to="/privacy" icon={Shield} label="Privacy policy" />
-        <Row icon={Bell} label="Notifications" hint="Area alerts" />
-        <Row icon={Settings} label="Preferences" />
+        <Row to="/activity" icon={Bell} label="Activity & alerts" hint="Nearby threads" />
+        <Row to="/login" icon={Settings} label="Account" hint={user ? 'Signed in' : 'Sign in / demo'} />
       </motion.section>
-      <p className="mt-6 px-5 pb-2 text-center text-[10px] text-ink-muted">CivicPulse AI · Community Hero · Vibe2Ship</p>
+      <p className="mt-6 px-5 pb-2 text-center text-[10px] text-ink-muted">Community Hero · CIVICPULSE AI · Vibe2Ship</p>
     </AppShell>
   )
 }

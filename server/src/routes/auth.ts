@@ -1,6 +1,6 @@
 import { Router } from 'express'
-import { adminAuth } from '../lib/firebase-admin'
-import { sendError, ErrorCodes, sendServerError } from '../lib/errors'
+import { adminAuth, db } from '../lib/firebase-admin'
+import { sendServerError } from '../lib/errors'
 
 export const authRouter = Router()
 
@@ -34,6 +34,25 @@ async function ensureDemoUser(role: keyof typeof DEMO_USERS) {
   } else {
     await adminAuth.setCustomUserClaims(profile.uid, { admin: false })
   }
+
+  // Make demo accounts immediately eligible for boosts (24h age + prior report)
+  const now = new Date().toISOString()
+  const aged = new Date(Date.now() - 48 * 3600_000).toISOString()
+  await db.collection('users').doc(profile.uid).set(
+    {
+      displayName: profile.displayName,
+      email: profile.email,
+      civicPoints: role === 'admin' ? 0 : 12,
+      badges: role === 'admin' ? [] : ['First Reporter'],
+      leaderboardOptIn: true,
+      reportsCount: 1,
+      isDemo: true,
+      createdAt: aged,
+      updatedAt: now,
+    },
+    { merge: true },
+  )
+
   return adminAuth.createCustomToken(profile.uid, role === 'admin' ? { admin: true } : {})
 }
 

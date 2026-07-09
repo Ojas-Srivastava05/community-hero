@@ -12,7 +12,7 @@ export function NotFoundPage() {
       >
         <p className="display text-6xl font-bold text-coral">404</p>
         <h1 className="mt-4 text-xl font-bold text-ink">Page not found</h1>
-        <p className="mt-2 text-sm text-ink-muted">This route doesn&apos;t exist yet.</p>
+        <p className="mt-2 text-sm text-ink-muted">This page isn&apos;t part of Community Hero.</p>
         <Link to="/" className="mt-8 inline-block rounded-2xl bg-coral px-6 py-3 text-sm font-bold text-paper ink-glow">
           Go home
         </Link>

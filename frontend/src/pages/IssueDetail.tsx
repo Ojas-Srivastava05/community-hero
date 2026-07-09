@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowUp, ChevronLeft, Download, MapPin, RotateCcw, Share2, AlertTriangle } from 'lucide-react'
+import { ArrowUp, ChevronLeft, Download, Loader2, MapPin, RotateCcw, Share2, AlertTriangle } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { GlassCard, Chip } from '@/components/civic/GlassCard'
 import { SeverityBadge } from '@/components/civic/SeverityBadge'
@@ -16,8 +16,9 @@ import { usePointsToast } from '@/components/civic/PointsToast'
 import { apiSeverityToUi, categoryLabel, issueArea, issueImage, issueReportedAt, slaHoursLeft } from '@/lib/issue-ui'
 import { BeforeAfterSlider } from '@/components/civic/BeforeAfterSlider'
 import { ResolutionVerificationBadge } from '@/components/civic/ResolutionVerificationBadge'
+import { AgentPipelineStepper } from '@/components/civic/AgentPipelineStepper'
 import { useI18n } from '../lib/i18n'
-import type { ProofComparison } from '../lib/shared-constants'
+import type { AgentStep, ProofComparison } from '../lib/shared-constants'
 import { fadeUp, stagger } from '../lib/motion'
 import { cn } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
@@ -25,7 +26,8 @@ import type { Issue } from '../../../shared/types'
 
 export function IssueDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { user } = useAuth()
+  const navigate = useNavigate()
+  const { user, signingIn } = useAuth()
   const { showPoints } = usePointsToast()
   const { t } = useI18n()
   const { issue, events: liveEvents, loading } = useLiveIssue(id)
@@ -37,6 +39,7 @@ export function IssueDetailPage() {
   const [voted, setVoted] = useState(false)
   const [admin, setAdmin] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [boosting, setBoosting] = useState(false)
   const [upvoteError, setUpvoteError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -81,8 +84,13 @@ export function IssueDetailPage() {
   }, [user, id])
 
   const boost = async () => {
-    if (!user || !id || voted) return
+    if (!user) {
+      navigate('/login')
+      return
+    }
+    if (!id || voted || boosting) return
     setUpvoteError(null)
+    setBoosting(true)
     try {
       const token = await user.getIdToken()
       const r = await apiUpvote(id, token)
@@ -104,6 +112,8 @@ export function IssueDetailPage() {
       if (pe?.pointsAwarded && pe.pointsAwarded > 0) {
         const msg = pe.badgesEarned?.length ? pe.badgesEarned.join(' · ') : 'Boost'
         showPoints(pe.pointsAwarded, msg)
+      } else {
+        showPoints(0, 'Boost recorded')
       }
       setLocalEvents((prev) => [
         ...(prev.length ? prev : liveEvents),
@@ -112,6 +122,8 @@ export function IssueDetailPage() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not boost this report'
       setUpvoteError(msg)
+    } finally {
+      setBoosting(false)
     }
   }
 
@@ -167,6 +179,36 @@ export function IssueDetailPage() {
   const beforePhoto = issueImage(displayIssue)
   const afterPhoto = displayIssue.proofImageUrl
 
+  const agentStepsFromEvents: AgentStep[] = (() => {
+    const ids = ['intake', 'vision', 'dedup', 'routing', 'communicator', 'insights'] as const
+    const labelMap: Record<(typeof ids)[number], string> = {
+      intake: 'Intake Agent',
+      vision: 'Vision Agent',
+      dedup: 'Dedup Agent',
+      routing: 'Routing Agent',
+      communicator: 'Communicator Agent',
+      insights: 'Insights Agent',
+    }
+    const seen = new Set<string>()
+    for (const ev of events) {
+      const t = ev.type.toLowerCase()
+      if (t.includes('vision') || t.includes('ai_analysis') || t.includes('analyze')) seen.add('vision')
+      else if (t.includes('dedup')) seen.add('dedup')
+      else if (t.includes('rout') || t.includes('status') || t.includes('assign') || t.includes('sla')) seen.add('routing')
+      else if (t.includes('notif') || t.includes('communicat')) seen.add('communicator')
+      else if (t.includes('insight') || t.includes('priority') || t.includes('hotspot')) seen.add('insights')
+      else if (t.includes('creat') || t.includes('intake')) seen.add('intake')
+    }
+    if (events.length > 0) seen.add('intake')
+    if (displayIssue.departmentId) seen.add('routing')
+    return ids.map((id) => ({
+      id,
+      label: labelMap[id],
+      status: (seen.has(id) ? 'done' : 'pending') as AgentStep['status'],
+      detail: id === 'routing' && displayIssue.departmentId ? `Routed to ${displayIssue.departmentId}` : undefined,
+    }))
+  })()
+
   return (
     <AppShell hideNav>
       <div className="relative">
@@ -186,7 +228,12 @@ export function IssueDetailPage() {
                 <Download className="size-4 text-ink" />
               </button>
             )}
-            <button type="button" className="grid size-10 place-items-center rounded-xl glass-strong" onClick={() => navigator.share?.({ title: displayIssue.title, url: window.location.href })}>
+            <button
+              type="button"
+              aria-label="Share issue"
+              className="grid size-10 place-items-center rounded-xl glass-strong"
+              onClick={() => navigator.share?.({ title: displayIssue.title, url: window.location.href })}
+            >
               <Share2 className="size-4 text-ink" />
             </button>
           </div>
@@ -210,6 +257,7 @@ export function IssueDetailPage() {
           <Chip tone="coral">#{displayIssue.id.slice(0, 8)}</Chip>
           <Chip>{categoryLabel(displayIssue.category)}</Chip>
           <Chip>{displayIssue.status}</Chip>
+          {displayIssue.departmentId && <Chip tone="indigo">{displayIssue.departmentId}</Chip>}
           <Chip>Reported {issueReportedAt(displayIssue)}</Chip>
           {sla !== null && !displayIssue.slaBreached && <Chip>{sla}h SLA left</Chip>}
           {displayIssue.slaBreached && (
@@ -228,6 +276,13 @@ export function IssueDetailPage() {
         <motion.div variants={fadeUp}>
           <VerificationBadges upvoteCount={upvotes} verificationLevel={displayIssue.verificationLevel} />
         </motion.div>
+        {agentStepsFromEvents.some((s) => s.status === 'done') && (
+          <motion.div variants={fadeUp}>
+            <GlassCard>
+              <AgentPipelineStepper steps={agentStepsFromEvents} />
+            </GlassCard>
+          </motion.div>
+        )}
         {afterPhoto && beforePhoto && (
           <motion.div variants={fadeUp} className="space-y-3">
             <ResolutionVerificationBadge comparison={proofComparison} />
@@ -291,15 +346,18 @@ export function IssueDetailPage() {
           ) : (
             <button
               type="button"
-              disabled={!user || voted}
+              disabled={voted || boosting || signingIn}
               onClick={boost}
               className={cn(
                 'flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition-colors',
                 voted ? 'bg-coral text-paper ink-glow' : 'border border-rule bg-surface text-ink',
-                !user && 'opacity-60',
               )}
             >
-              <motion.span animate={{ y: voted ? -2 : 0 }}><ArrowUp className="size-4" /></motion.span>
+              {boosting || signingIn ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <motion.span animate={{ y: voted ? -2 : 0 }}><ArrowUp className="size-4" /></motion.span>
+              )}
               {!user ? 'Sign in to boost' : voted ? `Boosted · ${upvotes}` : `Boost · ${upvotes}`}
             </button>
           )}

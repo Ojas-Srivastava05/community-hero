@@ -85,7 +85,7 @@ export function DashboardPage() {
         right={
           <div className="flex items-center gap-3">
             <Link to="/scorecards" className="text-xs font-bold text-ink-muted">Scorecards</Link>
-            <Link to="/admin/analytics" className="text-xs font-bold text-coral">Deep dive</Link>
+            <Link to="/assistant" className="text-xs font-bold text-coral">Ask AI</Link>
           </div>
         }
       />

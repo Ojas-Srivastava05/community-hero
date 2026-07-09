@@ -51,12 +51,12 @@ Full write-up: [`docs/architecture.md`](docs/architecture.md) · API: [`docs/api
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | React 19 + Vite PWA (Civic Glass design) |
+| Frontend | React 19 + Vite PWA (mobile-first civic UI) |
 | Backend | Node.js + Express (API + static serve) |
 | Auth | Firebase Authentication (Google Sign-In) |
 | Database | Cloud Firestore |
 | Storage | Firebase Storage |
-| AI | Gemini 2.0 Flash / Flash Lite |
+| AI | Gemini 2.5 Flash |
 | Maps | Google Maps Platform |
 | Deploy | Cloud Run (`asia-south1`) + Vercel preview |
 
@@ -100,7 +100,7 @@ Add Cloud Run hostname to **Firebase Auth → Authorized domains** for Google Si
 
 ## Design
 
-**Codename:** Civic Glass — dark, map-first, teal accent `#14B8A6`. See [`.stitch/DESIGN.md`](.stitch/DESIGN.md).
+**Look:** Warm paper + coral civic UI (Space Grotesk / Fraunces). Mobile-first PWA. See [`.stitch/DESIGN.md`](.stitch/DESIGN.md) for earlier Stitch explorations.
 
 ## License
 

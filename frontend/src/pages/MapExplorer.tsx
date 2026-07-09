@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Filter, Layers, Search, Sparkles, X } from 'lucide-react'
+import { Filter, Home, Layers, Search, Sparkles, X } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { CivicMap } from '@/components/civic/CivicMap'
 import { PlacesAutocomplete } from '@/components/civic/PlacesAutocomplete'
@@ -119,8 +119,8 @@ export function MapExplorerPage() {
   }
 
   return (
-    <AppShell bare hideNav>
-      <div className="relative h-screen w-full">
+    <AppShell bare>
+      <div className="relative h-[calc(100dvh-5.5rem)] w-full">
         <CivicMap
           center={center}
           zoom={12}
@@ -182,6 +182,13 @@ export function MapExplorerPage() {
           className="absolute inset-x-0 top-0 z-20 px-4 pt-4"
         >
           <div className="glass-strong flex items-center gap-2 rounded-2xl px-3 py-2.5">
+            <Link
+              to="/"
+              aria-label="Back to home"
+              className="grid size-8 shrink-0 place-items-center rounded-lg border border-rule"
+            >
+              <Home className="size-4 text-ink" />
+            </Link>
             <Search className="size-4 shrink-0 text-ink-muted" />
             <PlacesAutocomplete
               value={search}

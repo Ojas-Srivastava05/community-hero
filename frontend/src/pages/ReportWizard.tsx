@@ -27,9 +27,9 @@ const CATEGORIES = ['pothole', 'water_leak', 'streetlight', 'waste', 'road_damag
 const SEVERITY_LEVELS = [1, 2, 3, 4, 5] as const
 
 export function ReportWizardPage() {
-  const { user, signInWithGoogle, signInWithDemo, signingIn } = useAuth()
+  const { user, signInWithGoogle, signInWithDemo, signInAsGuest, signingIn } = useAuth()
   const { t, locale, setLocale, confidenceThreshold } = useI18n()
-  const { location, loading: locLoading, refresh } = useLocation()
+  const { location, loading: locLoading, error: locError, refresh } = useLocation()
   const navigate = useNavigate()
   const { showPoints } = usePointsToast()
   const [step, setStep] = useState(0)
@@ -45,6 +45,7 @@ export function ReportWizardPage() {
   const [mergeIntoId, setMergeIntoId] = useState<string | undefined>()
   const [pinAdjusted, setPinAdjusted] = useState(false)
   const [geocodingPin, setGeocodingPin] = useState(false)
+  const FALLBACK_CENTER = { lat: 12.9716, lng: 77.5946, address: 'Bengaluru (tap map to set exact pin)' }
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -92,6 +93,17 @@ export function ReportWizardPage() {
       }))
     }
   }, [location])
+
+  // When GPS fails, seed a fallback center so the confirm map is usable
+  useEffect(() => {
+    if (locLoading || location) return
+    if (locError) {
+      setForm((prev) => {
+        if (prev.lat !== 0 || prev.lng !== 0) return prev
+        return { ...prev, ...FALLBACK_CENTER }
+      })
+    }
+  }, [locLoading, location, locError])
 
   useEffect(() => {
     if (!user) return
@@ -350,7 +362,12 @@ export function ReportWizardPage() {
             >
               {t('lang.toggle')}
             </button>
-            <button type="button" onClick={() => (step === 0 ? navigate('/') : setStep(step - 1))} className="grid size-9 place-items-center rounded-xl border border-rule">
+            <button
+              type="button"
+              aria-label={step === 0 ? 'Back to home' : 'Previous step'}
+              onClick={() => (step === 0 ? navigate('/') : setStep(step - 1))}
+              className="grid size-9 place-items-center rounded-xl border border-rule"
+            >
               <ChevronLeft className="size-4 text-ink" />
             </button>
           </div>
@@ -395,6 +412,9 @@ export function ReportWizardPage() {
                   <button type="button" disabled={signingIn} onClick={() => signInWithDemo('citizen')} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-coral py-4 text-sm font-bold text-paper ink-glow">
                     <LogIn className="size-4" /> {signingIn ? 'Signing in…' : t('report.demoCitizen')}
                   </button>
+                  <button type="button" disabled={signingIn} onClick={() => signInAsGuest()} className="w-full rounded-2xl border border-coral/40 bg-coral-soft py-3 text-sm font-semibold text-coral">
+                    {signingIn ? 'Signing in…' : 'Continue as guest'}
+                  </button>
                   <button type="button" disabled={signingIn} onClick={() => signInWithGoogle()} className="w-full rounded-2xl border border-rule py-3 text-sm font-semibold text-ink">
                     {signingIn ? 'Opening Google…' : t('report.signIn')}
                   </button>
@@ -417,9 +437,19 @@ export function ReportWizardPage() {
               {(pipelineSteps.length > 0 || pipelineRunning) && (
                 <AgentPipelineStepper steps={pipelineSteps} running={pipelineRunning || analyzing || submitting} />
               )}
+              {locError && (
+                <p className="rounded-xl border border-amber/30 bg-amber-soft/40 px-3 py-2 text-[11px] font-medium text-amber">
+                  GPS unavailable — continue and drop a pin on the confirm step.
+                </p>
+              )}
               {file && user && (
-                <button type="button" disabled={!hasLocation || locLoading} onClick={() => setStep(1)} className="w-full py-2 text-xs font-semibold text-coral disabled:opacity-40">
-                  {locLoading ? 'Getting your location…' : `${t('report.continue')} →`}
+                <button
+                  type="button"
+                  disabled={locLoading && !hasLocation}
+                  onClick={() => setStep(1)}
+                  className="w-full py-2 text-xs font-semibold text-coral disabled:opacity-40"
+                >
+                  {locLoading && !hasLocation ? 'Getting your location…' : `${t('report.continue')} →`}
                 </button>
               )}
             </div>
@@ -433,9 +463,17 @@ export function ReportWizardPage() {
                     <SeverityBadge severity={apiSeverityToUi(form.severity)} />
                   </div>
                   <p className="mt-2 text-sm text-ink">{form.description}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Chip tone="coral">{Math.round(analysis.confidence * 100)}% confidence</Chip>
+                    {(analysis.department || form.category) && (
+                      <Chip tone="indigo">
+                        {analysis.department || form.category.replace(/_/g, ' ')}
+                      </Chip>
+                    )}
+                  </div>
                   {analysis.confidence < confidenceThreshold && (
                     <p className="mt-2 rounded-xl border border-amber/30 bg-amber-soft/40 px-3 py-2 text-[11px] font-medium text-amber">
-                      {t('report.lowConfidence')} ({Math.round(analysis.confidence * 100)}%)
+                      {t('report.lowConfidence')} — report may enter draft review
                     </p>
                   )}
                 </GlassCard>
@@ -509,22 +547,29 @@ export function ReportWizardPage() {
                 </p>
                 <div className="mt-3 flex items-center gap-2">
                   <MapPin className="size-4 text-coral" />
-                  <Chip tone="coral">{pinAdjusted ? 'Pin adjusted' : 'Your location'}</Chip>
+                  <Chip tone="coral">
+                    {pinAdjusted ? 'Pin adjusted' : locError ? 'Tap map to set pin' : 'Your location'}
+                  </Chip>
                 </div>
               </GlassCard>
-              {hasLocation && (
-                <div className="h-48 overflow-hidden rounded-2xl border border-rule">
-                  <CivicMap
-                    center={{ lat: form.lat, lng: form.lng }}
-                    pinPosition={{ lat: form.lat, lng: form.lng }}
-                    onMapClick={handleMapPin}
-                    issues={[]}
-                    zoom={16}
-                    className="size-full"
-                  />
-                </div>
-              )}
-              <p className="text-center text-[11px] text-ink-muted">Tap the map to adjust the pin if GPS is inaccurate</p>
+              <div className="h-48 overflow-hidden rounded-2xl border border-rule">
+                <CivicMap
+                  center={{
+                    lat: hasLocation ? form.lat : FALLBACK_CENTER.lat,
+                    lng: hasLocation ? form.lng : FALLBACK_CENTER.lng,
+                  }}
+                  pinPosition={
+                    hasLocation ? { lat: form.lat, lng: form.lng } : undefined
+                  }
+                  onMapClick={handleMapPin}
+                  issues={[]}
+                  zoom={16}
+                  className="size-full"
+                />
+              </div>
+              <p className="text-center text-[11px] text-ink-muted">
+                {hasLocation ? 'Tap the map to adjust the pin if GPS is inaccurate' : 'Tap the map to drop your report pin'}
+              </p>
               {serverDupes ? (
                 <GlassCard className="border-amber/30 bg-amber-soft/30">
                   <p className="text-xs font-bold text-amber">AI found similar reports</p>

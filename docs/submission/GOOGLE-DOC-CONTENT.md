@@ -23,7 +23,7 @@ Community Hero addresses this gap with a production PWA on Google Cloud: photogr
 
 ## Section 2 — Solution Overview (~300 words)
 
-CIVICPULSE AI (Community Hero) is a hyperlocal civic intelligence platform that turns citizen photographs into accountable, routed, verifiable municipal records. A resident opens the mobile-first PWA, signs in with Google, and completes a three-step report wizard: capture a photo, allow GPS pinning, and confirm AI-prefilled fields. Gemini 2.0 Flash analyzes the image server-side and returns structured JSON—category, severity, department, confidence, and citizen-friendly title—typically in under three seconds.
+CIVICPULSE AI (Community Hero) is a hyperlocal civic intelligence platform that turns citizen photographs into accountable, routed, verifiable municipal records. A resident opens the mobile-first PWA, signs in with Google, and completes a three-step report wizard: capture a photo, allow GPS pinning, and confirm AI-prefilled fields. Gemini 2.5 Flash analyzes the image server-side and returns structured JSON—category, severity, department, confidence, and citizen-friendly title—typically in under three seconds.
 
 On submit, a six-agent orchestration pipeline runs automatically: intake persists the issue to Cloud Firestore with geohash indexing; vision metadata is attached; routing maps category to department; SLA agent sets deadline hours by severity tier; dedup agent queries nearby same-category issues; priority agent computes a composite score. Low-confidence reports enter a Draft review queue rather than polluting the public map.
 
@@ -59,7 +59,7 @@ Three-step wizard at `/report`: camera capture or gallery upload, HTML5 geolocat
 
 ### Feature 2 — AI-powered issue categorization
 
-Gemini 2.0 Flash returns structured JSON: category (9 enums), severity 1–5, department, title, description, confidence, safety_risk. L2 image cache reduces repeat latency.
+Gemini 2.5 Flash returns structured JSON: category (9 enums), severity 1–5, department, title, description, confidence, safety_risk. L2 image cache reduces repeat latency.
 
 > **Screenshot placeholder:** `screenshots/02-report-wizard-ai-analysis.png` — Step 2 AI analysis card with category chip, severity badge, confidence meter.
 
@@ -157,8 +157,7 @@ Civic points: report +10, upvote +5, merge +15, resolved +25. Badges (e.g. First
 | Google product | Feature mapping |
 |----------------|-----------------|
 | **Google AI Studio** | Prototype → export → Cloud Run publish path; Build mode with React + Node runtime |
-| **Gemini 2.0 Flash** | Image classification (structured JSON), dashboard insight narratives, civic assistant chat |
-| **Gemini 2.0 Flash Lite** | Lightweight text summaries where applicable |
+| **Gemini 2.5 Flash** | Image classification (structured JSON), dashboard insight narratives, civic assistant chat |
 | **Firebase Authentication** | Google Sign-In; Bearer ID tokens on all protected API routes |
 | **Cloud Firestore** | Realtime issue data, geohash indexes, votes subcollection, timeline events |
 | **Firebase Cloud Storage** | `issues/{id}/{uuid}.webp` report photos; `proof.{ext}` resolution images |

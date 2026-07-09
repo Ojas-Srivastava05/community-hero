@@ -228,11 +228,24 @@ async function main() {
         geohash: ngeohash.encode(lat, lng, 7),
         wardId: `${c.wardId}_${area.name.replace(/\s+/g, '').toUpperCase().slice(0, 8)}`,
         imageUrls: [IMAGES[category][gi % IMAGES[category].length]],
+        ...(status === 'Resolved'
+          ? {
+              proofImageUrl: IMAGES[category][(gi + 1) % IMAGES[category].length],
+              aiMetadata: {
+                proofComparison: {
+                  improved: true,
+                  confidence: 0.82 + ((gi % 10) / 100),
+                  summary:
+                    'Before/after photos match the same location. Visible repair evidence confirms resolution.',
+                },
+              },
+            }
+          : {}),
         reporterId: 'demo-seed',
         reporterEmail: 'demo@community-hero.app',
         departmentId: dept.name,
         upvoteCount: upvotes,
-        verificationLevel: upvotes >= 3 ? 2 : 1,
+        verificationLevel: upvotes >= 10 ? 3 : upvotes >= 3 ? 2 : 1,
         priorityScore: computePriorityScore(kind.severity, upvotes, kind.severity >= 4, createdAt),
         slaDeadline: new Date(createdAtMs + slaHours * 3_600_000).toISOString(),
         isDemo: true,

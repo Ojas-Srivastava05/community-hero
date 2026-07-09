@@ -11,14 +11,14 @@ import { cn } from '@/lib/utils'
 type Msg = { role: 'user' | 'ai'; text: string }
 
 const PROMPTS = [
-  { en: 'What issues are near me?', hi: 'मेरे पास कौन से मुद्दे हैं?' },
+  { en: 'What open potholes are near me?', hi: 'मेरे पास खुले गड्ढे कहाँ हैं?' },
+  { en: 'How many issues are resolved this week?', hi: 'इस सप्ताह कितने मुद्दे हल हुए?' },
   { en: 'How do I report garbage?', hi: 'कचरा की रिपोर्ट कैसे करें?' },
   { en: 'Show my report status', hi: 'मेरी रिपोर्ट की स्थिति दिखाएं' },
-  { en: 'Explain Submitted status', hi: 'Submitted स्थिति का मतलब क्या है?' },
 ]
 
 export function AssistantPage() {
-  const { user, signInWithGoogle, signingIn } = useAuth()
+  const { user, signInWithGoogle, signInWithDemo, signingIn } = useAuth()
   const { location } = useLocation()
   const [messages, setMessages] = useState<Msg[]>([
     { role: 'ai', text: "Hi! I'm Civic AI — ask about nearby issues, reporting, or your submissions. हिंदी में भी पूछ सकते हैं।" },
@@ -56,11 +56,24 @@ export function AssistantPage() {
   if (!user) {
     return (
       <AppShell hideNav>
-        <div className="px-5 py-16 text-center">
+        <div className="space-y-3 px-5 py-16 text-center">
           <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-coral-soft"><Sparkles className="size-8 text-coral" /></div>
           <p className="mt-4 text-ink-muted">Sign in to chat with Civic AI</p>
-          <button type="button" disabled={signingIn} onClick={() => signInWithGoogle()} className="mt-6 rounded-2xl bg-coral px-8 py-3 text-sm font-bold text-paper ink-glow">
-            Sign in with Google
+          <button
+            type="button"
+            disabled={signingIn}
+            onClick={() => signInWithDemo('citizen')}
+            className="mx-auto mt-4 block w-full max-w-xs rounded-2xl bg-coral px-8 py-3 text-sm font-bold text-paper ink-glow"
+          >
+            {signingIn ? 'Signing in…' : 'Try as demo citizen'}
+          </button>
+          <button
+            type="button"
+            disabled={signingIn}
+            onClick={() => signInWithGoogle()}
+            className="mx-auto block w-full max-w-xs rounded-2xl border border-rule px-8 py-3 text-sm font-bold text-ink"
+          >
+            {signingIn ? 'Opening Google…' : 'Sign in with Google'}
           </button>
         </div>
       </AppShell>

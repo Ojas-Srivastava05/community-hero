@@ -5,15 +5,30 @@ PROJECT_ID="${GCP_PROJECT_ID:-community-hero-vibe2ship}"
 REGION="${GCP_REGION:-asia-south1}"
 SERVICE_NAME="${CLOUD_RUN_SERVICE:-community-hero}"
 
-if [ -f frontend/.env.production ]; then
+# Prefer .env.production when it has real values; otherwise fall back to .env
+load_env_file() {
+  local f="$1"
+  [ -f "$f" ] || return 1
+  # Skip empty / placeholder-only files
+  grep -qE '^VITE_[A-Z0-9_]+=.+' "$f" || return 1
   set -a
-  # shellcheck disable=SC1091
-  source frontend/.env.production
+  # shellcheck disable=SC1090
+  source "$f"
   set +a
-elif [ -f frontend/.env ]; then
+  return 0
+}
+load_env_file frontend/.env.production || load_env_file frontend/.env || true
+# Server secrets (Gemini) for Cloud Run runtime
+if [ -f server/.env ]; then
   set -a
   # shellcheck disable=SC1091
-  source frontend/.env
+  source server/.env
+  set +a
+fi
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
   set +a
 fi
 
@@ -36,7 +51,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --port=8080 \
   --memory=512Mi \
   --min-instances=1 \
-  --set-env-vars="FIREBASE_PROJECT_ID=${PROJECT_ID},NODE_ENV=production,ADMIN_EMAILS=srivastavaojas454@gmail.com,FIREBASE_STORAGE_BUCKET=community-hero-vibe2ship-uploads,INCLUDE_DEMO_ANALYTICS=1,GOOGLE_MAPS_API_KEY=${VITE_GOOGLE_MAPS_API_KEY:-}${GEMINI_API_KEY:+,GEMINI_API_KEY=${GEMINI_API_KEY}}${ADMIN_SECRET:+,ADMIN_SECRET=${ADMIN_SECRET}}" \
+  --update-env-vars="FIREBASE_PROJECT_ID=${PROJECT_ID},NODE_ENV=production,ADMIN_EMAILS=srivastavaojas454@gmail.com,FIREBASE_STORAGE_BUCKET=community-hero-vibe2ship-uploads,INCLUDE_DEMO_ANALYTICS=1,GOOGLE_MAPS_API_KEY=${VITE_GOOGLE_MAPS_API_KEY:-}${GEMINI_API_KEY:+,GEMINI_API_KEY=${GEMINI_API_KEY}}${ADMIN_SECRET:+,ADMIN_SECRET=${ADMIN_SECRET}}" \
 
 URL=$(gcloud run services describe "${SERVICE_NAME}" --project="${PROJECT_ID}" --region="${REGION}" --format='value(status.url)')
 echo ""

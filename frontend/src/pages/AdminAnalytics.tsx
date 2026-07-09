@@ -34,7 +34,8 @@ function wardHeatColor(total: number, max: number): string {
 }
 
 export function AdminAnalyticsPage() {
-  const { user, loading, isAdmin, accessDenied, signInWithGoogle, signingIn } = useRequireAdmin()
+  const { user, loading, isAdmin, accessDenied, signInWithGoogle, signInWithDemo, signingIn } =
+    useRequireAdmin('/dashboard', { redirect: false })
   const [hotspots, setHotspots] = useState<Hotspot[]>([])
   const [byCategory, setByCategory] = useState<Record<string, number>>({})
   const [wardBreakdown, setWardBreakdown] = useState<WardRow[]>([])
@@ -92,28 +93,49 @@ export function AdminAnalyticsPage() {
     return (
       <AppShell>
         <PageHeader title="Admin analytics" />
-        <div className="px-5 py-16 text-center">
-          <p className="mb-4 text-ink-muted">Admin sign-in required</p>
-          <button type="button" className="rounded-2xl bg-coral px-8 py-3 text-sm font-bold text-paper ink-glow" disabled={signingIn} onClick={() => signInWithGoogle()}>
-            {signingIn ? 'Opening Google…' : 'Sign in'}
+        <div className="space-y-3 px-5 py-16 text-center">
+          <p className="mb-2 text-ink-muted">Admin sign-in required</p>
+          <button
+            type="button"
+            className="mx-auto block w-full max-w-xs rounded-2xl bg-coral px-8 py-3 text-sm font-bold text-paper ink-glow"
+            disabled={signingIn}
+            onClick={() => signInWithDemo('admin')}
+          >
+            {signingIn ? 'Signing in…' : 'Enter as demo authority'}
+          </button>
+          <button
+            type="button"
+            className="mx-auto block w-full max-w-xs rounded-2xl border border-rule px-8 py-3 text-sm font-bold text-ink"
+            disabled={signingIn}
+            onClick={() => signInWithGoogle()}
+          >
+            {signingIn ? 'Opening Google…' : 'Sign in with Google'}
           </button>
         </div>
       </AppShell>
     )
   }
 
-  if (!isAdmin) {
-    if (accessDenied) {
-      return (
-        <AppShell>
-          <PageHeader title="Admin analytics" subtitle="Access denied" />
-          <div className="px-5 py-16 text-center text-ink-muted">
-            <p>Admin privileges required.</p>
-          </div>
-        </AppShell>
-      )
-    }
-    return null
+  if (!isAdmin || accessDenied) {
+    return (
+      <AppShell>
+        <PageHeader title="Admin analytics" subtitle="Access denied" />
+        <div className="space-y-3 px-5 py-16 text-center">
+          <p className="text-ink-muted">Admin privileges required.</p>
+          <button
+            type="button"
+            className="mx-auto block max-w-xs rounded-2xl bg-coral px-8 py-3 text-sm font-bold text-paper ink-glow"
+            disabled={signingIn}
+            onClick={() => signInWithDemo('admin')}
+          >
+            {signingIn ? 'Signing in…' : 'Switch to demo authority'}
+          </button>
+          <Link to="/dashboard" className="block text-sm font-semibold text-coral">
+            Back to dashboard
+          </Link>
+        </div>
+      </AppShell>
+    )
   }
 
   return (
