@@ -11,9 +11,12 @@
     "preview": "npm run preview --prefix frontend",
     "test": "npm test --prefix server",
     "lint": "npm run lint --prefix frontend",
-    "build:server": "npm run build --prefix server"
+    "build:server": "npm run build --prefix server",
+    "screenshots": "node scripts/capture-screenshots.mjs",
+    "screenshots:prod": "node scripts/capture-screenshots.mjs --base=https://community-hero-987477089222.asia-south1.run.app"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "playwright": "^1.52.0"
   }
 }
