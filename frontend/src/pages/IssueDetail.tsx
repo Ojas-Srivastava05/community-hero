@@ -9,7 +9,7 @@ import { VerificationBadges } from '@/components/civic/VerificationBadges'
 import { IssueDetailSkeleton } from '@/components/PageSkeleton'
 import { useAuth } from '../lib/auth'
 import { useIssueStore } from '../stores/useIssueStore'
-import { apiExportOpen311Single, apiGetIssueVoteStatus, apiReopenIssue, apiUpvote } from '../lib/api'
+import { apiExportOpen311Single, apiGetIssueVoteStatus, apiListComments, apiPostComment, apiReopenIssue, apiUpvote } from '../lib/api'
 import { useLiveIssue } from '../lib/use-live-issue'
 import { resolveIsAdmin } from '../lib/admin'
 import { usePointsToast } from '@/components/civic/PointsToast'
@@ -41,6 +41,9 @@ export function IssueDetailPage() {
   const [exporting, setExporting] = useState(false)
   const [boosting, setBoosting] = useState(false)
   const [upvoteError, setUpvoteError] = useState<string | null>(null)
+  const [comments, setComments] = useState<{ id: string; authorName: string; body: string; createdAt: string }[]>([])
+  const [commentBody, setCommentBody] = useState('')
+  const [postingComment, setPostingComment] = useState(false)
 
   useEffect(() => {
     if (!user) {
@@ -82,6 +85,31 @@ export function IssueDetailPage() {
       .then((r) => setVoted(r.voted))
       .catch(() => setVoted(false))
   }, [user, id])
+
+  useEffect(() => {
+    if (!id) return
+    apiListComments(id)
+      .then((r) => setComments(r.comments))
+      .catch(() => setComments([]))
+  }, [id])
+
+  const postComment = async () => {
+    if (!user || !id || !commentBody.trim()) {
+      if (!user) navigate('/login')
+      return
+    }
+    setPostingComment(true)
+    try {
+      const token = await user.getIdToken()
+      const r = await apiPostComment(id, commentBody.trim(), token)
+      setComments((prev) => [...prev, r.comment])
+      setCommentBody('')
+    } catch (e) {
+      setUpvoteError(e instanceof Error ? e.message : 'Could not post comment')
+    } finally {
+      setPostingComment(false)
+    }
+  }
 
   const boost = async () => {
     if (!user) {
@@ -300,6 +328,42 @@ export function IssueDetailPage() {
             </GlassCard>
           </motion.div>
         )}
+        <motion.div variants={fadeUp}>
+          <GlassCard>
+            <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">{t('comments.title')}</p>
+            <ul className="mt-3 max-h-48 space-y-3 overflow-y-auto">
+              {comments.length === 0 && (
+                <li className="text-[11px] text-ink-muted">No comments yet — start the neighbourhood discussion.</li>
+              )}
+              {comments.map((c) => (
+                <li key={c.id} className="rounded-xl border border-rule bg-surface/60 px-3 py-2">
+                  <p className="text-[11px] font-bold text-ink">{c.authorName}</p>
+                  <p className="mt-0.5 text-sm text-ink">{c.body}</p>
+                  <p className="mt-1 text-[10px] text-ink-muted">
+                    {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-3 flex gap-2">
+              <input
+                value={commentBody}
+                onChange={(e) => setCommentBody(e.target.value)}
+                placeholder={user ? t('comments.placeholder') : t('comments.signIn')}
+                className="min-w-0 flex-1 rounded-xl border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-coral/30"
+                maxLength={1000}
+              />
+              <button
+                type="button"
+                disabled={postingComment || (!!user && commentBody.trim().length < 2)}
+                onClick={postComment}
+                className="rounded-xl bg-coral px-3 py-2 text-xs font-bold text-paper disabled:opacity-50"
+              >
+                {postingComment ? <Loader2 className="size-4 animate-spin" /> : t('comments.post')}
+              </button>
+            </div>
+          </GlassCard>
+        </motion.div>
         <motion.div variants={fadeUp}>
           <GlassCard>
             <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">Timeline</p>

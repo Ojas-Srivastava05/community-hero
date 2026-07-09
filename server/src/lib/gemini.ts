@@ -403,3 +403,45 @@ function fallbackAnalysis(hint?: string): IssueAnalysis {
     estimated_fix_days: '5-7 days',
   }
 }
+
+/** Transcribe a civic voice note into title + description for the report wizard. */
+export async function transcribeAudio(
+  buffer: Buffer,
+  mimeType: string,
+): Promise<{ transcript: string; title: string; description: string }> {
+  if (!genAI) {
+    return {
+      transcript: '',
+      title: 'Voice report',
+      description: 'Audio transcription requires GEMINI_API_KEY.',
+    }
+  }
+  const mime = mimeType.split(';')[0] || 'audio/webm'
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: { responseMimeType: 'application/json' },
+  })
+  const result = await model.generateContent([
+    {
+      text: `Transcribe this Indian civic issue voice note. Return JSON only:
+{"transcript":"full transcript","title":"short civic title ≤8 words","description":"1-2 sentence issue description for municipal staff"}
+If audio is unclear, still return best-effort transcript.`,
+    },
+    { inlineData: { data: buffer.toString('base64'), mimeType: mime } },
+  ])
+  try {
+    const raw = JSON.parse(result.response.text()) as {
+      transcript?: string
+      title?: string
+      description?: string
+    }
+    return {
+      transcript: raw.transcript || '',
+      title: raw.title || 'Voice civic report',
+      description: raw.description || raw.transcript || '',
+    }
+  } catch {
+    const text = result.response.text().trim()
+    return { transcript: text, title: 'Voice civic report', description: text.slice(0, 280) }
+  }
+}

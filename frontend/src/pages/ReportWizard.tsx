@@ -1,18 +1,19 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Camera, Check, ChevronLeft, Film, Loader2, LogIn, MapPin, RefreshCw, Sparkles, Video, Zap } from 'lucide-react'
+import { Camera, Check, ChevronLeft, Film, Loader2, LogIn, MapPin, Mic, RefreshCw, Sparkles, Video, Zap } from 'lucide-react'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { GlassCard, Chip } from '@/components/civic/GlassCard'
 import { CivicMap } from '@/components/civic/CivicMap'
 import { InvalidMediaCard, type InvalidMediaReason } from '@/components/civic/InvalidMediaCard'
 import { PlacesAutocomplete } from '@/components/civic/PlacesAutocomplete'
 import { useAuth } from '../lib/auth'
-import { useI18n } from '../lib/i18n'
+import { LanguagePicker, useI18n } from '../lib/i18n'
 import { useLocation } from '../lib/location'
-import { apiAnalyzeImage, apiCreateReport, apiListIssues, apiMergeIssue, apiReverseGeocode } from '../lib/api'
+import { apiAnalyzeImage, apiCreateReport, apiListIssues, apiMergeIssue, apiReverseGeocode, apiTranscribeAudio } from '../lib/api'
 import { validateAndPreprocessImage } from '../lib/image-media'
 import { extractVideoKeyframes, validateVideoFile } from '../lib/video-media'
+import { mediaRecorderSupported, speechRecognitionSupported, startSpeechDictation, recordVoiceNote } from '../lib/voice-media'
 import { usePointsToast } from '@/components/civic/PointsToast'
 import { AgentPipelineStepper, buildSubmitPipelineSteps, mergePipelineSteps } from '@/components/civic/AgentPipelineStepper'
 import { cn } from '@/lib/utils'
@@ -28,7 +29,7 @@ const SEVERITY_LEVELS = [1, 2, 3, 4, 5] as const
 
 export function ReportWizardPage() {
   const { user, signInWithGoogle, signInWithDemo, signInAsGuest, signingIn } = useAuth()
-  const { t, locale, setLocale, confidenceThreshold } = useI18n()
+  const { t, locale, confidenceThreshold } = useI18n()
   const { location, loading: locLoading, error: locError, refresh } = useLocation()
   const navigate = useNavigate()
   const { showPoints } = usePointsToast()
@@ -36,7 +37,11 @@ export function ReportWizardPage() {
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [videoPreview, setVideoPreview] = useState<string | null>(null)
-  const [mediaMode, setMediaMode] = useState<'photo' | 'video'>('photo')
+  const [mediaMode, setMediaMode] = useState<'photo' | 'video' | 'voice'>('photo')
+  const [listening, setListening] = useState(false)
+  const [voiceBusy, setVoiceBusy] = useState(false)
+  const voiceStopRef = useRef<(() => void) | null>(null)
+  const voiceRecordStopRef = useRef<(() => Promise<unknown>) | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [analysis, setAnalysis] = useState<IssueAnalysis | null>(null)
@@ -220,7 +225,11 @@ export function ReportWizardPage() {
   }
 
   const submit = async () => {
-    if (!user || !file || !form.lat) return
+    if (!user || !form.lat) return
+    if (!file && form.description.trim().length < 8) {
+      setError('Add a photo or speak/type a description first')
+      return
+    }
     if (!navigator.onLine) {
       try {
         await queueOfflineReport(
@@ -243,18 +252,6 @@ export function ReportWizardPage() {
     setPipelineRunning(true)
     setPipelineSteps(buildSubmitPipelineSteps())
     setError('')
-    const tick = window.setInterval(() => {
-      setPipelineSteps((prev) => {
-        const runningIdx = prev.findIndex((s) => s.status === 'running')
-        if (runningIdx < 0 || runningIdx >= prev.length - 1) return prev
-        return prev.map((s, i) => {
-          if (i < runningIdx) return { ...s, status: 'done' as const }
-          if (i === runningIdx) return { ...s, status: 'done' as const }
-          if (i === runningIdx + 1) return { ...s, status: 'running' as const }
-          return s
-        })
-      })
-    }, 550)
     try {
       const token = await user.getIdToken()
       const result = await apiCreateReport(
@@ -269,10 +266,17 @@ export function ReportWizardPage() {
               }
             : {}),
         },
-        [file],
+        file ? [file] : [],
         token,
+        {
+          stream: true,
+          onAgentStep: (stepUpdate) => {
+            setPipelineSteps((prev) =>
+              mergePipelineSteps(prev.length ? prev : buildSubmitPipelineSteps(), [stepUpdate]),
+            )
+          },
+        },
       )
-      window.clearInterval(tick)
       if (result.agentSteps?.length) {
         setPipelineSteps(mergePipelineSteps(buildSubmitPipelineSteps(), result.agentSteps))
       }
@@ -284,6 +288,8 @@ export function ReportWizardPage() {
           ...(pe.badgesEarned ?? []),
         ].filter(Boolean)
         showPoints(pe.pointsAwarded, parts.join(' · ') || undefined)
+      } else {
+        showPoints(0, 'Report submitted')
       }
       await clearReportDraft()
 
@@ -300,10 +306,8 @@ export function ReportWizardPage() {
 
       navigate(`/issues/${result.id}`)
     } catch (e) {
-      window.clearInterval(tick)
       setError(String(e))
     } finally {
-      window.clearInterval(tick)
       setSubmitting(false)
       setPipelineRunning(false)
     }
@@ -346,6 +350,72 @@ export function ReportWizardPage() {
       .catch(() => {})
   }, [step, form.lat, form.lng, form.category])
 
+  const toggleVoice = async () => {
+    if (listening) {
+      voiceStopRef.current?.()
+      voiceStopRef.current = null
+      const stopRec = voiceRecordStopRef.current
+      voiceRecordStopRef.current = null
+      setListening(false)
+      if (stopRec && user) {
+        setVoiceBusy(true)
+        try {
+          const captured = (await stopRec()) as { audioBlob?: Blob; mimeType?: string }
+          if (captured.audioBlob && captured.audioBlob.size > 1000) {
+            const token = await user.getIdToken()
+            const result = await apiTranscribeAudio(captured.audioBlob, token, captured.mimeType)
+            setForm((prev) => ({
+              ...prev,
+              title: result.title || prev.title,
+              description: result.description || result.transcript || prev.description,
+            }))
+            setStep(1)
+          }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Voice transcription failed')
+        } finally {
+          setVoiceBusy(false)
+        }
+      }
+      return
+    }
+    setMediaMode('voice')
+    setError('')
+    setListening(true)
+    const langMap: Record<string, string> = {
+      en: 'en-IN',
+      hi: 'hi-IN',
+      mr: 'mr-IN',
+      ta: 'ta-IN',
+      bn: 'bn-IN',
+      te: 'te-IN',
+      kn: 'kn-IN',
+    }
+    if (speechRecognitionSupported()) {
+      const ctl = startSpeechDictation({
+        lang: langMap[locale] || 'en-IN',
+        onPartial: (text) => setForm((prev) => ({ ...prev, description: text })),
+        onFinal: (text) => {
+          setForm((prev) => ({
+            ...prev,
+            description: text,
+            title: prev.title || text.split(/[.!?]/)[0]?.slice(0, 60) || prev.title,
+          }))
+        },
+        onError: (err) => setError(err),
+      })
+      voiceStopRef.current = ctl.stop
+    }
+    if (mediaRecorderSupported()) {
+      try {
+        const rec = await recordVoiceNote(25_000)
+        voiceRecordStopRef.current = rec.stop
+      } catch {
+        /* mic denied — speech-only still ok */
+      }
+    }
+  }
+
   const hasLocation: boolean = form.lat !== 0 && form.lng !== 0
 
   return (
@@ -355,13 +425,7 @@ export function ReportWizardPage() {
         subtitle={`Step ${step + 1} of 3 — ${steps[step]}`}
         right={
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setLocale(locale === 'en' ? 'hi' : 'en')}
-              className="rounded-lg border border-rule px-2 py-1 text-[10px] font-bold text-ink-muted"
-            >
-              {t('lang.toggle')}
-            </button>
+            <LanguagePicker />
             <button
               type="button"
               aria-label={step === 0 ? 'Back to home' : 'Previous step'}
@@ -385,7 +449,16 @@ export function ReportWizardPage() {
           {step === 0 && (
             <div className="space-y-4">
               <div className="relative aspect-[3/4] overflow-hidden rounded-3xl border border-rule bg-surface">
-                {videoPreview && mediaMode === 'video' ? (
+                {mediaMode === 'voice' && !preview ? (
+                  <div className="absolute inset-0 grid place-items-center bg-coral-soft/40">
+                    <div className="text-center">
+                      <Mic className={cn('mx-auto size-16 text-coral', listening && 'animate-pulse')} />
+                      <p className="mt-3 px-6 text-sm font-semibold text-ink">
+                        {listening ? t('report.listening') : t('report.voiceHint')}
+                      </p>
+                    </div>
+                  </div>
+                ) : videoPreview && mediaMode === 'video' ? (
                   <video src={videoPreview} className="size-full object-cover" controls muted playsInline />
                 ) : preview ? (
                   <img src={preview} alt="Preview" className="size-full object-cover" />
@@ -402,7 +475,7 @@ export function ReportWizardPage() {
               </div>
               <GlassCard className="flex items-start gap-3">
                 <Sparkles className="size-5 shrink-0 text-coral" />
-                <p className="text-xs text-ink-muted">Photo or short video (≤15s). AI extracts keyframes and auto-detects category, severity, and location.</p>
+                <p className="text-xs text-ink-muted">Photo, short video (≤15s), or voice note. AI classifies and routes to the right department.</p>
               </GlassCard>
               {invalidMedia && (
                 <InvalidMediaCard reason={invalidMedia} onRetake={retakePhoto} />
@@ -413,21 +486,41 @@ export function ReportWizardPage() {
                     <LogIn className="size-4" /> {signingIn ? 'Signing in…' : t('report.demoCitizen')}
                   </button>
                   <button type="button" disabled={signingIn} onClick={() => signInAsGuest()} className="w-full rounded-2xl border border-coral/40 bg-coral-soft py-3 text-sm font-semibold text-coral">
-                    {signingIn ? 'Signing in…' : 'Continue as guest'}
+                    {signingIn ? 'Signing in…' : t('login.guest')}
                   </button>
                   <button type="button" disabled={signingIn} onClick={() => signInWithGoogle()} className="w-full rounded-2xl border border-rule py-3 text-sm font-semibold text-ink">
                     {signingIn ? 'Opening Google…' : t('report.signIn')}
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => fileRef.current?.click()} className="grid place-items-center rounded-2xl bg-coral py-4 text-sm font-bold text-paper ink-glow">
-                    <span className="flex items-center gap-2"><Camera className="size-4" /> {preview && mediaMode === 'photo' ? 'Retake' : 'Photo'}</span>
+                <div className="grid grid-cols-3 gap-2">
+                  <button type="button" onClick={() => { setMediaMode('photo'); fileRef.current?.click() }} className="grid place-items-center rounded-2xl bg-coral py-3 text-xs font-bold text-paper ink-glow">
+                    <span className="flex flex-col items-center gap-1"><Camera className="size-4" /> {t('report.photo')}</span>
                   </button>
-                  <button type="button" onClick={() => videoRef.current?.click()} className="grid place-items-center rounded-2xl border border-coral/40 bg-coral-soft py-4 text-sm font-bold text-coral">
-                    <span className="flex items-center gap-2"><Video className="size-4" /> {videoPreview ? 'New video' : 'Video'}</span>
+                  <button type="button" onClick={() => { setMediaMode('video'); videoRef.current?.click() }} className="grid place-items-center rounded-2xl border border-coral/40 bg-coral-soft py-3 text-xs font-bold text-coral">
+                    <span className="flex flex-col items-center gap-1"><Video className="size-4" /> {t('report.video')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={voiceBusy}
+                    onClick={() => void toggleVoice()}
+                    className={cn(
+                      'grid place-items-center rounded-2xl border py-3 text-xs font-bold',
+                      listening ? 'border-coral bg-coral text-paper' : 'border-rule bg-paper text-ink',
+                    )}
+                  >
+                    <span className="flex flex-col items-center gap-1">
+                      {voiceBusy ? <Loader2 className="size-4 animate-spin" /> : <Mic className="size-4" />}
+                      {listening ? 'Stop' : t('report.voice')}
+                    </span>
                   </button>
                 </div>
+              )}
+              {form.description && mediaMode === 'voice' && (
+                <GlassCard>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Transcript</p>
+                  <p className="mt-1 text-sm text-ink">{form.description}</p>
+                </GlassCard>
               )}
               {mediaMode === 'video' && file && (
                 <p className="flex items-center justify-center gap-2 text-[11px] text-ink-muted"><Film className="size-3.5" /> Using middle keyframe for AI analysis</p>
@@ -437,12 +530,7 @@ export function ReportWizardPage() {
               {(pipelineSteps.length > 0 || pipelineRunning) && (
                 <AgentPipelineStepper steps={pipelineSteps} running={pipelineRunning || analyzing || submitting} />
               )}
-              {locError && (
-                <p className="rounded-xl border border-amber/30 bg-amber-soft/40 px-3 py-2 text-[11px] font-medium text-amber">
-                  GPS unavailable — continue and drop a pin on the confirm step.
-                </p>
-              )}
-              {file && user && (
+              {((file && user) || (user && form.description.trim().length >= 8)) && (
                 <button
                   type="button"
                   disabled={locLoading && !hasLocation}

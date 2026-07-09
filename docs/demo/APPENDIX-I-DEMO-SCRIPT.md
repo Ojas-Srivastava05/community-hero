@@ -126,7 +126,13 @@
 
 **Closing line:** "We're the only finalist with municipal Open311 export, a six-agent audit trail, 76 automated tests, and a live multi-city demo — built to ship, not just to pitch. Questions?"
 
-**If asked about AI Studio:** "We started in Google AI Studio Build mode, exported to GitHub, and productionized on Cloud Run with Firebase Auth, Firestore, and Gemini 2.5 Flash."
+**If asked about AI Studio:** Open https://aistudio.google.com/apps — "We started in Google AI Studio Build mode, exported to GitHub, and productionized on Cloud Run with Firebase Auth, Firestore, and Gemini 2.5 Flash. The AI Studio app stays live through judging."
+
+**Embed widget (optional 10s):** `/embed/map` — "Drop this iframe on any RWA or news site."
+
+**Voice (optional):** Report → Voice mic — "Speak in Hindi or English; Gemini fills the form."
+
+**Streaming agents:** On submit, watch NDJSON agent steps light up live — not a fake timer.
 
 ---
 

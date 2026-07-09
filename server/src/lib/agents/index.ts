@@ -38,6 +38,23 @@ export type RunPipelineInput = {
   imageMime?: string
   createdAt?: string
   precomputedEmbedding?: number[]
+  /** Fired after each agent completes — used for NDJSON streaming demos. */
+  onEvent?: (ev: AgentEvent, step: AgentStep) => void
+}
+
+function emitStep(
+  onEvent: RunPipelineInput['onEvent'],
+  ev: AgentEvent,
+) {
+  if (!onEvent) return
+  const steps = eventsToAgentSteps([ev]).filter((s) => s.id !== 'insights' || ev.type === 'insights')
+  const step = steps[0] || {
+    id: ev.type,
+    label: ev.type,
+    status: 'done' as const,
+    detail: undefined,
+  }
+  onEvent(ev, step)
 }
 
 /** Orchestrator — runs all 6 agents after report create */
@@ -53,6 +70,7 @@ export async function runAgentPipeline(input: RunPipelineInput) {
     imageBuffer,
     imageMime,
     createdAt = new Date().toISOString(),
+    onEvent,
   } = input
 
   const agentsRun: string[] = []
@@ -62,7 +80,7 @@ export async function runAgentPipeline(input: RunPipelineInput) {
   // Agent 1: Intake
   const intake = await runIntakeAgent(imageBuffer, description, title, description)
   agentsRun.push('intake')
-  events.push({
+  const intakeEv: AgentEvent = {
     type: 'intake',
     actorId: 'intake-agent',
     payload: {
@@ -72,7 +90,9 @@ export async function runAgentPipeline(input: RunPipelineInput) {
       reason: intake.reason,
     },
     timestamp: now,
-  })
+  }
+  events.push(intakeEv)
+  emitStep(onEvent, intakeEv)
 
   if (!intake.ok || !intake.isCivic) {
     await db.collection('issues').doc(issueId).update({
@@ -93,12 +113,14 @@ export async function runAgentPipeline(input: RunPipelineInput) {
   const vision = await runVisionAgent(imageBuffer, imageMime, description, input.analysis)
   const analysis = vision.analysis
   agentsRun.push('vision')
-  events.push({
+  const visionEv: AgentEvent = {
     type: 'ai_analysis',
     actorId: 'vision-agent',
     payload: analysis as unknown as Record<string, unknown>,
     timestamp: now,
-  })
+  }
+  events.push(visionEv)
+  emitStep(onEvent, visionEv)
 
   // Agent 3: Dedup
   const embedText = issueEmbeddingText(
@@ -108,7 +130,7 @@ export async function runAgentPipeline(input: RunPipelineInput) {
   )
   const dedup = await runDedupAgent(lat, lng, analysis.category, embedText, input.precomputedEmbedding, issueId)
   agentsRun.push('dedup')
-  events.push({
+  const dedupEv: AgentEvent = {
     type: 'dedup',
     actorId: 'dedup-agent',
     payload: {
@@ -117,12 +139,14 @@ export async function runAgentPipeline(input: RunPipelineInput) {
       duplicates: dedup.duplicates,
     },
     timestamp: now,
-  })
+  }
+  events.push(dedupEv)
+  emitStep(onEvent, dedupEv)
 
   // Agent 4: Routing
   const routing = runRoutingAgent(analysis, createdAt)
   agentsRun.push('routing')
-  events.push({
+  const routingEv: AgentEvent = {
     type: 'routing',
     actorId: 'routing-agent',
     payload: {
@@ -132,20 +156,37 @@ export async function runAgentPipeline(input: RunPipelineInput) {
       priorityScore: routing.priorityScore,
     },
     timestamp: now,
-  })
+  }
+  events.push(routingEv)
+  emitStep(onEvent, routingEv)
 
   // Agent 5: Communicator
   const comm = await runCitizenCommunicator('Submitted', analysis.title, routing.departmentId)
   agentsRun.push('communicator')
-  events.push({
+  const commEv: AgentEvent = {
     type: 'status_narrative',
     actorId: 'communicator-agent',
     payload: { en: comm.narrativeEn, hi: comm.narrativeHi, status: 'Submitted' },
     timestamp: now,
-  })
+  }
+  events.push(commEv)
+  emitStep(onEvent, commEv)
 
   // Agent 6: insights logged as scheduled (batch runs separately)
   agentsRun.push('insights')
+  const insightsEv: AgentEvent = {
+    type: 'insights',
+    actorId: 'insights-agent',
+    payload: { scheduled: true },
+    timestamp: now,
+  }
+  events.push(insightsEv)
+  onEvent?.(insightsEv, {
+    id: 'insights',
+    label: 'Insights Agent',
+    status: 'done',
+    detail: 'Hotspot batch scheduled',
+  })
 
   const needsReview = analysis.confidence < REVIEW_CONFIDENCE_THRESHOLD
 
@@ -174,6 +215,7 @@ export async function runAgentPipeline(input: RunPipelineInput) {
   await db.collection('issues').doc(issueId).update(updates)
 
   for (const ev of events) {
+    if (ev.type === 'insights') continue
     await db.collection('issues').doc(issueId).collection('events').add(ev)
   }
 
@@ -190,7 +232,7 @@ export async function runAgentPipeline(input: RunPipelineInput) {
     analysis,
     routing,
     pointsEarned,
-    agentSteps: eventsToAgentSteps(events),
+    agentSteps: eventsToAgentSteps(events.filter((e) => e.type !== 'insights')),
   }
 }
 

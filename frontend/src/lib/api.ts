@@ -93,6 +93,10 @@ export async function apiCreateReport(
   },
   images: File[],
   token: string,
+  opts?: {
+    stream?: boolean
+    onAgentStep?: (step: AgentStep) => void
+  },
 ): Promise<{
   id: string
   issue: Issue
@@ -107,18 +111,98 @@ export async function apiCreateReport(
   Object.entries(data).forEach(([k, v]) => {
     if (v !== undefined && v !== '') fd.append(k, String(v))
   })
+  if (opts?.stream) fd.append('stream', '1')
   images.forEach((img) => fd.append('images', img))
-  const res = await apiFetch('/api/reports', {
+  const url = opts?.stream ? '/api/reports?stream=1' : '/api/reports'
+  const res = await apiFetch(url, {
     method: 'POST',
-    headers: await authHeaders(token),
+    headers: {
+      ...(await authHeaders(token)),
+      ...(opts?.stream ? { Accept: 'application/x-ndjson' } : {}),
+    },
     body: fd,
   })
   if (!res.ok) await parseApiError(res)
+
+  if (opts?.stream && res.body) {
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let complete: Record<string, unknown> | null = null
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        if (!line.trim()) continue
+        try {
+          const msg = JSON.parse(line) as {
+            type: string
+            step?: AgentStep
+            id?: string
+            issue?: Issue
+            agentSteps?: AgentStep[]
+            pointsEarned?: { pointsAwarded: number; badgesEarned?: string[] }
+            duplicateSuggestions?: { id: string; title: string }[]
+            needsReview?: boolean
+            code?: string
+          }
+          if (msg.type === 'agent_step' && msg.step) opts.onAgentStep?.(msg.step)
+          if (msg.type === 'complete') complete = msg as unknown as Record<string, unknown>
+        } catch {
+          /* skip bad line */
+        }
+      }
+    }
+    if (!complete) throw new Error('Stream ended without complete event')
+    return {
+      id: String(complete.id),
+      issue: complete.issue as Issue,
+      duplicateSuggestions: complete.duplicateSuggestions as { id: string; title: string }[] | undefined,
+      pointsEarned: complete.pointsEarned as { pointsAwarded: number; badgesEarned?: string[] } | undefined,
+      agentSteps: complete.agentSteps as AgentStep[] | undefined,
+      needsReview: Boolean(complete.needsReview),
+      code: complete.code as string | undefined,
+    }
+  }
+
   const body = await res.json()
   return {
     ...body,
     needsReview: res.status === 202 || body.code === 'NEEDS_REVIEW',
   }
+}
+
+export async function apiTranscribeAudio(file: Blob, token: string, mimeType?: string) {
+  const fd = new FormData()
+  fd.append('audio', file, `voice.${(mimeType || 'audio/webm').includes('mp4') ? 'm4a' : 'webm'}`)
+  const res = await apiFetch('/api/reports/transcribe', {
+    method: 'POST',
+    headers: await authHeaders(token),
+    body: fd,
+  })
+  if (!res.ok) await parseApiError(res)
+  return res.json() as Promise<{ transcript: string; title: string; description: string }>
+}
+
+export async function apiListComments(issueId: string): Promise<{
+  comments: { id: string; authorId: string; authorName: string; body: string; createdAt: string }[]
+}> {
+  const res = await apiFetch(`/api/reports/${issueId}/comments`)
+  if (!res.ok) await parseApiError(res)
+  return res.json()
+}
+
+export async function apiPostComment(issueId: string, body: string, token: string) {
+  const res = await apiFetch(`/api/reports/${issueId}/comments`, {
+    method: 'POST',
+    headers: { ...(await authHeaders(token)), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body }),
+  })
+  if (!res.ok) await parseApiError(res)
+  return res.json() as Promise<{ id: string; comment: { id: string; authorName: string; body: string; createdAt: string } }>
 }
 
 export async function apiListIssues(

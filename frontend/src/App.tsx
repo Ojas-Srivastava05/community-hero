@@ -24,6 +24,7 @@ import { WaitingPage } from './pages/Waiting'
 import { AdminAnalyticsPage } from './pages/AdminAnalytics'
 import { ThreadDetailPage } from './pages/ThreadDetail'
 import { ScorecardsPage } from './pages/Scorecards'
+import { EmbedMapPage } from './pages/EmbedMap'
 import { NotFoundPage } from './pages/NotFound'
 import { GoogleMapsProvider } from './components/civic/GoogleMapsProvider'
 import './index.css'
@@ -57,6 +58,8 @@ export default function App() {
             <Route path="/assistant" element={<RouteBoundary><AssistantPage /></RouteBoundary>} />
             <Route path="/leaderboard" element={<RouteBoundary><LeaderboardPage /></RouteBoundary>} />
             <Route path="/scorecards" element={<RouteBoundary><ScorecardsPage /></RouteBoundary>} />
+            <Route path="/embed" element={<RouteBoundary><EmbedMapPage /></RouteBoundary>} />
+            <Route path="/embed/map" element={<RouteBoundary><EmbedMapPage /></RouteBoundary>} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
           </ErrorBoundary>

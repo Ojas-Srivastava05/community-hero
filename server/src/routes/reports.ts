@@ -4,7 +4,7 @@ import { v4 as uuid } from 'uuid'
 import ngeohash from 'ngeohash'
 import { db, bucket } from '../lib/firebase-admin'
 import { createReportSchema, type CreateReportInput } from '../lib/report-schema'
-import { analyzeImage } from '../lib/gemini'
+import { analyzeImage, compareBeforeAfter, transcribeAudio } from '../lib/gemini'
 import {
   runAgentPipeline,
   awardPoints,
@@ -14,7 +14,6 @@ import {
   type AwardResult,
 } from '../lib/agents'
 import { POINTS } from '../lib/gamification'
-import { compareBeforeAfter } from '../lib/gemini'
 import { generateEmbedding, issueEmbeddingText } from '../lib/embeddings'
 import { requireAuth, requireAdmin, isAdminUser, type AuthedRequest } from '../middleware/auth'
 import { reportLimit, upvoteLimit } from '../middleware/rateLimit'
@@ -159,6 +158,24 @@ reportsRouter.post('/analyze', requireAuth, upload.single('image'), async (req: 
   }
 })
 
+/** Voice note → Gemini transcript for report wizard */
+reportsRouter.post('/transcribe', requireAuth, upload.single('audio'), async (req: AuthedRequest, res) => {
+  try {
+    if (!req.file) {
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'Audio required')
+      return
+    }
+    if (req.file.size > 8 * 1024 * 1024) {
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'Audio must be under 8MB')
+      return
+    }
+    const result = await transcribeAudio(req.file.buffer, req.file.mimetype || 'audio/webm')
+    res.json(result)
+  } catch (e) {
+    sendServerError(res, e)
+  }
+})
+
 reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), async (req: AuthedRequest, res) => {
   try {
     const parsed = createReportSchema.safeParse(req.body)
@@ -293,6 +310,72 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
 
     let pointsEarned: AwardResult = { pointsAwarded: 0, badgesEarned: [] }
     let agentSteps: import('../types/shared-constants').AgentStep[] = []
+    const wantStream =
+      req.query.stream === '1' ||
+      String(req.headers.accept || '').includes('application/x-ndjson') ||
+      req.body?.stream === '1' ||
+      req.body?.stream === true
+
+    if (wantStream) {
+      res.status(201)
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-cache')
+      res.setHeader('X-Content-Type-Options', 'nosniff')
+      const writeLine = (obj: unknown) => {
+        res.write(`${JSON.stringify(obj)}\n`)
+      }
+      writeLine({ type: 'started', id })
+      try {
+        const firstImage = files[0]
+        const pipelineResult = await runAgentPipeline({
+          issueId: id,
+          analysis,
+          lat: data.lat,
+          lng: data.lng,
+          reporterId: req.user!.uid,
+          wardId: geo.wardId,
+          title: data.title,
+          description: data.description,
+          imageBuffer: firstImage?.buffer,
+          imageMime: firstImage?.mimetype,
+          createdAt: now,
+          precomputedEmbedding: embedding,
+          onEvent: (_ev, step) => writeLine({ type: 'agent_step', step }),
+        })
+        await upsertThreadForIssue(id, geohash, data.title, data.category, embedding)
+        pointsEarned = pipelineResult.pointsEarned ?? pointsEarned
+        agentSteps = pipelineResult.agentSteps ?? []
+      } catch (agentErr) {
+        console.error('Agent pipeline failed (report saved):', agentErr)
+        writeLine({ type: 'error', message: 'Agent pipeline failed' })
+        await db.collection('issues').doc(id).update({
+          departmentId: analysis.department || DEPARTMENTS[data.category]?.name || 'General Civic',
+          updatedAt: new Date().toISOString(),
+        })
+      }
+      const saved = await db.collection('issues').doc(id).get()
+      const savedData = saved.data()!
+      const dupes = (savedData.aiMetadata as { duplicate_suggestions?: { id: string; title: string }[] })
+        ?.duplicate_suggestions
+      const needsReview = analysis.confidence < REVIEW_CONFIDENCE_THRESHOLD
+      writeLine({
+        type: 'complete',
+        id,
+        issue: { id, ...savedData },
+        duplicateSuggestions: dupes || [],
+        pointsEarned,
+        agentSteps,
+        needsReview,
+        code: needsReview
+          ? ErrorCodes.NEEDS_REVIEW
+          : dupes && dupes.length > 0
+            ? ErrorCodes.DUPLICATE_SUGGESTED
+            : undefined,
+      })
+      res.end()
+      return
+    }
+
     try {
       const firstImage = files[0]
       const pipelineResult = await runAgentPipeline({

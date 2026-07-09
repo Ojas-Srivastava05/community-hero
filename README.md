@@ -8,9 +8,23 @@ Hyperlocal civic issue reporting for Indian urban citizens — potholes, water l
 |------|-----|
 | **Deployed app (Cloud Run)** | https://community-hero-987477089222.asia-south1.run.app |
 | **API health** | https://community-hero-987477089222.asia-south1.run.app/api/health |
+| **Embed map widget** | https://community-hero-987477089222.asia-south1.run.app/embed/map |
+| **Google AI Studio** | https://aistudio.google.com/apps — Build → export → Cloud Run (keep app live through judging) |
 | Vercel preview | https://community-hero-eight.vercel.app |
 | GitHub | https://github.com/Ojas-Srivastava05/community-hero |
 | Submission tag | `v1.0.0-submission` — `bash scripts/prepare-submission.sh` |
+
+**Embed snippet (RWAs / news):**
+
+```html
+<iframe
+  src="https://community-hero-987477089222.asia-south1.run.app/embed/map?lat=12.9716&lng=77.5946"
+  width="390"
+  height="560"
+  style="border:0;border-radius:16px"
+  title="Community Hero live map"
+></iframe>
+```
 
 ## Official 8 features (Vibe2Ship)
 

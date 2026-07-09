@@ -1,12 +1,12 @@
 import { useAuth } from '../lib/auth'
-import { useI18n } from '../lib/i18n'
+import { LanguagePicker, useI18n } from '../lib/i18n'
 import { AppShell } from '@/components/layout/AppShell'
 import { Link, Navigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 
 export function LoginPage() {
   const { user, signInWithGoogle, signInWithDemo, signInAsGuest, signingIn } = useAuth()
-  const { t, locale, setLocale } = useI18n()
+  const { t } = useI18n()
   if (user) return <Navigate to="/" replace />
 
   return (
@@ -16,13 +16,9 @@ export function LoginPage() {
         animate={{ opacity: 1, y: 0 }}
         className="px-5 py-20 text-center"
       >
-        <button
-          type="button"
-          onClick={() => setLocale(locale === 'en' ? 'hi' : 'en')}
-          className="mb-6 rounded-full border border-rule px-3 py-1 text-xs font-semibold text-ink-muted"
-        >
-          {t('lang.toggle')}
-        </button>
+        <div className="mb-6 flex justify-center">
+          <LanguagePicker />
+        </div>
         <h1 className="display text-2xl font-bold text-ink">Sign in</h1>
         <p className="mt-2 text-sm text-ink-muted">Report issues, earn civic points, and chat with Civic AI — or try the demo instantly.</p>
         <div className="mt-8 space-y-3">
@@ -48,7 +44,7 @@ export function LoginPage() {
             onClick={() => signInAsGuest()}
             className="w-full rounded-2xl border border-rule py-4 text-sm font-bold text-ink"
           >
-            {signingIn ? 'Signing in…' : 'Continue as guest'}
+            {signingIn ? 'Signing in…' : t('login.guest')}
           </button>
           <button
             type="button"

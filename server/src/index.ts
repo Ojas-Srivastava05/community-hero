@@ -13,6 +13,7 @@ import { threadsRouter } from './routes/threads'
 import { usersRouter } from './routes/users'
 import { departmentsRouter } from './routes/departments'
 import { authRouter } from './routes/auth'
+import { commentsRouter } from './routes/comments'
 const app = express()
 const PORT = Number(process.env.PORT) || 3001
 const isProd = process.env.NODE_ENV === 'production'
@@ -20,6 +21,11 @@ const isProd = process.env.NODE_ENV === 'production'
 app.use(cors())
 app.use(express.json())
 app.use((req, res, next) => {
+  // Allow RWA / news sites to iframe the embed map widget
+  if (req.path.startsWith('/embed')) {
+    res.setHeader('Content-Security-Policy', "frame-ancestors *")
+    res.removeHeader('X-Frame-Options')
+  }
   runWithGeocodeCache(() => next())
 })
 
@@ -53,6 +59,7 @@ app.get('/api', (_req, res) => {
 })
 
 app.use('/api/reports', reportsRouter)
+app.use('/api/reports', commentsRouter)
 app.use('/api/internal', analyticsRouter)
 app.use('/api/analytics', analyticsRouter)
 app.use('/api/ai', aiRouter)
