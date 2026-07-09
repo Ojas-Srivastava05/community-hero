@@ -1,20 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiBulkUpdateStatus, apiListIssues, apiUpdateStatus, apiVerifyResolution } from '../lib/api'
+import { apiApproveIssue, apiBulkUpdateStatus, apiListIssues, apiUpdateStatus, apiVerifyResolution } from '../lib/api'
 import { useRequireAdmin } from '../lib/admin'
 import { GlassCard } from '@/components/civic/GlassCard'
 import { PageSkeleton } from '@/components/PageSkeleton'
 import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { fadeUp, stagger } from '../lib/motion'
 import { motion } from 'framer-motion'
-import { AlertTriangle, Camera, ClipboardList, Download } from 'lucide-react'
+import { AlertTriangle, Camera, ClipboardList, Download, Scale } from 'lucide-react'
 import { slaHoursLeft } from '@/lib/issue-ui'
 import { buildDispatchPlan, estimateCostOfInaction, formatInr } from '../lib/authority-copilot'
 import { ResolutionVerificationBadge } from '@/components/civic/ResolutionVerificationBadge'
 import type { Issue } from '../../../shared/types'
 import type { ProofComparison } from '../lib/shared-constants'
 
-const STATUSES = ['Submitted', 'Community Verified', 'Assigned', 'In Progress', 'Resolved', 'Closed']
+const STATUSES = ['Draft', 'Submitted', 'Community Verified', 'Assigned', 'In Progress', 'Resolved', 'Closed']
+
+function isJudgeReview(issue: Issue): boolean {
+  return issue.status === 'Draft' || issue.aiMetadata?.needs_review === true
+}
 
 function needsProof(status: string) {
   return status === 'Resolved' || status === 'Closed'
@@ -49,9 +53,12 @@ export function AdminPage() {
   const [pendingStatus, setPendingStatus] = useState<Record<string, string>>({})
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkStatus, setBulkStatus] = useState('In Progress')
+  const [approvingId, setApprovingId] = useState<string | null>(null)
 
   const load = () =>
-    apiListIssues(100, { includeDemo: true, sortByPriority: true }).then((r) => setIssues(r.issues))
+    apiListIssues(100, { includeDemo: true, includeDraft: true, sortByPriority: true }).then((r) =>
+      setIssues(r.issues),
+    )
 
   useEffect(() => {
     if (isAdmin) load()
@@ -99,10 +106,23 @@ export function AdminPage() {
     load()
   }
 
+  const approveIssue = async (id: string) => {
+    if (!user) return
+    setApprovingId(id)
+    try {
+      const token = await user.getIdToken()
+      await apiApproveIssue(id, token)
+      await load()
+    } finally {
+      setApprovingId(null)
+    }
+  }
+
   const displayed = useMemo(() => {
     const filtered = issues.filter((i) => {
+      if (filter === 'draft') return isJudgeReview(i)
       if (filter === 'breached') return Boolean(i.slaBreached) && !['Resolved', 'Closed'].includes(i.status)
-      if (filter === 'open') return !['Resolved', 'Closed'].includes(i.status)
+      if (filter === 'open') return !['Resolved', 'Closed', 'Draft'].includes(i.status)
       return true
     })
     return [...filtered].sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0))
@@ -126,6 +146,8 @@ export function AdminPage() {
     () => issues.filter((i) => i.slaBreached && !['Resolved', 'Closed'].includes(i.status)).length,
     [issues],
   )
+
+  const draftCount = useMemo(() => issues.filter((i) => isJudgeReview(i)).length, [issues])
 
   if (loading) {
     return (
@@ -199,14 +221,18 @@ export function AdminPage() {
           </GlassCard>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          {['open', 'breached', 'all'].map((f) => (
+          {(['open', 'draft', 'breached', 'all'] as const).map((f) => (
             <button
               key={f}
               type="button"
               className={`rounded-full px-3 py-1 text-xs font-semibold ${filter === f ? 'bg-coral text-paper' : 'paper'}`}
               onClick={() => setFilter(f)}
             >
-              {f === 'breached' ? `breached (${breachCount})` : f}
+              {f === 'breached'
+                ? `breached (${breachCount})`
+                : f === 'draft'
+                  ? `judge (${draftCount})`
+                  : f}
             </button>
           ))}
           <button
@@ -266,9 +292,16 @@ export function AdminPage() {
           {displayed.map((issue) => {
             const pending = pendingStatus[issue.id]
             const showProof = pending && needsProof(pending)
+            const judgeReview = isJudgeReview(issue)
+            const confidence =
+              typeof issue.aiMetadata?.confidence === 'number'
+                ? Math.round((issue.aiMetadata.confidence as number) * 100)
+                : null
             return (
               <motion.div key={issue.id} variants={fadeUp}>
-                <GlassCard className={`space-y-2 ${issue.slaBreached ? 'border border-[oklch(0.5_0.22_25/0.4)]' : ''}`}>
+                <GlassCard
+                  className={`space-y-2 ${issue.slaBreached ? 'border border-[oklch(0.5_0.22_25/0.4)]' : ''} ${judgeReview ? 'border border-amber/40 bg-amber-soft/30' : ''}`}
+                >
                   <div className="flex items-start gap-2">
                     <input
                       type="checkbox"
@@ -281,9 +314,15 @@ export function AdminPage() {
                       <p className="text-xs text-ink-muted">
                         {issue.category} · severity {issue.severity}
                         {issue.priorityScore != null && ` · priority ${issue.priorityScore}`}
+                        {confidence !== null && ` · ${confidence}% AI confidence`}
                       </p>
                       <p className="text-xs text-ink">
                         Status: <span className="text-coral">{issue.status}</span>
+                        {judgeReview && (
+                          <span className="ml-2 inline-flex items-center gap-0.5 font-bold text-amber">
+                            <Scale className="size-3" /> Judge review
+                          </span>
+                        )}
                         {issue.slaBreached && (
                           <span className="ml-2 inline-flex items-center gap-0.5 font-bold text-[oklch(0.5_0.22_25)]">
                             <AlertTriangle className="size-3" /> SLA breached
@@ -295,6 +334,24 @@ export function AdminPage() {
                       </p>
                     </div>
                   </div>
+                  {judgeReview && (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={approvingId === issue.id}
+                        onClick={() => approveIssue(issue.id)}
+                        className="rounded-lg bg-coral px-3 py-2 text-xs font-bold text-paper disabled:opacity-50"
+                      >
+                        {approvingId === issue.id ? 'Publishing…' : 'Approve & publish'}
+                      </button>
+                      <Link
+                        to={`/issues/${issue.id}`}
+                        className="rounded-lg border border-rule px-3 py-2 text-xs font-bold text-ink"
+                      >
+                        Review details
+                      </Link>
+                    </div>
+                  )}
                   <select
                     className="w-full rounded-lg border border-rule bg-paper p-2 text-xs text-ink"
                     value={pending || issue.status}

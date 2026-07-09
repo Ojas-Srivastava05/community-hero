@@ -3,6 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import path from 'path'
 import fs from 'fs'
+import { publicDir } from './lib/public-path'
 import { runWithGeocodeCache } from './lib/geocode-cache'
 import { reportsRouter } from './routes/reports'
 import { analyticsRouter } from './routes/analytics'
@@ -14,6 +15,7 @@ import { usersRouter } from './routes/users'
 import { departmentsRouter } from './routes/departments'
 import { authRouter } from './routes/auth'
 import { commentsRouter } from './routes/comments'
+import { notificationsRouter } from './routes/notifications'
 const app = express()
 const PORT = Number(process.env.PORT) || 3001
 const isProd = process.env.NODE_ENV === 'production'
@@ -29,7 +31,6 @@ app.use((req, res, next) => {
   runWithGeocodeCache(() => next())
 })
 
-const publicDir = path.resolve(__dirname, '../../public')
 app.use('/public', express.static(publicDir))
 
 const healthHandler = async (_req: express.Request, res: express.Response) => {
@@ -69,6 +70,7 @@ app.use('/api/threads', threadsRouter)
 app.use('/api/users', usersRouter)
 app.use('/api/departments', departmentsRouter)
 app.use('/api/auth', authRouter)
+app.use('/api/notifications', notificationsRouter)
 
 const frontendDist = path.resolve(__dirname, '../../frontend/dist')
 const spaIndex = path.join(frontendDist, 'index.html')

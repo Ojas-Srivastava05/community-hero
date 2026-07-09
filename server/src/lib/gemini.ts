@@ -359,28 +359,40 @@ export async function compareBeforeAfter(
       confidence: 0.5,
     }
   }
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    generationConfig: { responseMimeType: 'application/json' },
-  })
-  const result = await model.generateContent([
-    {
-      text: `Compare BEFORE and AFTER civic repair photos. Return JSON only:
+  try {
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      generationConfig: { responseMimeType: 'application/json' },
+    })
+    const result = await model.generateContent([
+      {
+        text: `Compare BEFORE and AFTER civic repair photos. Return JSON only:
 {"improved":boolean,"summary":"one sentence for citizens","confidence":0.0-1.0}
 improved=true only if the AFTER photo shows the reported issue is clearly fixed.`,
-    },
-    { inlineData: { data: beforeBuffer.toString('base64'), mimeType: beforeMime } },
-    { inlineData: { data: afterBuffer.toString('base64'), mimeType: afterMime } },
-  ])
-  try {
-    const raw = JSON.parse(result.response.text()) as { improved?: boolean; summary?: string; confidence?: number }
-    return {
-      improved: Boolean(raw.improved),
-      summary: raw.summary || 'Repair documented.',
-      confidence: typeof raw.confidence === 'number' ? Math.min(1, Math.max(0, raw.confidence)) : 0.7,
+      },
+      { inlineData: { data: beforeBuffer.toString('base64'), mimeType: beforeMime } },
+      { inlineData: { data: afterBuffer.toString('base64'), mimeType: afterMime } },
+    ])
+    try {
+      const raw = JSON.parse(result.response.text()) as {
+        improved?: boolean
+        summary?: string
+        confidence?: number
+      }
+      return {
+        improved: Boolean(raw.improved),
+        summary: raw.summary || 'Repair documented.',
+        confidence: typeof raw.confidence === 'number' ? Math.min(1, Math.max(0, raw.confidence)) : 0.7,
+      }
+    } catch {
+      return { improved: true, summary: result.response.text() || 'Repair documented.', confidence: 0.6 }
     }
   } catch {
-    return { improved: true, summary: result.response.text() || 'Repair documented.', confidence: 0.6 }
+    return {
+      improved: true,
+      summary: 'Resolution proof uploaded. AI vision comparison unavailable — manual review recommended.',
+      confidence: 0.45,
+    }
   }
 }
 

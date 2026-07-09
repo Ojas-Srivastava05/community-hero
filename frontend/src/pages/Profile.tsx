@@ -6,7 +6,7 @@ import { AppShell, PageHeader } from '@/components/layout/AppShell'
 import { GlassCard, Chip } from '@/components/civic/GlassCard'
 import { useAuth } from '../lib/auth'
 import { useLocation } from '../lib/location'
-import { apiGetProfile, apiUpdateProfile } from '../lib/api'
+import { apiGetProfile, apiListNotifications, apiUpdateProfile } from '../lib/api'
 import { resolveIsAdmin } from '../lib/admin'
 import { fadeUp, stagger } from '../lib/motion'
 import { cn } from '@/lib/utils'
@@ -29,6 +29,7 @@ export function ProfilePage() {
   const [badges, setBadges] = useState<string[]>([])
   const [leaderboardOptIn, setLeaderboardOptIn] = useState(false)
   const [savingOptIn, setSavingOptIn] = useState(false)
+  const [unreadNotifications, setUnreadNotifications] = useState(0)
 
   useEffect(() => {
     if (!user) {
@@ -46,6 +47,9 @@ export function ProfilePage() {
         setBadges(p.badges ?? [])
         setLeaderboardOptIn(p.leaderboardOptIn ?? false)
       }),
+    )
+    user.getIdToken().then((t) =>
+      apiListNotifications(t, 1).then((n) => setUnreadNotifications(n.unreadCount)).catch(() => {}),
     )
     return () => {
       cancelled = true
@@ -139,6 +143,12 @@ export function ProfilePage() {
 
       <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 space-y-2 px-5">
         <Row to="/my-reports" icon={FileText} label="My reports" />
+        <Row
+          to="/notifications"
+          icon={Bell}
+          label="Notifications"
+          hint={unreadNotifications > 0 ? `${unreadNotifications} unread` : 'Status alerts'}
+        />
         <Row to="/leaderboard" icon={Award} label="Leaderboard" />
         <Row to="/dashboard" icon={Sparkles} label="Civic dashboard" />
         <Row to="/scorecards" icon={Award} label="Department scorecards" hint="A–D grades" />

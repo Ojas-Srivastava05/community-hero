@@ -1,14 +1,51 @@
 {
-  "capturedAt": "2026-07-09T16:02:00.000Z",
-  "status": "pass",
+  "capturedAt": "2026-07-09T18:10:34.017Z",
+  "base": "https://community-hero-987477089222.asia-south1.run.app",
   "shots": [
-    { "file": "01-landing.png", "status": "ok", "checks": ["49 total issues", "no location-unavailable banner"] },
-    { "file": "02-map.png", "status": "ok", "checks": ["Google Maps tiles", "Bengaluru markers", "no Maps error"] },
-    { "file": "03-report.png", "status": "ok", "checks": ["Step 1 capture", "Hindi toggle"] },
-    { "file": "04-dashboard.png", "status": "ok", "checks": ["49 total", "40 open", "dept SLA card"] },
-    { "file": "05-leaderboard.png", "status": "ok", "checks": ["podium top 3", "all-time tab"] },
-    { "file": "06-assistant.png", "status": "ok", "checks": ["chat UI", "Try asking prompts", "not sign-in gate"] },
-    { "file": "07-scorecards.png", "status": "ok", "checks": ["8 departments", "letter grades B/C"] },
-    { "file": "08-login.png", "status": "ok", "checks": ["demo citizen", "demo authority", "Google"] }
+    {
+      "file": "01-landing.png",
+      "status": "ok",
+      "route": "/"
+    },
+    {
+      "file": "02-map.png",
+      "status": "ok",
+      "route": "/map"
+    },
+    {
+      "file": "03-report.png",
+      "status": "ok",
+      "route": "/report"
+    },
+    {
+      "file": "04-dashboard.png",
+      "status": "ok",
+      "route": "/dashboard"
+    },
+    {
+      "file": "05-leaderboard.png",
+      "status": "ok",
+      "route": "/leaderboard"
+    },
+    {
+      "file": "06-assistant.png",
+      "status": "ok",
+      "route": "/assistant"
+    },
+    {
+      "file": "07-scorecards.png",
+      "status": "ok",
+      "route": "/scorecards"
+    },
+    {
+      "file": "08-login.png",
+      "status": "ok",
+      "route": "/login"
+    },
+    {
+      "file": "09-embed.png",
+      "status": "ok",
+      "route": "/embed/map?lat=12.9716&lng=77.5946"
+    }
   ]
 }

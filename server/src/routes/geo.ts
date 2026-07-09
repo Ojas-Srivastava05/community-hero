@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import path from 'path'
+import { resolvePublicPath } from '../lib/public-path'
 import { reverseGeocodeServer } from '../lib/geo'
 import { runWithGeocodeCache } from '../lib/geocode-cache'
 import { sendError, ErrorCodes, sendServerError } from '../lib/errors'
@@ -22,7 +22,8 @@ geoRouter.get('/reverse', async (req, res) => {
 })
 
 geoRouter.get('/wards', (_req, res) => {
-  const file = path.resolve(__dirname, '../../../public/ward-geojson.json')
+  const file = resolvePublicPath('ward-geojson.json')
+  res.type('application/json')
   res.sendFile(file, (err) => {
     if (err) sendError(res, 404, ErrorCodes.NOT_FOUND, 'Ward GeoJSON not found')
   })

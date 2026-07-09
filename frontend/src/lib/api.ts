@@ -207,7 +207,15 @@ export async function apiPostComment(issueId: string, body: string, token: strin
 
 export async function apiListIssues(
   limit = 50,
-  opts?: { lat?: number; lng?: number; radiusKm?: number; status?: string; includeDemo?: boolean; sortByPriority?: boolean },
+  opts?: {
+    lat?: number
+    lng?: number
+    radiusKm?: number
+    status?: string
+    includeDemo?: boolean
+    includeDraft?: boolean
+    sortByPriority?: boolean
+  },
 ): Promise<{ issues: Issue[] }> {
   const q = new URLSearchParams({ limit: String(limit) })
   if (opts?.lat !== undefined) q.set('lat', String(opts.lat))
@@ -215,6 +223,7 @@ export async function apiListIssues(
   if (opts?.radiusKm !== undefined) q.set('radius_km', String(opts.radiusKm))
   if (opts?.status) q.set('status', opts.status)
   if (opts?.includeDemo) q.set('include_demo', '1')
+  if (opts?.includeDraft) q.set('include_draft', '1')
   if (opts?.sortByPriority) q.set('sort', 'priority')
   const res = await apiFetch(`/api/reports?${q}`)
   if (!res.ok) await parseApiError(res)
@@ -278,6 +287,15 @@ export async function apiUpdateStatus(id: string, status: string, token: string,
   })
   if (!res.ok) await parseApiError(res)
   return res.json()
+}
+
+export async function apiApproveIssue(id: string, token: string) {
+  const res = await apiFetch(`/api/reports/${id}/approve`, {
+    method: 'POST',
+    headers: await authHeaders(token),
+  })
+  if (!res.ok) await parseApiError(res)
+  return res.json() as Promise<{ ok: boolean; status: string }>
 }
 
 export async function apiBulkUpdateStatus(ids: string[], status: string, token: string) {
@@ -497,6 +515,44 @@ export async function apiVerifyResolution(
     method: 'POST',
     headers: await authHeaders(token),
     body: fd,
+  })
+  if (!res.ok) await parseApiError(res)
+  return res.json()
+}
+
+export type CivicNotification = {
+  id: string
+  userId: string
+  issueId?: string
+  type?: string
+  title: string
+  body: string
+  bodyHi?: string
+  read?: boolean
+  createdAt: string
+}
+
+export async function apiListNotifications(token: string, limit = 30) {
+  const res = await apiFetch(`/api/notifications?limit=${limit}`, {
+    headers: await authHeaders(token),
+  })
+  if (!res.ok) await parseApiError(res)
+  return res.json() as Promise<{ notifications: CivicNotification[]; unreadCount: number }>
+}
+
+export async function apiMarkNotificationRead(id: string, token: string) {
+  const res = await apiFetch(`/api/notifications/${id}/read`, {
+    method: 'PATCH',
+    headers: await authHeaders(token),
+  })
+  if (!res.ok) await parseApiError(res)
+  return res.json()
+}
+
+export async function apiMarkAllNotificationsRead(token: string) {
+  const res = await apiFetch('/api/notifications/read-all', {
+    method: 'POST',
+    headers: await authHeaders(token),
   })
   if (!res.ok) await parseApiError(res)
   return res.json()

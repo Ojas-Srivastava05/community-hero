@@ -1,12 +1,19 @@
 import { describe, it, before } from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import { initializeApp, getApps, applicationDefault } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 import { CATEGORIES } from '../../src/types/shared'
 
-const hasFirebase =
-  Boolean(process.env.FIREBASE_PROJECT_ID || process.env.GOOGLE_APPLICATION_CREDENTIALS) &&
-  process.env.SKIP_FIREBASE_TESTS !== '1'
+function canRunFirebaseIntegration(): boolean {
+  if (process.env.SKIP_FIREBASE_TESTS === '1') return false
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) return true
+  const gac = process.env.GOOGLE_APPLICATION_CREDENTIALS
+  if (gac) return fs.existsSync(gac)
+  return false
+}
+
+const hasFirebase = canRunFirebaseIntegration()
 
 function initFirebase() {
   if (!getApps().length) {
@@ -18,7 +25,7 @@ function initFirebase() {
   return getFirestore()
 }
 
-describe('POST /api/reports integration', { skip: !hasFirebase && 'SKIP_FIREBASE_TESTS=1 or no ADC' }, () => {
+describe('POST /api/reports integration', { skip: !hasFirebase && 'no working Firebase credentials' }, () => {
   let db: ReturnType<typeof getFirestore>
 
   before(() => {
@@ -70,7 +77,7 @@ describe('POST /api/reports integration', { skip: !hasFirebase && 'SKIP_FIREBASE
 })
 
 describe('POST /api/reports integration (skipped)', { skip: hasFirebase }, () => {
-  it('runs when FIREBASE_PROJECT_ID or ADC is configured', () => {
+  it('runs when FIREBASE_SERVICE_ACCOUNT_JSON or a valid GOOGLE_APPLICATION_CREDENTIALS file is set', () => {
     assert.ok(true)
   })
 })

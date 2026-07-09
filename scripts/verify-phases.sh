@@ -72,6 +72,15 @@ done
 code=$(http_code "$URL/api/geo/reverse?lat=12.97&lng=77.59")
 [ "$code" = "200" ] && check "3" "Geo reverse API" "PASS" || check "3" "Geo reverse API" "HTTP $code"
 
+code=$(http_code "$URL/api/geo/wards")
+[ "$code" = "200" ] && check "3" "Ward GeoJSON API" "PASS" || check "3" "Ward GeoJSON API" "HTTP $code"
+
+prio_code=$(http_code "$URL/api/reports?limit=2&sort=priority&status=Submitted")
+[ "$prio_code" = "200" ] && check "3" "Priority+status reports query" "PASS" || check "3" "Priority+status reports query" "HTTP $prio_code"
+
+notif_code=$(http_code "$URL/api/notifications")
+[ "$notif_code" = "401" ] && check "3" "Notifications API auth-gated" "PASS" || check "3" "Notifications API auth-gated" "HTTP $notif_code"
+
 # Phase 4 — issue detail + my reports (prefer demo issue if public list empty)
 issue_id=$(echo "$issues_json" | python3 -c "import sys,json; i=json.load(sys.stdin).get('issues',[]); print(i[0]['id'] if i else '')" 2>/dev/null || echo "")
 if [ -z "$issue_id" ]; then
@@ -99,6 +108,12 @@ dept=$(echo "$demo_issues_json" | python3 -c "import sys,json; issues=json.load(
 # Phase 7 — admin route
 code=$(http_code "$URL/admin")
 [ "$code" = "200" ] && check "7" "Admin panel route" "PASS" || check "7" "Admin panel route" "HTTP $code"
+
+approve_code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$URL/api/reports/${issue_id:-test}/approve")
+[ "$approve_code" = "401" ] && check "7" "Judge approve endpoint auth-gated" "PASS" || check "7" "Judge approve endpoint" "HTTP $approve_code"
+
+code=$(http_code "$URL/notifications")
+[ "$code" = "200" ] && check "7" "Notifications page route" "PASS" || check "7" "Notifications page route" "HTTP $code"
 
 # Phase 8 — dashboard + analytics
 code=$(http_code "$URL/dashboard")

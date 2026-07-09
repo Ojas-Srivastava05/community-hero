@@ -473,13 +473,36 @@ reportsRouter.get('/', async (req, res) => {
     const pageSize = excludeDemo ? 100 : fetchLimit
     let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined
 
-    for (let page = 0; page < maxPages; page++) {
-      const snap = await buildQuery(pageSize, cursor).get()
-      if (snap.empty) break
-      issues.push(...(snap.docs.map((d) => ({ id: d.id, ...d.data() })) as IssueItem[]))
-      cursor = snap.docs[snap.docs.length - 1]
-      if (snap.size < pageSize) break
-      if (!excludeDemo) break
+    const runPagedQuery = async () => {
+      for (let page = 0; page < maxPages; page++) {
+        const snap = await buildQuery(pageSize, cursor).get()
+        if (snap.empty) break
+        issues.push(...(snap.docs.map((d) => ({ id: d.id, ...d.data() })) as IssueItem[]))
+        cursor = snap.docs[snap.docs.length - 1]
+        if (snap.size < pageSize) break
+        if (!excludeDemo) break
+      }
+    }
+
+    try {
+      await runPagedQuery()
+    } catch (queryErr) {
+      // Composite index (status + priorityScore) may still be building — fallback sort in memory
+      if (status && sortByPriority) {
+        console.warn('Priority+status query failed, using in-memory sort fallback:', queryErr)
+        issues = []
+        cursor = undefined
+        const fallbackQ = db
+          .collection('issues')
+          .where('status', '==', status)
+          .orderBy('createdAt', 'desc')
+          .limit(Math.min(fetchLimit * 2, 100))
+        const snap = await fallbackQ.get()
+        issues = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as IssueItem[]
+        issues.sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0))
+      } else {
+        throw queryErr
+      }
     }
 
     if (excludeDemo) {
@@ -688,6 +711,59 @@ reportsRouter.post('/:id/reopen', requireAuth, async (req: AuthedRequest, res) =
   }
 })
 
+/** Admin Judge gate: publish a Draft / needs_review issue to the public map. */
+reportsRouter.post('/:id/approve', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    if (!isAdminUser(req.user!)) {
+      sendError(res, 403, ErrorCodes.FORBIDDEN, 'Forbidden')
+      return
+    }
+    const id = String(req.params.id)
+    const doc = await db.collection('issues').doc(id).get()
+    if (!doc.exists) {
+      sendError(res, 404, ErrorCodes.NOT_FOUND, 'Not found')
+      return
+    }
+    const data = doc.data()!
+    const needsReview = data.status === 'Draft' || data.aiMetadata?.needs_review === true
+    if (!needsReview) {
+      sendError(res, 400, ErrorCodes.INVALID_MEDIA, 'Issue is not awaiting Judge review')
+      return
+    }
+    const now = new Date().toISOString()
+    await doc.ref.update({
+      status: 'Submitted',
+      updatedAt: now,
+      'aiMetadata.needs_review': false,
+      'aiMetadata.judge_approved_at': now,
+      'aiMetadata.judge_approved_by': req.user!.uid,
+    })
+    await doc.ref.collection('events').add({
+      type: 'judge_approved',
+      actorId: req.user!.uid,
+      payload: { from: data.status, to: 'Submitted' },
+      timestamp: now,
+    })
+    if (data.reporterId) {
+      const narrative = await runCitizenCommunicator(
+        'Submitted',
+        data.title || 'Your report',
+        data.departmentId as string | undefined,
+      )
+      await notifyStatusChange(
+        id,
+        data.reporterId,
+        'Submitted',
+        data.title || 'Your report',
+        { en: narrative.narrativeEn, hi: narrative.narrativeHi },
+      )
+    }
+    res.json({ ok: true, status: 'Submitted' })
+  } catch (e) {
+    sendServerError(res, e)
+  }
+})
+
 reportsRouter.post('/bulk-status', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const { ids, status } = req.body as { ids?: string[]; status?: string }
@@ -803,6 +879,14 @@ reportsRouter.patch('/:id/status', requireAuth, (req, res, next) => {
     const updates: Record<string, unknown> = {
       status,
       updatedAt: new Date().toISOString(),
+    }
+    if (
+      status === 'Submitted' &&
+      (issueData.status === 'Draft' || issueData.aiMetadata?.needs_review === true)
+    ) {
+      updates['aiMetadata.needs_review'] = false
+      updates['aiMetadata.judge_approved_at'] = new Date().toISOString()
+      updates['aiMetadata.judge_approved_by'] = req.user!.uid
     }
     if (status === 'Resolved' || status === 'Closed') {
       updates.resolvedAt = new Date().toISOString()
