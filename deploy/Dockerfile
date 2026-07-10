@@ -29,7 +29,7 @@ COPY server/package*.json ./server/
 RUN cd server && npm ci --omit=dev
 COPY server/ ./server/
 COPY shared/ ./shared/
-COPY public/ /app/public/
+COPY server/public/ /app/server/public/
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
 WORKDIR /app/server
