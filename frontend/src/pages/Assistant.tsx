@@ -1,11 +1,13 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Sparkles, Send, ChevronLeft } from 'lucide-react'
+import { Sparkles, Send, ChevronLeft, Mic } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { useAuth } from '../lib/auth'
 import { apiChat } from '../lib/api'
 import { useLocation } from '../lib/location'
+import { useI18n, type Locale } from '../lib/i18n'
+import { speechRecognitionSupported, startSpeechDictation } from '../lib/voice-media'
 import { cn } from '@/lib/utils'
 
 type Msg = { role: 'user' | 'ai'; text: string }
@@ -17,25 +19,43 @@ const PROMPTS = [
   { en: 'Show my report status', hi: 'मेरी रिपोर्ट की स्थिति दिखाएं' },
 ]
 
+const SPEECH_LANG: Record<Locale, string> = {
+  en: 'en-IN',
+  hi: 'hi-IN',
+  mr: 'mr-IN',
+  ta: 'ta-IN',
+  bn: 'bn-IN',
+  te: 'te-IN',
+  kn: 'kn-IN',
+}
+
 export function AssistantPage() {
   const { user, signInWithGoogle, signInWithDemo, signingIn } = useAuth()
   const { location } = useLocation()
+  const { locale, t } = useI18n()
   const [messages, setMessages] = useState<Msg[]>([
-    { role: 'ai', text: "Hi! I'm Civic AI — ask about nearby issues, reporting, or your submissions. हिंदी में भी पूछ सकते हैं।" },
+    { role: 'ai', text: "Hi! I'm Civic AI — ask about nearby issues, reporting, or your submissions. हिंदी में भी पूछ सकते हैं। Tap the mic to speak." },
   ])
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
+  const [listening, setListening] = useState(false)
+  const [voiceError, setVoiceError] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const voiceStopRef = useRef<(() => void) | null>(null)
+  const transcriptRef = useRef('')
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, typing])
 
-  const send = async (text: string) => {
-    if (!text.trim() || !user) return
+  useEffect(() => () => voiceStopRef.current?.(), [])
+
+  const send = useCallback(async (text: string) => {
+    if (!text.trim() || !user || typing) return
     const next: Msg[] = [...messages, { role: 'user', text: text.trim() }]
     setMessages(next)
     setInput('')
+    transcriptRef.current = ''
     setTyping(true)
     try {
       const token = await user.getIdToken()
@@ -51,6 +71,47 @@ export function AssistantPage() {
     } finally {
       setTyping(false)
     }
+  }, [user, typing, messages, location?.lat, location?.lng])
+
+  const stopVoice = useCallback(() => {
+    voiceStopRef.current?.()
+    voiceStopRef.current = null
+    setListening(false)
+    const text = transcriptRef.current.trim()
+    if (text) void send(text)
+  }, [send])
+
+  const toggleVoice = () => {
+    if (typing) return
+    if (listening) {
+      stopVoice()
+      return
+    }
+    if (!speechRecognitionSupported()) {
+      setVoiceError(t('assistant.voiceUnsupported'))
+      return
+    }
+    setVoiceError(null)
+    transcriptRef.current = ''
+    setInput('')
+    setListening(true)
+    const ctl = startSpeechDictation({
+      lang: SPEECH_LANG[locale] || 'en-IN',
+      onPartial: (text) => {
+        transcriptRef.current = text
+        setInput(text)
+      },
+      onFinal: (text) => {
+        transcriptRef.current = text
+        setInput(text)
+      },
+      onError: (err) => {
+        setVoiceError(err === 'not-allowed' ? 'Microphone permission denied' : err)
+        setListening(false)
+        voiceStopRef.current = null
+      },
+    })
+    voiceStopRef.current = ctl.stop
   }
 
   if (!user) {
@@ -80,6 +141,8 @@ export function AssistantPage() {
     )
   }
 
+  const voiceSupported = speechRecognitionSupported()
+
   return (
     <AppShell bare hideNav>
       <div className="flex min-h-[100dvh] max-h-[100dvh] flex-col">
@@ -88,7 +151,9 @@ export function AssistantPage() {
           <div className="grid size-10 place-items-center rounded-xl bg-coral-soft ring-1 ring-coral/30"><Sparkles className="size-5 text-coral" /></div>
           <div className="min-w-0 flex-1">
             <p className="display truncate text-sm font-bold text-ink">Civic AI</p>
-            <p className="truncate text-[11px] text-leaf">English / हिंदी · Gemini</p>
+            <p className="truncate text-[11px] text-leaf">
+              {listening ? t('assistant.listening') : 'English / हिंदी · Voice + Gemini'}
+            </p>
           </div>
         </header>
         <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
@@ -111,7 +176,7 @@ export function AssistantPage() {
               <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-ink-muted">Try asking</p>
               <div className="flex flex-col gap-2">
                 {PROMPTS.map((p) => (
-                  <button key={p.en} type="button" onClick={() => send(p.en)} className="paper px-4 py-3 text-left text-sm text-ink transition-colors hover:bg-coral-soft">
+                  <button key={p.en} type="button" onClick={() => send(p.en)} disabled={typing || listening} className="paper px-4 py-3 text-left text-sm text-ink transition-colors hover:bg-coral-soft disabled:opacity-50">
                     <span>{p.en}</span>
                     <span className="mt-0.5 block text-xs text-ink-muted">{p.hi}</span>
                   </button>
@@ -124,9 +189,52 @@ export function AssistantPage() {
           className="glass-strong shrink-0 border-t border-rule px-3 pt-3"
           style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 0px))' }}
         >
-          <form onSubmit={(e) => { e.preventDefault(); send(input) }} className="flex items-center gap-2 rounded-2xl border border-rule bg-paper px-3 py-2">
-            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask in English or Hindi… / हिंदी या English में पूछें" className="flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-muted" />
-            <button type="submit" disabled={!input.trim()} className="grid size-9 place-items-center rounded-xl bg-coral text-paper disabled:opacity-40 ink-glow"><Send className="size-4" /></button>
+          {voiceError && (
+            <p className="mb-2 px-1 text-xs text-coral" role="alert">{voiceError}</p>
+          )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (listening) stopVoice()
+              else void send(input)
+            }}
+            className={cn(
+              'flex items-center gap-2 rounded-2xl border bg-paper px-3 py-2 transition-colors',
+              listening ? 'border-coral ring-2 ring-coral/20' : 'border-rule',
+            )}
+          >
+            <input
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value)
+                transcriptRef.current = e.target.value
+              }}
+              placeholder={listening ? t('assistant.listening') : 'Ask in English or Hindi… / हिंदी या English में पूछें'}
+              readOnly={listening}
+              className="flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-muted"
+            />
+            {voiceSupported && (
+              <button
+                type="button"
+                onClick={toggleVoice}
+                disabled={typing}
+                aria-label={listening ? t('assistant.listening') : t('assistant.voice')}
+                aria-pressed={listening}
+                className={cn(
+                  'grid size-9 shrink-0 place-items-center rounded-xl transition-colors',
+                  listening ? 'bg-coral text-paper ink-glow animate-pulse' : 'border border-rule text-ink hover:bg-coral-soft',
+                )}
+              >
+                <Mic className="size-4" />
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={(!input.trim() && !listening) || typing}
+              className="grid size-9 shrink-0 place-items-center rounded-xl bg-coral text-paper disabled:opacity-40 ink-glow"
+            >
+              <Send className="size-4" />
+            </button>
           </form>
         </div>
       </div>
