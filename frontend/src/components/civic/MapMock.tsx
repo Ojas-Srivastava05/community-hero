@@ -37,7 +37,7 @@ export function MapMock({
       {hotspots.map((h, idx) => (
         <span
           key={h.geohash}
-          className="absolute -translate-x-1/2 -translate-y-1/2"
+          className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
           style={{
             left: `${20 + (idx * 17) % 60}%`,
             top: `${25 + (idx * 23) % 50}%`,

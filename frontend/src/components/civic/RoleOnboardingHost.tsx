@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
 import { useAdminMode } from '@/lib/admin-mode'
 import { useAdminRegion } from '@/lib/admin-region'
@@ -9,11 +10,14 @@ import {
 
 /** Shows role-specific onboarding once per device after sign-in. */
 export function RoleOnboardingHost() {
+  const { pathname } = useLocation()
   const { user, loading } = useAuth()
   const { isAdmin, checking } = useAdminMode()
   const { regionId, setRegionId } = useAdminRegion()
   const [open, setOpen] = useState(false)
   const [role, setRole] = useState<'admin' | 'citizen'>('citizen')
+
+  const isAdminConsoleRoute = pathname === '/admin' || pathname.startsWith('/admin/')
 
   useEffect(() => {
     if (loading || checking || !user) {
@@ -21,6 +25,11 @@ export function RoleOnboardingHost() {
       return
     }
     if (isAdmin) {
+      // Map is a citizen surface — don't block marker taps with authority onboarding.
+      if (!isAdminConsoleRoute) {
+        setOpen(false)
+        return
+      }
       if (!isOnboardingDismissed('admin')) {
         setRole('admin')
         setOpen(true)
@@ -31,7 +40,7 @@ export function RoleOnboardingHost() {
       setRole('citizen')
       setOpen(true)
     }
-  }, [user, loading, isAdmin, checking])
+  }, [user, loading, isAdmin, checking, isAdminConsoleRoute])
 
   if (!user) return null
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { GoogleMap } from '@react-google-maps/api'
-import { MarkerClusterer } from '@googlemaps/markerclusterer'
+import { MarkerClusterer, defaultOnClusterClickHandler } from '@googlemaps/markerclusterer'
 import { MapMock } from './MapMock'
 import { useGoogleMaps } from './GoogleMapsProvider'
 import { issuesToMapPoints } from '@/lib/issue-ui'
@@ -60,6 +60,11 @@ function severityMarkerIcon(severity: number, dimmed: boolean): google.maps.Icon
   }
 }
 
+function issueMarkerZIndex(issue: Issue, selectedId?: string): number {
+  if (selectedId === issue.id) return 2000
+  return 1200 + issue.severity * 10
+}
+
 function pinDropIcon(): google.maps.Icon {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><path d="M16 2C10.5 2 6 6.5 6 12c0 7 10 18 10 18s10-11 10-18c0-5.5-4.5-10-10-10z" fill="#e8754a" stroke="#fff" stroke-width="2"/><circle cx="16" cy="12" r="4" fill="#fff"/></svg>`
   return {
@@ -79,20 +84,21 @@ function hotspotMarkerIcon(predictive: boolean): google.maps.Icon {
   }
 }
 
+/** Decorative only — must not steal clicks from issue markers. */
 function HotspotMarkers({ map, hotspots }: { map: google.maps.Map; hotspots: MapHotspot[] }) {
   const markersRef = useRef<google.maps.Marker[]>([])
 
   useEffect(() => {
     markersRef.current.forEach((m) => m.setMap(null))
     markersRef.current = hotspots.map((h) => {
-      const marker = new google.maps.Marker({
+      return new google.maps.Marker({
         map,
         position: { lat: h.lat, lng: h.lng },
         icon: hotspotMarkerIcon(Boolean(h.predictive)),
-        zIndex: h.predictive ? 900 : 500,
+        zIndex: 200,
+        clickable: false,
         title: `${h.geohash}: ${h.count} open (score ${h.score})`,
       })
-      return marker
     })
     return () => {
       markersRef.current.forEach((m) => m.setMap(null))
@@ -115,25 +121,32 @@ function ClusteredMarkers({
 }) {
   const clustererRef = useRef<MarkerClusterer | null>(null)
   const markersRef = useRef<google.maps.Marker[]>([])
+  const markerByIdRef = useRef<Map<string, google.maps.Marker>>(new Map())
+  const onSelectRef = useRef(onSelect)
+  onSelectRef.current = onSelect
+  const issueKey = issues.map((i) => `${i.id}:${i.lat}:${i.lng}:${i.severity}`).join('|')
 
   useEffect(() => {
+    clustererRef.current?.clearMarkers()
     markersRef.current.forEach((m) => m.setMap(null))
     markersRef.current = []
-    clustererRef.current?.clearMarkers()
+    markerByIdRef.current.clear()
 
     const markers = issues.map((issue) => {
-      const dimmed = Boolean(selectedId && selectedId !== issue.id)
       const marker = new google.maps.Marker({
         position: { lat: issue.lat, lng: issue.lng },
-        icon: severityMarkerIcon(issue.severity, dimmed),
+        icon: severityMarkerIcon(issue.severity, false),
         title: issue.title,
-        zIndex: selectedId === issue.id ? 1000 : issue.severity * 10,
+        zIndex: issueMarkerZIndex(issue, selectedId),
+        optimized: false,
       })
       marker.addListener('click', () => {
-        onSelect?.(issue.id)
+        onSelectRef.current?.(issue.id)
         map.panTo({ lat: issue.lat, lng: issue.lng })
-        if ((map.getZoom() ?? 14) < 16) map.setZoom(16)
+        const zoom = map.getZoom() ?? 14
+        if (zoom < 16) map.setZoom(16)
       })
+      markerByIdRef.current.set(issue.id, marker)
       return marker
     })
 
@@ -141,13 +154,28 @@ function ClusteredMarkers({
     clustererRef.current = new MarkerClusterer({
       map,
       markers,
+      onClusterClick: (event, cluster, m) => {
+        defaultOnClusterClickHandler(event, cluster, m)
+      },
     })
 
     return () => {
       clustererRef.current?.clearMarkers()
+      markersRef.current.forEach((m) => google.maps.event.clearInstanceListeners(m))
       markersRef.current.forEach((m) => m.setMap(null))
+      markersRef.current = []
+      markerByIdRef.current.clear()
     }
-  }, [map, issues, selectedId, onSelect])
+  }, [map, issueKey, issues])
+
+  useEffect(() => {
+    for (const issue of issues) {
+      const marker = markerByIdRef.current.get(issue.id)
+      if (!marker) continue
+      marker.setIcon(severityMarkerIcon(issue.severity, Boolean(selectedId && selectedId !== issue.id)))
+      marker.setZIndex(issueMarkerZIndex(issue, selectedId))
+    }
+  }, [issues, selectedId])
 
   return null
 }
@@ -161,7 +189,7 @@ function DraftPin({ map, position }: { map: google.maps.Map; position: { lat: nu
       map,
       position,
       icon: pinDropIcon(),
-      zIndex: 2000,
+      zIndex: 2100,
       animation: google.maps.Animation.DROP,
     })
     return () => {
@@ -179,21 +207,29 @@ function MapClickHandler({
   map: google.maps.Map
   onMapClick?: (lat: number, lng: number) => void
 }) {
+  const onMapClickRef = useRef(onMapClick)
+  onMapClickRef.current = onMapClick
+
   useEffect(() => {
-    if (!onMapClick) return
+    if (!onMapClickRef.current) return
     const listener = map.addListener('click', (e: google.maps.MapMouseEvent) => {
       const lat = e.latLng?.lat()
       const lng = e.latLng?.lng()
-      if (lat !== undefined && lng !== undefined) onMapClick(lat, lng)
+      if (lat !== undefined && lng !== undefined) onMapClickRef.current?.(lat, lng)
     })
     return () => google.maps.event.removeListener(listener)
-  }, [map, onMapClick])
+  }, [map])
 
   return null
 }
 
 function PanToCenter({ map, center }: { map: google.maps.Map; center: { lat: number; lng: number } }) {
+  const lastRef = useRef<{ lat: number; lng: number } | null>(null)
+
   useEffect(() => {
+    const prev = lastRef.current
+    if (prev && prev.lat === center.lat && prev.lng === center.lng) return
+    lastRef.current = center
     map.panTo(center)
   }, [map, center.lat, center.lng])
 
@@ -237,7 +273,8 @@ export function CivicMap({
         styles: mapStyle,
         disableDefaultUI: true,
         zoomControl: true,
-        gestureHandling: onMapClick ? 'greedy' : 'auto',
+        gestureHandling: onMapClick ? 'greedy' : 'greedy',
+        clickableIcons: false,
       }}
     >
       {map && (

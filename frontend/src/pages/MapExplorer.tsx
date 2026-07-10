@@ -48,6 +48,20 @@ export function MapExplorerPage() {
     fetchLimit: 100,
   })
   const { selectedId, filter, categoryFilter, search, setSelectedId, setFilter, setCategoryFilter, setSearch } = useMapStore()
+  const [previewDismissed, setPreviewDismissed] = useState(false)
+  const initialSelectDone = useRef(false)
+
+  const handleSelectIssue = (id: string) => {
+    setPreviewDismissed(false)
+    setSelectedId(id)
+    const picked = issues.find((i) => i.id === id)
+    if (picked) setMapCenter({ lat: picked.lat, lng: picked.lng })
+  }
+
+  const handleDismissPreview = () => {
+    setPreviewDismissed(true)
+    setSelectedId(undefined)
+  }
 
   useEffect(() => {
     apiHotspots()
@@ -85,14 +99,19 @@ export function MapExplorerPage() {
   })
 
   useEffect(() => {
-    if (!selectedId && filtered[0]?.id) setSelectedId(filtered[0].id)
-  }, [filtered, selectedId, setSelectedId])
+    if (initialSelectDone.current || previewDismissed) return
+    if (filtered[0]?.id) {
+      setSelectedId(filtered[0].id)
+      initialSelectDone.current = true
+    }
+  }, [filtered, previewDismissed, setSelectedId])
 
   useEffect(() => {
+    if (previewDismissed) return
     if (selectedId && filtered.length > 0 && !filtered.some((i) => i.id === selectedId)) {
       setSelectedId(filtered[0].id)
     }
-  }, [filtered, selectedId, setSelectedId])
+  }, [filtered, selectedId, setSelectedId, previewDismissed])
 
   const issue = filtered.find((i) => i.id === selectedId) ?? filtered[0]
 
@@ -128,7 +147,7 @@ export function MapExplorerPage() {
           issues={filtered}
           hotspots={mapHotspots}
           selectedId={selectedId}
-          onSelect={setSelectedId}
+          onSelect={handleSelectIssue}
           className="absolute inset-0 size-full"
         />
         {loading && issues.length === 0 && <MapExplorerSkeleton />}
@@ -249,46 +268,45 @@ export function MapExplorerPage() {
           <Layers className="size-5 text-ink" />
         </motion.button>
         <AnimatePresence>
-          {issue && (
+          {issue && !previewDismissed && (
             <motion.div
               key={issue.id}
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 24 }}
               transition={{ type: 'spring', stiffness: 280, damping: 26 }}
-              className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+6.25rem)] z-30 px-3"
+              className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-50 px-3 pointer-events-none"
             >
-              <Link to={`/issues/${issue.id}`} className="paper relative block overflow-hidden">
+              <div className="paper relative pointer-events-auto overflow-hidden shadow-lg">
                 <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-ink/20" />
                 <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 p-3">
-                  <img src={issueImage(issue)} alt={`${issue.title} — ${issue.category.replace(/_/g, ' ')}`} className="size-16 rounded-xl object-cover" />
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <SeverityBadge severity={apiSeverityToUi(issue.severity)} />
-                      <VerificationBadges
-                        upvoteCount={issue.upvoteCount}
-                        verificationLevel={issue.verificationLevel}
-                        compact
-                      />
+                  <Link to={`/issues/${issue.id}`} className="contents">
+                    <img src={issueImage(issue)} alt={`${issue.title} — ${issue.category.replace(/_/g, ' ')}`} className="size-16 rounded-xl object-cover" />
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <SeverityBadge severity={apiSeverityToUi(issue.severity)} />
+                        <VerificationBadges
+                          upvoteCount={issue.upvoteCount}
+                          verificationLevel={issue.verificationLevel}
+                          compact
+                        />
+                      </div>
+                      <p className="mt-1 truncate text-sm font-bold text-ink">{issue.title}</p>
+                      <p className="truncate text-[11px] text-ink-muted">
+                        {issueArea(issue)} · {issue.upvoteCount} boosts · {issueReportedAt(issue)}
+                      </p>
                     </div>
-                    <p className="mt-1 truncate text-sm font-bold text-ink">{issue.title}</p>
-                    <p className="truncate text-[11px] text-ink-muted">
-                      {issueArea(issue)} · {issue.upvoteCount} boosts · {issueReportedAt(issue)}
-                    </p>
-                  </div>
+                  </Link>
                   <button
                     type="button"
-                    aria-label="Close"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setSelectedId(undefined)
-                    }}
+                    aria-label="Close preview"
+                    onClick={handleDismissPreview}
                     className="grid size-8 place-items-center rounded-lg border border-rule"
                   >
                     <X className="size-4 text-ink" />
                   </button>
                 </div>
-              </Link>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
