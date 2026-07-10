@@ -252,6 +252,7 @@ export async function apiListIssues(
     includeDemo?: boolean
     includeDraft?: boolean
     sortByPriority?: boolean
+    wardPrefix?: string
   },
 ): Promise<{ issues: Issue[] }> {
   const q = new URLSearchParams({ limit: String(limit) })
@@ -262,6 +263,7 @@ export async function apiListIssues(
   if (opts?.includeDemo) q.set('include_demo', '1')
   if (opts?.includeDraft) q.set('include_draft', '1')
   if (opts?.sortByPriority) q.set('sort', 'priority')
+  if (opts?.wardPrefix) q.set('ward_prefix', opts.wardPrefix)
   const res = await apiFetch(`/api/reports?${q}`)
   if (!res.ok) await parseApiError(res)
   return res.json()
@@ -345,7 +347,7 @@ export async function apiBulkUpdateStatus(ids: string[], status: string, token: 
   return res.json()
 }
 
-export async function apiAnalyticsSummary(): Promise<{
+export async function apiAnalyticsSummary(wardPrefix?: string): Promise<{
   total: number
   open: number
   resolved: number
@@ -358,12 +360,13 @@ export async function apiAnalyticsSummary(): Promise<{
   wardBreakdown?: { wardId: string; total: number; open: number; resolved: number }[]
   departmentSla?: { departmentId: string; total: number; compliant: number; compliancePct: number | null }[]
 }> {
-  const res = await apiFetch('/api/analytics/summary')
+  const q = wardPrefix ? `?ward_prefix=${encodeURIComponent(wardPrefix)}` : ''
+  const res = await apiFetch(`/api/analytics/summary${q}`)
   if (!res.ok) await parseApiError(res)
   return res.json()
 }
 
-export async function apiHotspots(wardId?: string): Promise<{
+export async function apiHotspots(wardId?: string, wardPrefix?: string): Promise<{
   hotspots: {
     geohash: string
     count: number
@@ -377,13 +380,16 @@ export async function apiHotspots(wardId?: string): Promise<{
     predictive?: boolean
   }[]
 }> {
-  const q = wardId ? `?ward_id=${encodeURIComponent(wardId)}` : ''
+  const params = new URLSearchParams()
+  if (wardId) params.set('ward_id', wardId)
+  if (wardPrefix) params.set('ward_prefix', wardPrefix)
+  const q = params.toString() ? `?${params}` : ''
   const res = await apiFetch(`/api/analytics/hotspots${q}`)
   if (!res.ok) await parseApiError(res)
   return res.json()
 }
 
-export async function apiTrends(wardId?: string): Promise<{
+export async function apiTrends(wardId?: string, wardPrefix?: string): Promise<{
   narrative?: string
   avgResolutionHours?: number
   byCategory?: Record<string, number>
@@ -403,7 +409,10 @@ export async function apiTrends(wardId?: string): Promise<{
     predictive?: boolean
   }[]
 }> {
-  const q = wardId ? `?ward_id=${encodeURIComponent(wardId)}` : ''
+  const params = new URLSearchParams()
+  if (wardId) params.set('ward_id', wardId)
+  if (wardPrefix) params.set('ward_prefix', wardPrefix)
+  const q = params.toString() ? `?${params}` : ''
   const res = await apiFetch(`/api/analytics/trends${q}`)
   if (!res.ok) await parseApiError(res)
   return res.json()

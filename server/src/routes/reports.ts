@@ -441,6 +441,7 @@ reportsRouter.get('/', async (req, res) => {
     const radiusKm = req.query.radius_km ? Number(req.query.radius_km) : undefined
     const includeDraft = req.query.include_draft === '1'
     const sortByPriority = req.query.sort === 'priority'
+    const wardPrefix = req.query.ward_prefix as string | undefined
 
     const excludeDemo = req.query.exclude_demo === '1' && req.query.include_demo !== '1'
     const fetchLimit = lat !== undefined && lng !== undefined ? Math.min(limit * 4, 100) : limit
@@ -519,6 +520,13 @@ reportsRouter.get('/', async (req, res) => {
 
     if (!includeDraft) {
       issues = issues.filter((i) => isPublicIssue(i))
+    }
+
+    if (wardPrefix) {
+      issues = issues.filter((i) => {
+        const w = (i as { wardId?: string }).wardId
+        return w?.startsWith(wardPrefix) ?? false
+      })
     }
 
     if (lat !== undefined && lng !== undefined && Number.isFinite(lat) && Number.isFinite(lng)) {

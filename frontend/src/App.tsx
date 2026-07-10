@@ -28,6 +28,8 @@ import { NotificationsPage } from './pages/Notifications'
 import { EmbedMapPage } from './pages/EmbedMap'
 import { NotFoundPage } from './pages/NotFound'
 import { AdminModeProvider, AdminRouteGuard } from './lib/admin-mode'
+import { AdminRegionProvider } from './lib/admin-region'
+import { RoleOnboardingHost } from './components/civic/RoleOnboardingHost'
 import { GoogleMapsProvider } from './components/civic/GoogleMapsProvider'
 import './index.css'
 
@@ -36,11 +38,13 @@ export default function App() {
     <I18nProvider>
     <AuthProvider>
       <AdminModeProvider>
+      <AdminRegionProvider>
       <LocationProvider>
         <GoogleMapsProvider>
         <PointsToastProvider>
         <BrowserRouter>
           <AdminRouteGuard />
+          <RoleOnboardingHost />
           <ErrorBoundary>
           <Routes>
             <Route path="/" element={<RouteBoundary><LandingPage /></RouteBoundary>} />
@@ -72,6 +76,7 @@ export default function App() {
         </PointsToastProvider>
         </GoogleMapsProvider>
       </LocationProvider>
+      </AdminRegionProvider>
       </AdminModeProvider>
     </AuthProvider>
     </I18nProvider>

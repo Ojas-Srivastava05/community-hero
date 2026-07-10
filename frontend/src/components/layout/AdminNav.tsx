@@ -2,16 +2,18 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { BarChart3, ClipboardList, LogOut, Map } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth'
-
-const TABS = [
-  { to: '/admin', label: 'Queue', icon: ClipboardList, end: true },
-  { to: '/admin/analytics', label: 'Analytics', icon: BarChart3, end: false },
-  { to: '/map', label: 'Map', icon: Map, end: false },
-] as const
+import { useI18n } from '@/lib/i18n'
 
 export function AdminNav() {
   const { pathname } = useLocation()
   const { logout } = useAuth()
+  const { t } = useI18n()
+
+  const TABS = [
+    { to: '/admin', label: t('admin.nav.queue'), icon: ClipboardList, end: true },
+    { to: '/admin/analytics', label: t('admin.nav.analytics'), icon: BarChart3, end: false },
+    { to: '/map', label: t('admin.nav.map'), icon: Map, end: false },
+  ] as const
 
   return (
     <nav
@@ -43,7 +45,7 @@ export function AdminNav() {
           aria-label="Sign out"
         >
           <LogOut className="size-5" />
-          Exit
+          {t('admin.nav.exit')}
         </button>
       </div>
     </nav>

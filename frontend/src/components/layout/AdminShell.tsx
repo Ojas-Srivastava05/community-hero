@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom'
 import { Shield } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { AdminNav } from './AdminNav'
+import { AdminRegionPicker } from '@/components/civic/AdminRegionPicker'
+import { LanguagePicker } from '@/lib/i18n'
+import { useI18n } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
 export function AdminShell({
@@ -11,13 +14,17 @@ export function AdminShell({
   title,
   subtitle,
   right,
+  showRegionPicker = true,
 }: {
   children: ReactNode
   className?: string
   title: string
   subtitle?: string
   right?: ReactNode
+  showRegionPicker?: boolean
 }) {
+  const { t } = useI18n()
+
   return (
     <div className="relative mx-auto min-h-screen w-full max-w-[440px] overflow-x-hidden bg-[oklch(0.97_0.01_275)]">
       <header className="sticky top-0 z-30 border-b border-indigo/15 bg-ink text-paper">
@@ -25,15 +32,19 @@ export function AdminShell({
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-indigo-soft">
               <Shield className="size-3.5" />
-              Authority console
+              {t('admin.shell.badge')}
             </div>
             <h1 className="display mt-1 truncate text-xl font-bold">{title}</h1>
             {subtitle ? <p className="mt-0.5 truncate text-xs text-paper/70">{subtitle}</p> : null}
           </div>
           <div className="flex shrink-0 flex-col items-end gap-2">
-            {right}
+            <div className="flex items-center gap-2">
+              <LanguagePicker compact className="[&_select]:border-paper/25 [&_select]:bg-ink [&_select]:text-paper" />
+              {right}
+            </div>
+            {showRegionPicker ? <AdminRegionPicker compact /> : null}
             <Link to="/map" className="text-[10px] font-semibold text-paper/50 hover:text-paper">
-              Map only
+              {t('admin.shell.mapOnly')}
             </Link>
           </div>
         </div>

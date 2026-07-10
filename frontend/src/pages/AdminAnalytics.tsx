@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { AlertTriangle, Flame, MapPin, Sparkles, Wrench } from 'lucide-react'
-import { DashboardSkeleton } from '@/components/PageSkeleton'
 import { AdminShell } from '@/components/layout/AdminShell'
 import { GlassCard, SectionHeader } from '@/components/civic/GlassCard'
 import { useRequireAdmin } from '../lib/admin'
 import { useAdminMode } from '../lib/admin-mode'
+import { useAdminRegion, ADMIN_REGIONS } from '../lib/admin-region'
+import { useI18n } from '../lib/i18n'
 import { apiAnalyticsSummary, apiHotspots, apiTrends } from '../lib/api'
 import { fadeUp, stagger } from '../lib/motion'
 
@@ -42,10 +43,16 @@ function avgCompliance(
   return Math.round(valid.reduce((s, d) => s + (d.compliancePct ?? 0), 0) / valid.length)
 }
 
+function fmt(template: string, vars: Record<string, string | number>) {
+  return Object.entries(vars).reduce((s, [k, v]) => s.replaceAll(`{${k}}`, String(v)), template)
+}
+
 export function AdminAnalyticsPage() {
   const { user, loading, isAdmin, accessDenied, signInWithGoogle, signInWithDemo, signingIn } =
     useRequireAdmin('/dashboard', { redirect: false })
   const { checking: adminChecking } = useAdminMode()
+  const { wardPrefix, regionId, matchesIssue } = useAdminRegion()
+  const { t } = useI18n()
   const [hotspots, setHotspots] = useState<Hotspot[]>([])
   const [total, setTotal] = useState(0)
   const [open, setOpen] = useState(0)
@@ -71,15 +78,22 @@ export function AdminAnalyticsPage() {
     let cancelled = false
     setPageLoading(true)
     setLoadError(null)
-    Promise.all([apiHotspots(), apiAnalyticsSummary(), apiTrends().catch(() => null)])
+    Promise.all([
+      apiHotspots(undefined, wardPrefix || undefined),
+      apiAnalyticsSummary(wardPrefix || undefined),
+      apiTrends(undefined, wardPrefix || undefined).catch(() => null),
+    ])
       .then(([h, s, t]) => {
         if (cancelled) return
+        const filteredWards = (s.wardBreakdown ?? t?.wardBreakdown ?? []).filter((w) =>
+          matchesIssue(w.wardId),
+        )
         setHotspots(h.hotspots ?? [])
         setTotal(s.total ?? 0)
         setOpen(s.open ?? 0)
         setResolved(s.resolved ?? 0)
         setByCategory(s.byCategory ?? {})
-        setWardBreakdown(s.wardBreakdown ?? t?.wardBreakdown ?? [])
+        setWardBreakdown(filteredWards)
         setNarrative(t?.narrative || s.insight || '')
         setCategoryTrends(t?.categoryTrends ?? {})
         setSlaBreached(s.slaBreached ?? 0)
@@ -97,7 +111,9 @@ export function AdminAnalyticsPage() {
     return () => {
       cancelled = true
     }
-  }, [authReady, user, isAdmin])
+  }, [authReady, user, isAdmin, wardPrefix, matchesIssue])
+
+  const regionLabel = t(ADMIN_REGIONS.find((r) => r.id === regionId)?.labelKey ?? 'admin.region.all')
 
   const chartData = Object.entries(byCategory).map(([name, count]) => ({
     name: name.replace(/_/g, ' ').slice(0, 12),
@@ -114,8 +130,8 @@ export function AdminAnalyticsPage() {
 
   if (loading || adminChecking) {
     return (
-      <AdminShell title="Analytics" subtitle="Loading…">
-        <DashboardSkeleton />
+      <AdminShell title={t('admin.analytics.title')} subtitle={t('common.loading')}>
+        <p className="py-8 text-center text-sm text-ink-muted">{t('admin.analytics.loading')}</p>
       </AdminShell>
     )
   }
@@ -165,7 +181,12 @@ export function AdminAnalyticsPage() {
   }
 
   return (
-    <AdminShell title="Analytics" subtitle={`${total} reports · ${open} open · ${slaBreached} SLA breach`}>
+    <AdminShell title={t('admin.analytics.title')} subtitle={`${total} reports · ${open} open · ${slaBreached} SLA breach`}>
+      {wardPrefix ? (
+        <p className="mb-3 text-[11px] font-semibold text-indigo">
+          {fmt(t('admin.queue.regionHint'), { region: regionLabel })}
+        </p>
+      ) : null}
       {loadError && (
         <GlassCard className="mb-4 border border-coral/30 bg-coral-soft/30 text-sm text-coral">
           {loadError}. Pull to refresh or check network.
@@ -196,7 +217,7 @@ export function AdminAnalyticsPage() {
       </div>
 
       {pageLoading || !dataLoaded ? (
-        <DashboardSkeleton />
+        <p className="py-6 text-center text-sm text-ink-muted">{t('admin.analytics.loading')}</p>
       ) : (
         <div className="space-y-6">
           {narrative && (
@@ -240,9 +261,12 @@ export function AdminAnalyticsPage() {
           )}
 
           <section>
-            <SectionHeader title="Ward heatmap" hint={wardBreakdown.length ? 'Issue density by ward' : 'No ward data yet'} />
+            <SectionHeader
+              title={t('admin.analytics.wardHeatmap')}
+              hint={wardBreakdown.length ? t('admin.analytics.wardHeatmapHint') : t('admin.analytics.noWardData')}
+            />
             {wardBreakdown.length === 0 ? (
-              <GlassCard className="text-sm text-ink-muted">Ward breakdown will appear once issues have ward IDs.</GlassCard>
+              <GlassCard className="text-sm text-ink-muted">{t('admin.analytics.noWardData')}</GlassCard>
             ) : (
               <motion.ul variants={stagger} initial="hidden" animate="show" className="space-y-2">
                 {wardBreakdown.slice(0, 12).map((w) => (

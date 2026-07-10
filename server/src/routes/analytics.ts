@@ -29,9 +29,10 @@ function dayKey(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-function filterByWard(issues: IssueRow[], wardId?: string) {
-  if (!wardId) return issues
-  return issues.filter((i) => i.wardId === wardId)
+function filterByWard(issues: IssueRow[], wardId?: string, wardPrefix?: string) {
+  if (wardPrefix) return issues.filter((i) => i.wardId?.startsWith(wardPrefix))
+  if (wardId) return issues.filter((i) => i.wardId === wardId)
+  return issues
 }
 
 async function persistHotspots(
@@ -142,6 +143,7 @@ analyticsRouter.get('/scorecards', async (_req, res) => {
 
 analyticsRouter.get('/summary', async (req, res) => {
   try {
+    const wardPrefix = req.query.ward_prefix as string | undefined
     let insightsBatch: Record<string, unknown> | null = null
     if (req.query.refresh === '1') {
       invalidateL3Summary()
@@ -152,7 +154,7 @@ analyticsRouter.get('/summary', async (req, res) => {
     }
 
     const cached = getL3Summary()
-    if (cached) {
+    if (cached && !wardPrefix) {
       let insight = ''
       try {
         insight = await generateInsight(cached)
@@ -164,7 +166,7 @@ analyticsRouter.get('/summary', async (req, res) => {
 
     const dailyDocId = `${dayKey()}_all`
     const dailyCached = await readAnalyticsDaily(dailyDocId)
-    if (dailyCached) {
+    if (dailyCached && !wardPrefix) {
       const summary = summaryFromAnalyticsDaily(dailyCached)
       setL3Summary(summary)
       let insight = ''
@@ -176,14 +178,15 @@ analyticsRouter.get('/summary', async (req, res) => {
       return res.json({ ...summary, insight, cached: true, fromDaily: true, insightsBatch })
     }
 
-    const { issues, upvoteEvents } = await fetchIssuesAndUpvotes()
+    const { issues: allIssues, upvoteEvents } = await fetchIssuesAndUpvotes()
+    const issues = filterByWard(allIssues, undefined, wardPrefix)
     const summary = computeSummary(issues, upvoteEvents)
 
-    if (await isAnalyticsDailyStale(dailyDocId)) {
+    if (!wardPrefix && (await isAnalyticsDailyStale(dailyDocId))) {
       await writeAnalyticsDaily(dailyDocId, summary, null)
     }
 
-    setL3Summary(summary)
+    if (!wardPrefix) setL3Summary(summary)
 
     let insight = ''
     try {
@@ -210,11 +213,12 @@ analyticsRouter.post('/internal/insights', async (req, res) => {
 analyticsRouter.get('/trends', async (req, res) => {
   try {
     const wardId = req.query.ward_id as string | undefined
-    const dailyDocId = `${dayKey()}_${wardId || 'all'}`
-    const dailyCached = await readAnalyticsDaily(dailyDocId)
+    const wardPrefix = req.query.ward_prefix as string | undefined
+    const dailyDocId = `${dayKey()}_${wardId || wardPrefix || 'all'}`
+    const dailyCached = wardPrefix ? null : await readAnalyticsDaily(dailyDocId)
 
     const { issues: allIssues } = await fetchIssuesAndUpvotes()
-    const issues = filterByWard(allIssues, wardId)
+    const issues = filterByWard(allIssues, wardId, wardPrefix)
 
     const categoryTrends = buildCategoryTrends(issues)
     const recurringIssues = detectRecurringIssues(issues)
@@ -239,7 +243,7 @@ analyticsRouter.get('/trends', async (req, res) => {
       avgResolutionHours: summary.avgResolutionHours,
       wardBreakdown: summary.wardBreakdown,
       departmentSla: summary.departmentSla,
-      preventiveZones: computeHotspots(issues, wardId).filter((h) => h.predictive),
+      preventiveZones: computeHotspots(issues, wardId, 10, wardPrefix).filter((h) => h.predictive),
     }
 
     let narrative = storedNarrative
@@ -268,13 +272,15 @@ analyticsRouter.get('/trends', async (req, res) => {
 analyticsRouter.get('/hotspots', async (req, res) => {
   try {
     const wardId = req.query.ward_id as string | undefined
+    const wardPrefix = req.query.ward_prefix as string | undefined
     const snap = await db
       .collection('issues')
       .where('status', 'in', ['Submitted', 'Community Verified', 'Assigned', 'In Progress'])
       .limit(200)
       .get()
-    const issues = snap.docs.map((d) => d.data()) as IssueRow[]
-    const hotspots = computeHotspots(issues, wardId)
+    let issues = snap.docs.map((d) => d.data()) as IssueRow[]
+    issues = filterByWard(issues, wardId, wardPrefix)
+    const hotspots = computeHotspots(issues, wardId, 10, wardPrefix)
 
     await persistHotspots(hotspots, wardId)
 

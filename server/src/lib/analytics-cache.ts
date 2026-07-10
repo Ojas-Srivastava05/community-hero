@@ -382,7 +382,7 @@ export type HotspotCell = {
 }
 
 /** Model D — HotspotScorer v1: geohash-6 cells, severity + recency decay */
-export function computeHotspots(issues: IssueRow[], wardId?: string, limit = 10): HotspotCell[] {
+export function computeHotspots(issues: IssueRow[], wardId?: string, limit = 10, wardPrefix?: string): HotspotCell[] {
   const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
   const grid: Record<
     string,
@@ -391,6 +391,7 @@ export function computeHotspots(issues: IssueRow[], wardId?: string, limit = 10)
   for (const i of issues) {
     if (!['Submitted', 'Community Verified', 'Assigned', 'In Progress'].includes(i.status)) continue
     if (wardId && i.wardId !== wardId) continue
+    if (wardPrefix && !i.wardId?.startsWith(wardPrefix)) continue
     const key = (i.geohash || '').slice(0, 6)
     if (!key) continue
     const created = new Date(i.createdAt || 0).getTime()
