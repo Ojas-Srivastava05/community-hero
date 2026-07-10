@@ -1,11 +1,13 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
+import { useAdminMode } from '../lib/admin-mode'
+import { useDemoRoleSwitch } from '../lib/demo-role-switch'
 import { useI18n } from '../lib/i18n'
 import { AppShell } from '@/components/layout/AppShell'
 import { NoLoginCallout } from '@/components/civic/NoLoginFeature'
-import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { PostLoginRedirect } from '../lib/post-login-redirect'
+import { Shield, UserRound } from 'lucide-react'
 
 function authErrorMessage(err: unknown): string {
   if (err instanceof Error && err.message) return err.message
@@ -13,10 +15,11 @@ function authErrorMessage(err: unknown): string {
 }
 
 export function LoginPage() {
-  const { user, signInWithGoogle, signInWithDemo, signInAsGuest, signingIn, configured } = useAuth()
+  const { user, signInWithGoogle, signInWithDemo, signInAsGuest, signingIn, logout, configured } = useAuth()
+  const { isAdmin, checking } = useAdminMode()
+  const { switchToCitizen, switchToAdmin, switching } = useDemoRoleSwitch()
   const { t } = useI18n()
   const [error, setError] = useState<string | null>(null)
-  if (user) return <PostLoginRedirect />
 
   const run = async (action: () => Promise<void>) => {
     setError(null)
@@ -27,8 +30,97 @@ export function LoginPage() {
     }
   }
 
+  if (user && (signingIn || switching)) {
+    return (
+      <AppShell hideNav>
+        <div className="flex min-h-[60vh] items-center justify-center px-5 text-sm text-ink-muted">
+          Switching account…
+        </div>
+      </AppShell>
+    )
+  }
+
+  if (user && checking) {
+    return (
+      <AppShell hideNav>
+        <div className="flex min-h-[60vh] items-center justify-center px-5 text-sm text-ink-muted">
+          Checking access…
+        </div>
+      </AppShell>
+    )
+  }
+
+  if (user) {
+    return (
+      <AppShell hideNav>
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="px-5 pb-12 pt-16 text-center"
+        >
+          <h1 className="display text-2xl font-bold text-ink">Account</h1>
+          <p className="mt-2 text-sm text-ink-muted">
+            Signed in as{' '}
+            <span className="font-semibold text-ink">
+              {isAdmin ? 'Demo Authority' : user.isAnonymous ? 'Guest' : 'Demo Citizen'}
+            </span>
+          </p>
+          {error && (
+            <p className="mt-4 rounded-xl border border-coral/30 bg-coral-soft px-3 py-2 text-left text-xs text-coral" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="mt-6 space-y-3">
+            <Link
+              to={isAdmin ? '/admin' : '/'}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo py-4 text-sm font-bold text-paper"
+            >
+              {isAdmin ? (
+                <>
+                  <Shield className="size-4" /> Open authority console
+                </>
+              ) : (
+                <>
+                  <UserRound className="size-4" /> Continue as citizen
+                </>
+              )}
+            </Link>
+            {!isAdmin && (
+              <button
+                type="button"
+                disabled={signingIn || switching}
+                onClick={() => run(() => switchToAdmin())}
+                className="w-full rounded-2xl border border-indigo/40 bg-indigo-soft py-3 text-sm font-bold text-indigo"
+              >
+                {t('login.demoAdmin')}
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                type="button"
+                disabled={signingIn || switching}
+                onClick={() => run(() => switchToCitizen())}
+                className="w-full rounded-2xl border border-coral/40 bg-coral-soft py-3 text-sm font-bold text-coral"
+              >
+                {t('login.switchToCitizen')}
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={signingIn || switching}
+              onClick={() => run(() => logout())}
+              className="w-full rounded-2xl border border-rule py-3 text-xs font-semibold text-ink-muted"
+            >
+              Sign out
+            </button>
+          </div>
+        </motion.div>
+      </AppShell>
+    )
+  }
+
   return (
-    <AppShell>
+    <AppShell hideNav>
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -71,9 +163,9 @@ export function LoginPage() {
             type="button"
             disabled={signingIn}
             onClick={() => run(() => signInWithDemo('admin'))}
-            className="w-full rounded-2xl border border-coral/40 bg-coral-soft py-3 text-sm font-bold text-coral"
+            className="w-full rounded-2xl border border-indigo/40 bg-indigo-soft py-3 text-sm font-bold text-indigo"
           >
-            {t('login.demoAdmin')}
+            {signingIn ? 'Signing in…' : t('login.demoAdmin')}
           </button>
           <button
             type="button"

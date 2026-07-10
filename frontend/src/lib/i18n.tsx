@@ -50,6 +50,8 @@ const en: Dict = {
   'assistant.voiceUnsupported': 'Voice not supported in this browser — type instead',
   'login.demoCitizen': 'Submit without login',
   'login.demoAdmin': 'Enter as demo authority',
+  'login.switchToCitizen': 'Switch to citizen demo',
+  'login.switchToAdmin': 'Switch to authority demo',
   'login.google': 'Optional: sign in with Google',
   'login.guest': 'Fully anonymous guest',
   'proof.verified': 'AI verified fix',

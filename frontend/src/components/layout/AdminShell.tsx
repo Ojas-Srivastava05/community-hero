@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
-import { Shield } from 'lucide-react'
+import { Shield, UserRound } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { AdminNav } from './AdminNav'
 import { AdminRegionPicker } from '@/components/civic/AdminRegionPicker'
 import { LanguagePicker } from '@/lib/i18n'
 import { useI18n } from '@/lib/i18n'
+import { useDemoRoleSwitch } from '@/lib/demo-role-switch'
 import { cn } from '@/lib/utils'
 
 export function AdminShell({
@@ -24,6 +24,7 @@ export function AdminShell({
   showRegionPicker?: boolean
 }) {
   const { t } = useI18n()
+  const { switchToCitizen, switching } = useDemoRoleSwitch()
 
   return (
     <div className="relative mx-auto min-h-screen w-full max-w-[440px] overflow-x-hidden bg-[oklch(0.97_0.01_275)]">
@@ -43,9 +44,15 @@ export function AdminShell({
               {right}
             </div>
             {showRegionPicker ? <AdminRegionPicker compact /> : null}
-            <Link to="/map" className="text-[10px] font-semibold text-paper/50 hover:text-paper">
-              {t('admin.shell.mapOnly')}
-            </Link>
+            <button
+              type="button"
+              disabled={switching}
+              onClick={() => void switchToCitizen()}
+              className="flex items-center gap-1 text-[10px] font-semibold text-coral-soft hover:text-paper disabled:opacity-60"
+            >
+              <UserRound className="size-3" />
+              {switching ? t('admin.nav.switching') : t('admin.nav.citizenView')}
+            </button>
           </div>
         </div>
       </header>

@@ -13,7 +13,6 @@ const AdminModeContext = createContext<AdminModeValue>({ isAdmin: false, checkin
 /** Citizen-primary routes — authorities belong in /admin, not here. */
 const CITIZEN_HOME_ROUTES = new Set([
   '/',
-  '/login',
   '/profile',
   '/dashboard',
   '/activity',
@@ -26,6 +25,9 @@ const CITIZEN_HOME_ROUTES = new Set([
   '/gamification-rules',
   '/waiting',
 ])
+
+/** Routes where admins may switch demo role or manage account. */
+const ADMIN_ROLE_SWITCH_ROUTES = new Set(['/login'])
 
 export function isCitizenHomeRoute(pathname: string): boolean {
   if (CITIZEN_HOME_ROUTES.has(pathname)) return true
@@ -99,6 +101,7 @@ export function AdminRouteGuard() {
   useEffect(() => {
     if (loading || checking) return
     if (!user || !isAdmin) return
+    if (ADMIN_ROLE_SWITCH_ROUTES.has(pathname)) return
     if (isCitizenHomeRoute(pathname)) {
       navigate('/admin', { replace: true })
     }

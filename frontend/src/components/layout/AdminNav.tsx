@@ -1,13 +1,13 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { BarChart3, ClipboardList, LogOut, Map } from 'lucide-react'
+import { BarChart3, ClipboardList, Map, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useAuth } from '@/lib/auth'
 import { useI18n } from '@/lib/i18n'
+import { useDemoRoleSwitch } from '@/lib/demo-role-switch'
 
 export function AdminNav() {
   const { pathname } = useLocation()
-  const { logout } = useAuth()
   const { t } = useI18n()
+  const { switchToCitizen, switching } = useDemoRoleSwitch()
 
   const TABS = [
     { to: '/admin', label: t('admin.nav.queue'), icon: ClipboardList, end: true },
@@ -40,12 +40,13 @@ export function AdminNav() {
         ))}
         <button
           type="button"
-          onClick={() => logout()}
-          className="flex flex-col items-center gap-0.5 rounded-2xl px-3 py-2 text-[10px] font-bold text-paper/60 hover:text-paper"
-          aria-label="Sign out"
+          disabled={switching}
+          onClick={() => void switchToCitizen()}
+          className="flex flex-col items-center gap-0.5 rounded-2xl px-3 py-2 text-[10px] font-bold text-coral-soft hover:text-paper disabled:opacity-60"
+          aria-label={t('admin.nav.citizenView')}
         >
-          <LogOut className="size-5" />
-          {t('admin.nav.exit')}
+          <UserRound className="size-5" />
+          {switching ? t('admin.nav.switching') : t('admin.nav.citizenView')}
         </button>
       </div>
     </nav>
