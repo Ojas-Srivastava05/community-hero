@@ -75,8 +75,20 @@ app.use('/api/notifications', notificationsRouter)
 const frontendDist = path.resolve(__dirname, '../../frontend/dist')
 const spaIndex = path.join(frontendDist, 'index.html')
 if (isProd || fs.existsSync(spaIndex)) {
-  app.use(express.static(frontendDist))
+  app.use(
+    express.static(frontendDist, {
+      setHeaders(res, filePath) {
+        const base = path.basename(filePath)
+        if (base === 'index.html' || base === 'sw.js') {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+        } else if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+        }
+      },
+    }),
+  )
   app.get(/^(?!\/api).*/, (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
     res.sendFile(spaIndex)
   })
 }

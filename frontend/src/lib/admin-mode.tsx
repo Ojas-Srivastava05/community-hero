@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from './auth'
 import { resolveIsAdmin } from './admin'
@@ -37,25 +37,46 @@ export function AdminModeProvider({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
   const [isAdmin, setIsAdmin] = useState(false)
   const [checking, setChecking] = useState(true)
+  const prevUidRef = useRef<string | undefined>(undefined)
+
+  // Reset before paint when Firebase user changes (prevents citizen UI flash).
+  useLayoutEffect(() => {
+    const uid = user?.uid
+    if (uid === prevUidRef.current) return
+    prevUidRef.current = uid
+    if (user) {
+      setIsAdmin(false)
+      setChecking(true)
+    }
+  }, [user?.uid, user])
 
   useEffect(() => {
-    if (loading) return
+    if (loading) {
+      setChecking(true)
+      return
+    }
     if (!user) {
       setIsAdmin(false)
       setChecking(false)
       return
     }
     let cancelled = false
-    setChecking(true)
+    const timeout = window.setTimeout(() => {
+      if (cancelled) return
+      setIsAdmin(false)
+      setChecking(false)
+    }, 8000)
     resolveIsAdmin(user).then((admin) => {
       if (cancelled) return
+      window.clearTimeout(timeout)
       setIsAdmin(admin)
       setChecking(false)
     })
     return () => {
       cancelled = true
+      window.clearTimeout(timeout)
     }
-  }, [user, loading])
+  }, [user?.uid, loading, user])
 
   return (
     <AdminModeContext.Provider value={{ isAdmin, checking }}>
