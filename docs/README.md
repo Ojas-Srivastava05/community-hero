@@ -91,7 +91,7 @@ Full index: [diagrams/README.md](diagrams/README.md). PNG exports in [`diagrams/
 | Master plan PDF | [`planning/Community-Hero-Master-Plan.pdf`](planning/Community-Hero-Master-Plan.pdf) |
 | Phase development plan | [`planning/Community-Hero-Phase-Development-Plan.pdf`](planning/Community-Hero-Phase-Development-Plan.pdf) |
 | Hackathon guidelines | [`planning/vibe2ship-submission-guidelines.pdf`](planning/vibe2ship-submission-guidelines.pdf) |
-| Reference decks | [`reference/presentations/`](reference/presentations/) |
+| Presentation kit | [`../presentation preparation/`](../presentation%20preparation/) — speaker scripts, slide assets, PDF generators |
 | Design system | [`../.stitch/DESIGN.md`](../.stitch/DESIGN.md) — Civic Glass UI |
 | Shared types | [`../shared/types.ts`](../shared/types.ts) |
 | Phase verification | [`../scripts/verify-phases.sh`](../scripts/verify-phases.sh) |

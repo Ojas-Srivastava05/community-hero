@@ -10,7 +10,7 @@ This folder contains a complete beginner-friendly guide to the **Community Hero 
 | **COMMUNITY-HERO-COMPLETE-GUIDE.md** | Source markdown (editable) |
 | **GOOGLE-SLIDES-PROMPTS-COMPLETE-GUIDE.pdf** | **PPT prompts PDF** — copy-paste Gemini prompts for all 7 slides + backup slides |
 | **GOOGLE-SLIDES-PROMPTS-COMPLETE-GUIDE.md** | Source markdown for slide prompts (editable) |
-| **8-MINUTE-SPEAKER-SCRIPT.pdf** | **Presentation cue cards PDF** — point-and-talk triggers aligned to `CIVICPULSE AI Presentation.pdf` |
+| **8-MINUTE-SPEAKER-SCRIPT.pdf** | **Presentation cue cards PDF** — point-and-talk triggers aligned to the final Google Slides deck |
 | **8-MINUTE-SPEAKER-SCRIPT.md** | Source markdown for cue cards (editable) |
 | **FULL-ONLINE-SPEAKER-SCRIPT.pdf** | **Full word-for-word online presentation script** (~8 min, slides 1–7 + demo + 11) |
 | **FULL-ONLINE-SPEAKER-SCRIPT.md** | Source markdown for full online script (editable) |

@@ -9,7 +9,6 @@ const base = 'FULL-ONLINE-SPEAKER-SCRIPT'
 const mdPath = path.join(__dirname, `${base}.md`)
 const htmlPath = path.join(__dirname, `${base}.html`)
 const pdfPath = path.join(__dirname, `${base}.pdf`)
-const rootPdfPath = path.join(__dirname, '..', `${base}.pdf`)
 
 const css = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
@@ -122,20 +121,17 @@ fs.writeFileSync(htmlPath, html)
 const browser = await chromium.launch()
 const page = await browser.newPage()
 await page.goto(`file://${htmlPath}`, { waitUntil: 'networkidle' })
-for (const outPath of [pdfPath, rootPdfPath]) {
-  await page.pdf({
-    path: outPath,
-    format: 'A4',
-    margin: { top: '16mm', bottom: '16mm', left: '14mm', right: '14mm' },
-    printBackground: true,
-    displayHeaderFooter: true,
-    headerTemplate: '<div></div>',
-    footerTemplate:
-      '<div style="width:100%;font-size:8px;text-align:center;color:#888;padding:0 14mm;">Community Hero · Full Online Speaker Script · <span class="pageNumber"></span> / <span class="totalPages"></span></div>',
-  })
-}
+await page.pdf({
+  path: pdfPath,
+  format: 'A4',
+  margin: { top: '16mm', bottom: '16mm', left: '14mm', right: '14mm' },
+  printBackground: true,
+  displayHeaderFooter: true,
+  headerTemplate: '<div></div>',
+  footerTemplate:
+    '<div style="width:100%;font-size:8px;text-align:center;color:#888;padding:0 14mm;">Community Hero · Full Online Speaker Script · <span class="pageNumber"></span> / <span class="totalPages"></span></div>',
+})
 await browser.close()
 
 const stats = fs.statSync(pdfPath)
 console.log(`PDF generated: ${pdfPath} (${(stats.size / 1024).toFixed(0)} KB)`)
-console.log(`Copy: ${rootPdfPath}`)

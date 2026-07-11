@@ -12,3 +12,10 @@ __pycache__/
 .vercel
 dist-mobile/
 frontend/android/local.properties
+
+# Generated presentation intermediates (regenerate via presentation preparation/*.mjs)
+presentation preparation/*.html
+presentation preparation/pdf-review/
+
+# Accidental root clutter
+/Screenshot*.png

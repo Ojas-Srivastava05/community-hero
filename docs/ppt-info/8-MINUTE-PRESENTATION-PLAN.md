@@ -9,7 +9,7 @@
 
 ## What winning decks have in common
 
-Analyzed four reference decks in `docs/reference/presentations/`:
+Analyzed four peer hackathon decks during deck planning (patterns summarized below):
 
 | Deck | Slides | Hackathon | Winning pattern |
 |------|--------|-----------|-----------------|
@@ -312,4 +312,4 @@ Use **10 slides / 8 min** with a **4-minute demo**:
 6. **Impact + Google** — metrics table + icon row  
 7. **Close** — quote + links  
 
-*Derived from reference decks in `docs/reference/presentations/` and aligned with `docs/ppt-info/SLIDES-COMPLETE.md`.*
+*Derived from peer-deck analysis during planning and aligned with `docs/ppt-info/SLIDES-COMPLETE.md`.*

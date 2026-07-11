@@ -42,10 +42,7 @@
 
 1. **File → Download → PDF Document (.pdf)**  
 2. Save as `CIVICPULSE AI Presentation.pdf` in repo root (overwrite).
-3. Optional re-audit:
-   ```bash
-   # if you have a pdf-to-png tool locally, re-export pages to pdf-review/
-   ```
+3. Optional re-audit: regenerate slide review PNGs locally if you change the deck export.
 
 ---
 
