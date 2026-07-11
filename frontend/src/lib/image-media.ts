@@ -1,4 +1,6 @@
-export const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+import { MAX_IMAGE_BYTES, MAX_IMAGE_MB } from '../../../shared/constants'
+
+export { MAX_IMAGE_BYTES, MAX_IMAGE_MB }
 export const MAX_IMAGE_WIDTH = 1280
 
 export type MediaValidation = 'ok' | 'not-image' | 'too-large' | 'blank'

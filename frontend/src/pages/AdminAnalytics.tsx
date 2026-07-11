@@ -86,7 +86,7 @@ export function AdminAnalyticsPage() {
       .then(([h, s, t]) => {
         if (cancelled) return
         const filteredWards = (s.wardBreakdown ?? t?.wardBreakdown ?? []).filter((w) =>
-          matchesIssue(w.wardId),
+          matchesIssue({ wardId: w.wardId }),
         )
         setHotspots(h.hotspots ?? [])
         setTotal(s.total ?? 0)

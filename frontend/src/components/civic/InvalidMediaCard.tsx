@@ -1,11 +1,13 @@
 import { AlertCircle, Camera } from 'lucide-react'
 import { GlassCard } from './GlassCard'
+import { MAX_IMAGE_MB, MAX_VIDEO_MB } from '@/lib/shared-constants'
 
-export type InvalidMediaReason = 'not-image' | 'too-large' | 'blank'
+export type InvalidMediaReason = 'not-image' | 'too-large' | 'video-too-large' | 'blank'
 
 const MESSAGES: Record<InvalidMediaReason, string> = {
-  'not-image': 'Please choose a photo file (JPEG, PNG, or WebP).',
-  'too-large': 'This image is over 10 MB. Choose a smaller photo or take a new one.',
+  'not-image': 'Please choose a photo or video file (JPEG, PNG, WebP, or MP4).',
+  'too-large': `This photo is over ${MAX_IMAGE_MB} MB. Choose a smaller image or take a new one.`,
+  'video-too-large': `This video is over ${MAX_VIDEO_MB} MB. Trim it or record a shorter clip.`,
   blank: 'This photo looks blank or too dark. Retake with the issue clearly visible.',
 }
 
@@ -16,6 +18,7 @@ export function InvalidMediaCard({
   reason: InvalidMediaReason
   onRetake: () => void
 }) {
+  const retakeLabel = reason === 'video-too-large' ? 'Choose another video' : 'Retake photo'
   return (
     <GlassCard className="border-sev-critical/30 bg-sev-critical/10">
       <div className="flex items-start gap-3">
@@ -28,7 +31,7 @@ export function InvalidMediaCard({
             onClick={onRetake}
             className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-coral"
           >
-            <Camera className="size-3.5" /> Retake photo
+            <Camera className="size-3.5" /> {retakeLabel}
           </button>
         </div>
       </div>

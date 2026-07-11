@@ -2,7 +2,7 @@ import { createContext, useContext, type ReactNode } from 'react'
 import { useJsApiLoader } from '@react-google-maps/api'
 
 const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
-const libraries: ('places')[] = ['places']
+const libraries = ['places'] as ('places')[]
 
 type GoogleMapsContextValue = {
   isLoaded: boolean

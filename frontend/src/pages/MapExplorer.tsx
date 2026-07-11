@@ -244,7 +244,8 @@ export function MapExplorerPage() {
                 setMapCenter({ lat, lng })
                 setSearch(address)
               }}
-              placeholder="Search area or issue"
+              bias={mapCenter ?? undefined}
+              placeholder="Search area or landmark"
               className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-muted"
             />
             <LanguagePicker compact className="shrink-0" />

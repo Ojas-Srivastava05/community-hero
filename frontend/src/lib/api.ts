@@ -252,6 +252,7 @@ export async function apiListIssues(
     includeDemo?: boolean
     includeDraft?: boolean
     sortByPriority?: boolean
+    sortFifo?: boolean
     wardPrefix?: string
   },
 ): Promise<{ issues: Issue[] }> {
@@ -263,6 +264,7 @@ export async function apiListIssues(
   if (opts?.includeDemo) q.set('include_demo', '1')
   if (opts?.includeDraft) q.set('include_draft', '1')
   if (opts?.sortByPriority) q.set('sort', 'priority')
+  if (opts?.sortFifo) q.set('sort', 'fifo')
   if (opts?.wardPrefix) q.set('ward_prefix', opts.wardPrefix)
   const res = await apiFetch(`/api/reports?${q}`)
   if (!res.ok) await parseApiError(res)
@@ -476,6 +478,29 @@ export async function apiReverseGeocode(lat: number, lng: number) {
   const res = await apiFetch(`/api/geo/reverse?lat=${lat}&lng=${lng}`)
   if (!res.ok) await parseApiError(res)
   return res.json()
+}
+
+export type GeoSearchResult = {
+  lat: number
+  lng: number
+  address: string
+  locality?: string
+  city?: string
+}
+
+export async function apiGeoSearch(
+  q: string,
+  bias?: { lat: number; lng: number },
+): Promise<GeoSearchResult[]> {
+  const params = new URLSearchParams({ q })
+  if (bias && Number.isFinite(bias.lat) && Number.isFinite(bias.lng)) {
+    params.set('lat', String(bias.lat))
+    params.set('lng', String(bias.lng))
+  }
+  const res = await apiFetch(`/api/geo/search?${params}`)
+  if (!res.ok) await parseApiError(res)
+  const data = (await res.json()) as { results?: GeoSearchResult[] }
+  return data.results || []
 }
 
 export type UserProfile = {

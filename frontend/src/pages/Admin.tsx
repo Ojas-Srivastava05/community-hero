@@ -22,6 +22,23 @@ function fmt(template: string, vars: Record<string, string | number>) {
   return Object.entries(vars).reduce((s, [k, v]) => s.replaceAll(`{${k}}`, String(v)), template)
 }
 
+function fifoSort(a: Issue, b: Issue) {
+  return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+}
+
+function issueConfidence(issue: Issue): number | null {
+  const analysis = issue.aiMetadata?.analysis as { confidence?: number } | undefined
+  if (typeof analysis?.confidence === 'number') return Math.round(analysis.confidence * 100)
+  if (typeof issue.aiMetadata?.confidence === 'number') {
+    return Math.round((issue.aiMetadata.confidence as number) * 100)
+  }
+  return null
+}
+
+function issueCoverUrl(issue: Issue): string | undefined {
+  return issue.imageUrls?.[0] || undefined
+}
+
 function isJudgeReview(issue: Issue): boolean {
   return issue.status === 'Draft' || issue.aiMetadata?.needs_review === true
 }
@@ -68,18 +85,17 @@ export function AdminPage() {
   const [guideOpen, setGuideOpen] = useState(false)
 
   const load = () =>
-    apiListIssues(100, {
+    apiListIssues(200, {
       includeDemo: true,
       includeDraft: true,
-      sortByPriority: true,
-      wardPrefix: wardPrefix || undefined,
+      sortFifo: true,
     }).then((r) => setIssues(r.issues))
 
   useEffect(() => {
     if (isAdmin) load()
-  }, [isAdmin, wardPrefix])
+  }, [isAdmin, regionId])
 
-  const regionIssues = useMemo(() => issues.filter((i) => matchesIssue(i.wardId)), [issues, matchesIssue])
+  const regionIssues = useMemo(() => issues.filter((i) => matchesIssue(i)), [issues, matchesIssue])
 
   const counts = useMemo(
     () => ({
@@ -101,7 +117,7 @@ export function AdminPage() {
       if (tab === 'done') return ['Resolved', 'Closed'].includes(i.status)
       return true
     })
-    return [...list].sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0))
+    return [...list].sort(fifoSort)
   }, [regionIssues, tab])
 
   const nextPriority = useMemo(() => {
@@ -277,35 +293,73 @@ export function AdminPage() {
           </button>
         ))}
       </div>
-      <p className="mb-3 text-[11px] text-ink-muted">{t(TABS.find((tb) => tb.id === tab)?.hintKey ?? '')}</p>
+      <p className="mb-1 text-[11px] text-ink-muted">{t(TABS.find((tb) => tb.id === tab)?.hintKey ?? '')}</p>
+      <p className="mb-3 text-[10px] text-ink-muted">{t('admin.queue.fifoNote')}</p>
 
       {displayed.length === 0 ? (
-        <GlassCard className="text-center text-sm text-ink-muted">{t('admin.queue.empty')}</GlassCard>
+        <GlassCard className="space-y-2 text-center text-sm text-ink-muted">
+          <p>{t('admin.queue.empty')}</p>
+          {tab === 'dispatch' && counts.judge > 0 && (
+            <p className="text-xs text-amber">
+              {counts.judge} report(s) waiting in <button type="button" className="font-bold underline" onClick={() => setTab('judge')}>Judge</button> (AI review / Draft)
+            </p>
+          )}
+          {regionId !== 'all' && (
+            <p className="text-xs">
+              Try <button type="button" className="font-bold underline" onClick={() => setRegionId('all')}>All India</button> if a live report is missing
+            </p>
+          )}
+        </GlassCard>
       ) : (
         <motion.ul variants={stagger} initial="hidden" animate="show" className="space-y-3">
           {displayed.map((issue) => {
             const judge = isJudgeReview(issue)
-            const confidence =
-              typeof issue.aiMetadata?.confidence === 'number'
-                ? Math.round((issue.aiMetadata.confidence as number) * 100)
-                : null
+            const confidence = issueConfidence(issue)
+            const coverUrl = issueCoverUrl(issue)
             const showProof = proofFor === issue.id
 
             return (
               <motion.li key={issue.id} variants={fadeUp}>
                 <GlassCard
-                  className={`space-y-3 ${issue.slaBreached ? 'border border-coral/40' : ''} ${judge ? 'border border-amber/40 bg-amber-soft/20' : ''}`}
+                  className={`overflow-hidden p-0 ${issue.slaBreached ? 'border border-coral/40' : ''} ${judge ? 'border border-amber/40' : ''}`}
                 >
-                  <div>
-                    <p className="text-sm font-bold text-ink">{issue.title}</p>
-                    <p className="mt-1 text-[11px] text-ink-muted">
-                      {issue.category.replace(/_/g, ' ')} · severity {issue.severity}
-                      {issue.priorityScore != null && ` · priority ${issue.priorityScore}`}
-                      {confidence != null && ` · ${confidence}% AI`}
-                    </p>
-                    <p className="mt-1 text-xs">
-                      <span className="font-semibold text-indigo">{issue.status}</span>
+                  {coverUrl ? (
+                    <div className="relative h-40 w-full bg-ink/10">
+                      <img
+                        src={coverUrl}
+                        alt=""
+                        className="absolute inset-0 size-full object-cover"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" />
+                      <div className="absolute inset-x-0 bottom-0 p-3">
+                        <p className="line-clamp-2 text-sm font-bold text-white drop-shadow">{issue.title}</p>
+                        <p className="mt-1 text-[11px] text-white/85">
+                          {issue.category.replace(/_/g, ' ')} · severity {issue.severity}
+                          {confidence != null && ` · ${confidence}% AI`}
+                        </p>
+                      </div>
                       {judge && (
+                        <span className="absolute right-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber/95 px-2 py-0.5 text-[10px] font-bold text-paper">
+                          <Scale className="size-3" /> {t('admin.action.needsJudge')}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="border-b border-rule bg-paper/80 px-3 py-3">
+                      <p className="text-sm font-bold text-ink">{issue.title}</p>
+                      <p className="mt-1 text-[11px] text-ink-muted">
+                        {issue.category.replace(/_/g, ' ')} · severity {issue.severity}
+                        {confidence != null && ` · ${confidence}% AI`}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="space-y-3 p-3">
+                  <div>
+                    <p className="text-xs">
+                      <span className="font-semibold text-indigo">{issue.status}</span>
+                      {!coverUrl && judge && (
                         <span className="ml-2 inline-flex items-center gap-0.5 font-bold text-amber">
                           <Scale className="size-3" /> {t('admin.action.needsJudge')}
                         </span>
@@ -321,6 +375,9 @@ export function AdminPage() {
                         </span>
                       )}
                     </p>
+                    {issue.address && (
+                      <p className="mt-1 line-clamp-1 text-[11px] text-ink-muted">{issue.address}</p>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap gap-2">
@@ -418,6 +475,7 @@ export function AdminPage() {
                       </button>
                     </div>
                   )}
+                  </div>
                 </GlassCard>
               </motion.li>
             )

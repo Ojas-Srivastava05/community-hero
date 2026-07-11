@@ -269,17 +269,29 @@ export function CivicMap({
   onMapClick,
   pinPosition,
 }: CivicMapProps) {
-  const { isLoaded, hasKey } = useGoogleMaps()
+  const { isLoaded, hasKey, loadError } = useGoogleMaps()
   const [map, setMap] = useState<google.maps.Map | null>(null)
 
-  if (!hasKey || !isLoaded) {
+  const useFallback = !hasKey || !isLoaded || Boolean(loadError)
+
+  if (useFallback) {
     return (
       <MapMock
         issues={issuesToMapPoints(issues)}
-        hotspots={hotspots}
+        hotspots={showHotspotLayer ? hotspots : []}
         selectedId={selectedId}
         onSelect={onSelect}
         className={className}
+        center={center}
+        pinPosition={pinPosition}
+        onMapClick={onMapClick}
+        interactiveLabel={
+          onMapClick
+            ? loadError
+              ? 'Map preview — tap to set pin (search box still works)'
+              : 'Tap map to drop pin'
+            : undefined
+        }
       />
     )
   }

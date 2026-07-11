@@ -29,7 +29,7 @@ Route: `/report` (`frontend/src/pages/ReportWizard.tsx`)
   - Client extracts 3 keyframes at **0%, 50%, 100%** of duration via canvas → WebP.
   - Middle frame used for Gemini analysis and upload.
 - **Client validation** (`validateAndPreprocessImage`):
-  - Reject non-images and files > 10 MB.
+  - Reject non-images and files > 50 MB (client compresses photos before upload; videos yield WebP keyframes only).
   - Resize to max **1280 px** width, convert to **WebP** (quality 0.85).
   - Reject **blank** frames (pixel variance < 12) → `InvalidMediaCard`.
 - On success, calls `POST /api/reports/analyze` to prefill title, category, severity.

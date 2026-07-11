@@ -14,6 +14,7 @@ This folder contains a complete beginner-friendly guide to the **Community Hero 
 | **8-MINUTE-SPEAKER-SCRIPT.md** | Source markdown for cue cards (editable) |
 | **FULL-ONLINE-SPEAKER-SCRIPT.pdf** | **Full word-for-word online presentation script** (~8 min, slides 1–7 + demo + 11) |
 | **FULL-ONLINE-SPEAKER-SCRIPT.md** | Source markdown for full online script (editable) |
+| **JURY-QA-STAR-GUIDE.md** | **Jury Q&A prep** — 14 STAR-method answers for ~12 min Q&A |
 | **generate-pdf.mjs** | Regenerate project guide PDF |
 | **generate-ppt-prompts-pdf.mjs** | Regenerate slide prompts PDF |
 | **generate-speaker-script-pdf.mjs** | Regenerate 8-minute cue cards PDF |
@@ -27,6 +28,7 @@ node generate-pdf.mjs                  # project guide
 node generate-ppt-prompts-pdf.mjs        # Google Slides prompts
 node generate-speaker-script-pdf.mjs     # presentation cue cards PDF
 node generate-full-online-speaker-script-pdf.mjs   # full online speaker script PDF
+node generate-jury-qa-pdf.mjs                      # jury Q&A STAR guide → repo root PDF
 ```
 
 Requires: `pandoc` and Playwright (installed at repo root via `npm install`).

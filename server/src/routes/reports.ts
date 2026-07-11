@@ -27,7 +27,9 @@ import { REVIEW_CONFIDENCE_THRESHOLD } from '../lib/agents/types'
 import { intakeVisionSteps } from '../lib/agent-steps'
 import { toOpen311Record } from '../lib/open311'
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } })
+import { MAX_UPLOAD_BYTES } from '../types/shared-constants'
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES } })
 export const reportsRouter = Router()
 
 function parseAnalysisFromBody(
@@ -441,6 +443,7 @@ reportsRouter.get('/', async (req, res) => {
     const radiusKm = req.query.radius_km ? Number(req.query.radius_km) : undefined
     const includeDraft = req.query.include_draft === '1'
     const sortByPriority = req.query.sort === 'priority'
+    const sortFifo = req.query.sort === 'fifo'
     const wardPrefix = req.query.ward_prefix as string | undefined
 
     const excludeDemo = req.query.exclude_demo === '1' && req.query.include_demo !== '1'
@@ -462,13 +465,11 @@ reportsRouter.get('/', async (req, res) => {
     }
 
     const buildQuery = (pageLimit: number, startAfter?: FirebaseFirestore.QueryDocumentSnapshot) => {
-      let q = sortByPriority
-        ? db.collection('issues').orderBy('priorityScore', 'desc').limit(pageLimit)
-        : db.collection('issues').orderBy('createdAt', 'desc').limit(pageLimit)
+      const orderField = sortByPriority ? 'priorityScore' : 'createdAt'
+      const orderDir: FirebaseFirestore.OrderByDirection = 'desc'
+      let q = db.collection('issues').orderBy(orderField, orderDir).limit(pageLimit)
       if (status) {
-        q = sortByPriority
-          ? db.collection('issues').where('status', '==', status).orderBy('priorityScore', 'desc').limit(pageLimit)
-          : db.collection('issues').where('status', '==', status).orderBy('createdAt', 'desc').limit(pageLimit)
+        q = db.collection('issues').where('status', '==', status).orderBy(orderField, orderDir).limit(pageLimit)
       }
       if (startAfter) q = q.startAfter(startAfter)
       return q
@@ -517,6 +518,10 @@ reportsRouter.get('/', async (req, res) => {
 
     if (sortByPriority) {
       issues = (await enrichIssuesWithSla(issues)) as IssueItem[]
+    }
+
+    if (sortFifo) {
+      issues.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime())
     }
 
     if (!includeDraft) {

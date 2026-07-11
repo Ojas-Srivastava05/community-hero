@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { resolvePublicPath } from '../lib/public-path'
-import { reverseGeocodeServer } from '../lib/geo'
+import { reverseGeocodeServer, searchPlacesServer } from '../lib/geo'
 import { runWithGeocodeCache } from '../lib/geocode-cache'
 import { sendError, ErrorCodes, sendServerError } from '../lib/errors'
 
@@ -16,6 +16,22 @@ geoRouter.get('/reverse', async (req, res) => {
     }
     const place = await runWithGeocodeCache(() => reverseGeocodeServer(lat, lng))
     res.json({ ...place, lat, lng })
+  } catch (e) {
+    sendServerError(res, e)
+  }
+})
+
+geoRouter.get('/search', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim()
+    if (q.length < 3) {
+      res.json({ results: [] })
+      return
+    }
+    const lat = req.query.lat !== undefined ? Number(req.query.lat) : undefined
+    const lng = req.query.lng !== undefined ? Number(req.query.lng) : undefined
+    const results = await searchPlacesServer(q, lat, lng)
+    res.json({ results })
   } catch (e) {
     sendServerError(res, e)
   }

@@ -1,6 +1,7 @@
 import { MAX_IMAGE_WIDTH, preprocessImageForUpload } from './image-media'
+import { MAX_VIDEO_BYTES, MAX_VIDEO_MB } from '../../../shared/constants'
 
-const MAX_VIDEO_BYTES = 25 * 1024 * 1024
+export { MAX_VIDEO_BYTES, MAX_VIDEO_MB }
 
 export type VideoValidation = 'ok' | 'not-video' | 'too-large'
 

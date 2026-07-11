@@ -185,7 +185,7 @@ export function ReportWizardPage() {
     setError('')
     const validation = validateVideoFile(raw)
     if (validation !== 'ok') {
-      setInvalidMedia(validation === 'not-video' ? 'not-image' : 'too-large')
+      setInvalidMedia(validation === 'not-video' ? 'not-image' : 'video-too-large')
       return
     }
     setInvalidMedia(null)
@@ -684,9 +684,13 @@ export function ReportWizardPage() {
                     setPinAdjusted(true)
                     setForm((prev) => ({ ...prev, lat, lng, address }))
                   }}
-                  placeholder="Search address or tap map to drop pin"
+                  bias={hasLocation ? { lat: form.lat, lng: form.lng } : undefined}
+                  placeholder="Search address, landmark, or area"
                   className="mt-2 w-full rounded-2xl border border-rule bg-paper p-3 text-sm text-ink outline-none focus:ring-2 focus:ring-coral/30"
                 />
+                <p className="mt-1.5 text-[10px] text-ink-muted">
+                  Search uses our server — no Google Maps app permission needed. Or tap the map below.
+                </p>
                 <p className="mt-2 text-[11px] text-ink-muted">
                   {hasLocation ? `${form.lat.toFixed(4)}, ${form.lng.toFixed(4)}` : 'Waiting for location…'}
                   {geocodingPin && ' · Updating address…'}
