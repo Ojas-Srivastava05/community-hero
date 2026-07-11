@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>GOOGLE-SLIDES-PROMPTS-COMPLETE-GUIDE</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: 1.5em;}
+    div.column{flex: auto;}
+    @media screen {
+    div.columns{gap: min(4vw, 1.5em);}
+    div.column{overflow-x: auto;}
+    }
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+body {
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.55;
+  color: #252836;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 24px 32px;
+  background: #FEFDFB;
+}
+
+h1 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 22pt;
+  color: #252836;
+  border-bottom: 3px solid #E0632B;
+  padding-bottom: 8px;
+  margin-top: 28px;
+  page-break-before: always;
+}
+h1:first-of-type { page-break-before: avoid; margin-top: 0; }
+
+h2 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 15pt;
+  color: #E0632B;
+  margin-top: 22px;
+  border-left: 4px solid #E0632B;
+  padding-left: 10px;
+}
+
+h3 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 12pt;
+  color: #252836;
+  margin-top: 16px;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+  font-size: 9.5pt;
+}
+th, td {
+  border: 1px solid #E8E4DE;
+  padding: 6px 10px;
+  text-align: left;
+}
+th {
+  background: #FCE8DE;
+  color: #252836;
+  font-weight: 600;
+}
+tr:nth-child(even) { background: #F6F3EE; }
+
+code {
+  background: #FCE8DE;
+  color: #C2410C;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 9pt;
+  font-family: 'SF Mono', Menlo, monospace;
+}
+
+pre {
+  background: #252836;
+  color: #F6F3EE;
+  padding: 14px 16px;
+  border-radius: 10px;
+  overflow-x: auto;
+  font-size: 8.5pt;
+  line-height: 1.45;
+  border-left: 4px solid #E0632B;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+}
+
+blockquote {
+  border-left: 4px solid #E0632B;
+  margin: 12px 0;
+  padding: 10px 16px;
+  background: #FCE8DE;
+  color: #252836;
+  border-radius: 0 8px 8px 0;
+}
+
+a { color: #E0632B; }
+
+hr {
+  border: none;
+  border-top: 1px solid #E8E4DE;
+  margin: 20px 0;
+}
+
+ul, ol { padding-left: 22px; }
+li { margin: 3px 0; }
+
+strong { color: #252836; }
+
+@media print {
+  body { padding: 0; background: white; }
+  h1 { page-break-before: always; }
+  h1:first-of-type, h2, h3 { page-break-after: avoid; }
+  table, pre, blockquote { page-break-inside: avoid; }
+  pre { font-size: 8pt; }
+}
+</style></head>
+<body>
+<h1 id="community-hero-google-slides-prompt-guide-complete">Community
+Hero — Google Slides Prompt Guide (Complete)</h1>
+<p><strong>Product:</strong> Community Hero · CIVICPULSE AI<br />
+<strong>Event:</strong> Vibe to Ship / BlockseBlock 2026 · Problem
+Statement 2<br />
+<strong>Presenter:</strong> Ojas Srivastava (solo)<br />
+<strong>Presentation slot:</strong> 8 minutes (slides + live demo)<br />
+<strong>Live app:</strong>
+https://community-hero-987477089222.asia-south1.run.app<br />
+<strong>GitHub:</strong>
+https://github.com/Ojas-Srivastava05/community-hero</p>
+<hr />
+<h2 id="how-to-use-this-document">How to use this document</h2>
+<p>This PDF is your <strong>complete copy-paste library</strong> for
+Google Slides <strong>Prompt to Slide Generation</strong> (Gemini).
+Because Gemini can only <strong>create or edit one slide at a
+time</strong>, each slide has:</p>
+<ol type="1">
+<li><strong>When to use</strong> — create vs edit<br />
+</li>
+<li><strong>Full generation prompt</strong> — paste into Gemini<br />
+</li>
+<li><strong>Edit / fix prompt</strong> — if colors or layout are
+wrong<br />
+</li>
+<li><strong>Manual steps</strong> — screenshots, QR, diagrams you insert
+yourself<br />
+</li>
+<li><strong>Speaker notes</strong> — what to say (with timing)</li>
+</ol>
+<p><strong>Recommended workflow:</strong></p>
+<ol type="1">
+<li>Open a blank Google Slides presentation (16:9).<br />
+</li>
+<li>Go to Gemini → Prompt to Slide.<br />
+</li>
+<li>For Slide 1: choose <strong>Create new slide</strong> → paste
+<strong>Slide 1 prompt</strong>.<br />
+</li>
+<li>Review. If wrong theme: <strong>Edit this slide</strong> → paste
+<strong>Universal color-fix prompt</strong>.<br />
+</li>
+<li><strong>Create new slide</strong> → Slide 2 prompt → repeat through
+Slide 7.<br />
+</li>
+<li>Insert images (QR, screenshots, diagrams) manually.<br />
+</li>
+<li>Optional: add backup slides 8–11 for Q&amp;A.<br />
+</li>
+<li>Rehearse using timing in Section 10.</li>
+</ol>
+<hr />
+<h2 id="section-1-why-colors-must-match-the-live-app">Section 1 — Why
+colors must match the live app</h2>
+<p>Your <strong>deployed app</strong> uses a <strong>light, warm,
+coral-forward</strong> design
+(<code>frontend/src/index.css</code>).<br />
+The older <code>.stitch/DESIGN.md</code> described a <strong>dark
+teal</strong> theme that is <strong>no longer</strong> what judges see
+in the demo.</p>
+<table>
+<thead>
+<tr>
+<th>Element</th>
+<th>❌ Old (do NOT use)</th>
+<th>✅ Correct (live app)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Background</td>
+<td>Dark <code>#0B0F14</code></td>
+<td>Warm cream <code>#F6F3EE</code></td>
+</tr>
+<tr>
+<td>Cards</td>
+<td>Dark slate <code>#151B23</code></td>
+<td>Paper white <code>#FEFDFB</code></td>
+</tr>
+<tr>
+<td>Primary accent</td>
+<td>Teal <code>#14B8A6</code></td>
+<td><strong>Coral <code>#E0632B</code></strong></td>
+</tr>
+<tr>
+<td>Soft highlight</td>
+<td>Teal tint</td>
+<td>Coral soft <code>#FCE8DE</code></td>
+</tr>
+<tr>
+<td>Headings font</td>
+<td>Inter</td>
+<td><strong>Fraunces</strong> (serif display)</td>
+</tr>
+<tr>
+<td>Body font</td>
+<td>Inter</td>
+<td><strong>Space Grotesk</strong></td>
+</tr>
+<tr>
+<td>Heading color</td>
+<td>White</td>
+<td>Dark ink <code>#252836</code></td>
+</tr>
+<tr>
+<td>Body muted</td>
+<td><code>#94A3B8</code> on dark</td>
+<td><code>#7A7F8E</code> on light</td>
+</tr>
+<tr>
+<td>Secondary accent</td>
+<td>—</td>
+<td>Indigo <code>#6366F1</code> (sparingly)</td>
+</tr>
+<tr>
+<td>Success / leaf</td>
+<td>—</td>
+<td><code>#22A85A</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rule:</strong> When you demo the app after the slides, judges
+should feel the deck and the product are the <strong>same
+brand</strong>.</p>
+<hr />
+<h2
+id="section-2-global-design-block-prepend-mentally-to-every-prompt">Section
+2 — Global design block (prepend mentally to every prompt)</h2>
+<p>Every slide prompt below <strong>already includes</strong> this
+design system. If Gemini ignores it, use the <strong>Universal color-fix
+prompt</strong> in Section 3.</p>
+<pre><code>GLOBAL DESIGN — Community Hero live app (LIGHT theme):
+
+ORIENTATION: 16:9 widescreen landscape only.
+
+BACKGROUND: Warm cream #F6F3EE — never dark, never pure white #FFFFFF.
+Optional subtle radial glows: soft coral #E0632B at top-left (10% opacity),
+soft indigo #6366F1 at top-right (8% opacity), like a mobile app landing page.
+
+CARDS / PANELS: Off-white paper #FEFDFB, border #E8E4DE, soft shadow
+(0 10px 30px rgba(37,40,54,0.08)), rounded corners ~18px.
+
+PRIMARY ACCENT: Coral #E0632B — titles highlights, icons, arrows, CTAs,
+key statistics, slide numbers, URLs. NEVER use teal #14B8A6.
+
+CORAL SOFT: #FCE8DE — badge backgrounds, stat banners, highlight boxes.
+
+TEXT:
+- Headings: #252836, font Fraunces (serif display, bold)
+- Body: #252836, font Space Grotesk or clean geometric sans
+- Muted / secondary: #7A7F8E
+- On coral buttons: white #FEFDFB text
+
+SECONDARY ACCENT: Indigo #6366F1 — map/AI secondary icons only, sparingly.
+
+SEVERITY (if needed): Low #22A85A · Medium #EAB308 · High #E0632B · Critical #DC2626
+
+FOOTER (every slide): Left — small gray &quot;community-hero · Vibe2Ship 2026 · PS2&quot;
+Right — slide number in coral.
+
+STYLE: Warm civic product launch. Premium, airy, minimal. NOT dark hackathon.
+NOT academic thesis. Max 6 bullets per slide. No paragraph walls.
+No stock photos of people. Use icons, diagrams, placeholders.
+
+PLACEHOLDERS: Dashed gray boxes labeled clearly for user to insert later.</code></pre>
+<hr />
+<h2 id="section-3-universal-prompts-use-anytime">Section 3 — Universal
+prompts (use anytime)</h2>
+<h3 id="a-universal-color-fix-prompt-edit-this-slide">3A — Universal
+color-fix prompt (Edit this slide)</h3>
+<p>Use when any slide came out dark, teal, or off-brand:</p>
+<pre><code>Edit this slide only. Restyle to match the LIVE Community Hero mobile app.
+
+MANDATORY CHANGES:
+- Background → warm cream #F6F3EE (remove any dark/black/navy background)
+- All teal #14B8A6 or green-blue accents → coral #E0632B
+- Dark card panels → paper white #FEFDFB with soft shadow and border #E8E4DE
+- White text on dark → dark ink #252836 for headings, #7A7F8E for body
+- Headings → Fraunces serif bold
+- Body → Space Grotesk
+- Add subtle coral glow top-left corner (very faint)
+- Footer: gray &quot;community-hero · Vibe2Ship 2026 · PS2&quot; + coral slide number
+
+DO NOT change any wording, bullet text, or layout structure — colors and fonts only.
+DO NOT use dark theme. DO NOT use teal anywhere.</code></pre>
+<h3 id="b-universal-spacing-fix-edit-this-slide">3B — Universal spacing
+fix (Edit this slide)</h3>
+<pre><code>Edit this slide only. Keep all text and colors identical.
+Improve: alignment to consistent 48px margins, equal column widths,
+more whitespace between sections, no overlapping text,
+no text smaller than 14pt body / 28pt titles.
+Ensure footer is visible and not cut off.</code></pre>
+<h3 id="c-universal-remove-clutter-edit-this-slide">3C — Universal
+“remove clutter” (Edit this slide)</h3>
+<pre><code>Edit this slide only. Remove decorative clip art, extra icons, and duplicate titles.
+Keep maximum 6 bullet points. Keep coral #E0632B accent and cream #F6F3EE background.
+Make the slide look like a clean Apple/Google product keynote slide.</code></pre>
+<hr />
+<h2 id="section-4-deck-overview-7-slides">Section 4 — Deck overview (7
+slides)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Title</th>
+<th>Time</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Title + thesis</td>
+<td>0:20</td>
+<td>Hook, brand, live URL</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Dilemma &amp; gap</td>
+<td>0:55</td>
+<td>Problem + Swachhata comparison</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Solution + journey</td>
+<td>1:00</td>
+<td>4 pillars + pipeline</td>
+</tr>
+<tr>
+<td>4</td>
+<td>6-agent orchestration</td>
+<td>0:45</td>
+<td>Agentic depth (20% criteria)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Live demo</td>
+<td>3:30</td>
+<td>QR + demo script</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Impact + Google stack</td>
+<td>0:45</td>
+<td>Metrics + jury mapping</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Close + links</td>
+<td>0:45</td>
+<td>Memorable quote, Q&amp;A</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Total:</strong> ~8:00</p>
+<hr />
+<h2 id="slide-1-title-thesis">Slide 1 — Title + thesis</h2>
+<h3 id="when-to-use">When to use</h3>
+<ul>
+<li><strong>Create new slide</strong> on a blank presentation (first
+slide).</li>
+</ul>
+<h3 id="full-generation-prompt-copy-everything-below">Full generation
+prompt (copy everything below)</h3>
+<pre><code>Create SLIDE 1 — Title slide for Community Hero hackathon jury presentation.
+
+=== GLOBAL DESIGN ===
+16:9 widescreen. LIGHT theme only.
+Background: warm cream #F6F3EE with faint coral glow top-left, faint indigo glow top-right.
+Cards: paper #FEFDFB, border #E8E4DE, soft shadow.
+Primary accent: coral #E0632B — NEVER teal, NEVER dark background.
+Headings: Fraunces serif bold #252836. Body: Space Grotesk. Muted: #7A7F8E.
+Footer left: &quot;community-hero · Vibe2Ship 2026 · PS2&quot;. Footer right: &quot;1&quot; in coral.
+
+=== LAYOUT ===
+- Left 60%: all text content, vertically centered
+- Right 40%: large dashed placeholder rectangle, rounded corners, gray label:
+  &quot;APP SCREENSHOT — insert Landing page from phone&quot;
+- Optional: small coral pill badge below tagline: &quot;LIVE ON CLOUD RUN&quot;
+
+=== CONTENT (exact text) ===
+Line 1 (small coral uppercase, letter-spaced):
+  VIBE TO SHIP 2026 · PROBLEM STATEMENT 2
+
+Line 2 (Fraunces, very large, dark ink):
+  Community Hero
+
+Line 3 (coral, medium-large):
+  CIVICPULSE AI
+
+Line 4 (dark, italic):
+  Photo → AI → Map → Community verify → Named resolution
+
+Line 5 (gray, regular):
+  Citizen photos become public, routed, verifiable civic records —
+  live on Google Cloud Run today.
+
+Line 6 (small dark):
+  Ojas Srivastava · Solo builder · Full-stack + AI agents
+
+Line 7 (coral, clickable style):
+  community-hero-987477089222.asia-south1.run.app
+
+=== DO NOT ===
+- Do not use dark background
+- Do not use teal #14B8A6
+- Do not add evaluation criteria or hackathon rules text
+- Do not use stock photos of people</code></pre>
+<h3 id="edit-prompt-if-layout-is-wrong">Edit prompt if layout is
+wrong</h3>
+<pre><code>Edit slide 1. Move all text to left side. Put one large screenshot placeholder on right.
+Title &quot;Community Hero&quot; must be the largest text (Fraunces). Keep cream background and coral accents.</code></pre>
+<h3 id="manual-steps-after-generation">Manual steps after
+generation</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Insert phone screenshot of Landing
+page (<code>/</code> route) into right placeholder<br />
+</label></li>
+<li><label><input type="checkbox" />Confirm URL is readable from back of
+room</label></li>
+</ul>
+<h3 id="speaker-notes-020">Speaker notes (0:20)</h3>
+<blockquote>
+<p>“Community Hero turns a citizen’s photo into a public, routed,
+verifiable civic record — and it’s live on Cloud Run today, not
+slideware.”</p>
+</blockquote>
+<hr />
+<h2 id="slide-2-the-dilemma-the-gap">Slide 2 — The dilemma &amp; the
+gap</h2>
+<h3 id="when-to-use-1">When to use</h3>
+<ul>
+<li><strong>Create new slide</strong> (slide 2).</li>
+</ul>
+<h3 id="full-generation-prompt">Full generation prompt</h3>
+<pre><code>Create SLIDE 2 — Problem and gap slide for Community Hero hackathon deck.
+
+=== GLOBAL DESIGN ===
+16:9. LIGHT theme. Background cream #F6F3EE. Coral accent #E0632B only.
+Paper cards #FEFDFB with soft shadow. Fraunces headings, Space Grotesk body.
+Footer: community-hero · Vibe2Ship 2026 · PS2 | slide 2 in coral.
+
+=== LAYOUT ===
+- Title bar full width at top
+- Three equal-width columns below, each inside a paper card with rounded corners
+- Full-width stat banner at bottom inside coral-soft #FCE8DE background
+
+=== TITLE ===
+Civic reporting is broken — demand exists, intelligence doesn&#39;t
+(Fraunces, dark #252836, with word &quot;broken&quot; or &quot;intelligence&quot; in coral)
+
+=== COLUMN 1 — card header &quot;The Dilemma&quot; (dark) ===
+• Have you reported a pothole and never heard back?
+• WhatsApp groups, municipal portals, ad-hoc apps — no shared record
+• Duplicate photos of the same leak waste field crews
+
+=== COLUMN 2 — card header &quot;What Exists&quot; (dark) ===
+• Swachhata — 4,000+ cities, proved citizen demand
+• FixMyStreet — mature UX, no Gemini vision or agents
+• Manual municipal desks — slow triage
+
+=== COLUMN 3 — card header &quot;The Gap&quot; (coral) ===
+• No sub-3-second AI classification at submit
+• No agentic routing + SLA + dedup pipeline
+• No public timeline: submitted → assigned → resolved
+
+=== BOTTOM STAT BANNER ===
+Large coral number/text: Millions of urban complaints every year
+Gray subtext: Opacity is the default — we fix speed, routing, and accountability
+
+=== RULES ===
+Max 3 bullets per column. No dark theme. No teal. Clean hackathon comparison layout.</code></pre>
+<h3 id="edit-prompt-if-columns-are-uneven">Edit prompt if columns are
+uneven</h3>
+<pre><code>Edit slide 2. Make three columns exactly equal width with identical card heights.
+Keep all bullet text unchanged. Cream background, coral accents only.
+Stat banner spans full width at bottom with coral-soft #FCE8DE fill.</code></pre>
+<h3 id="manual-steps">Manual steps</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Optional: small pothole icon or map
+pin icon in column 1 (coral line icon)</label></li>
+</ul>
+<h3 id="speaker-notes-055">Speaker notes (0:55)</h3>
+<blockquote>
+<p>“Have you ever reported something and never heard back? Swachhata
+proved demand at 4,000+ cities — but nobody combines sub-3-second Gemini
+triage, six agents, and a public resolution timeline. That’s the gap we
+fill.”</p>
+</blockquote>
+<hr />
+<h2 id="slide-3-solution-citizen-journey">Slide 3 — Solution + citizen
+journey</h2>
+<h3 id="when-to-use-2">When to use</h3>
+<ul>
+<li><strong>Create new slide</strong> (slide 3).</li>
+</ul>
+<h3 id="full-generation-prompt-1">Full generation prompt</h3>
+<pre><code>Create SLIDE 3 — Solution and citizen journey for Community Hero.
+
+=== GLOBAL DESIGN ===
+16:9 light cream #F6F3EE, coral #E0632B accent, paper cards #FEFDFB.
+Fraunces titles, Space Grotesk body. Footer slide 3.
+
+=== LAYOUT ===
+TOP: Title + subtitle
+MIDDLE: Four equal pillars in a row, each with simple line icon + title + one line
+BOTTOM: Horizontal pipeline flowchart with coral arrows between 7 steps
+BOTTOM-RIGHT: Coral pill badge
+
+=== TITLE (Fraunces, dark) ===
+Community Hero — production on Cloud Run
+
+=== SUBTITLE (gray) ===
+All 8 official Vibe2Ship features shipped
+
+=== FOUR PILLARS (icon above each) ===
+1. 3s AI Triage
+   Gemini Vision → category, severity, department
+
+2. 6-Agent Pipeline
+   Route, SLA, dedup, priority — no manual desk
+
+3. Community Verify
+   Boost tiers cut ~40% duplicate noise
+
+4. Public Accountability
+   Timeline + proof photo + Open311 export
+
+=== PIPELINE (horizontal boxes, coral arrows) ===
+Photo + GPS → Gemini → Firestore → Map → Boost → Community Verified → Resolved
+
+=== BADGE (coral pill, white text) ===
+8/8 features · Live demo next
+
+=== RULES ===
+Pipeline must be readable in one glance. No dark theme. No teal.
+Icons: camera, spark/AI, users, checkmark — simple line style in coral.</code></pre>
+<h3 id="edit-prompt-if-pipeline-is-vertical">Edit prompt if pipeline is
+vertical</h3>
+<pre><code>Edit slide 3. Make the pipeline flowchart strictly HORIZONTAL across the bottom
+with left-to-right coral arrows. Four pillars in one row above it.
+Keep all text. Light cream background.</code></pre>
+<h3 id="manual-steps-1">Manual steps</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Optional: replace bottom area with
+<code>docs/diagrams/png/05-report-intake-sequence.png</code></label></li>
+</ul>
+<h3 id="speaker-notes-100">Speaker notes (1:00)</h3>
+<blockquote>
+<p>“Four pillars: 3-second AI triage, six agents, community
+verification, public accountability. Same engineering rigor as
+enterprise logistics — mission is communities, not cargo. All eight
+official features ship in production.”</p>
+</blockquote>
+<hr />
+<h2 id="slide-4-6-agent-orchestration">Slide 4 — 6-agent
+orchestration</h2>
+<h3 id="when-to-use-3">When to use</h3>
+<ul>
+<li><strong>Create new slide</strong> (slide 4).</li>
+</ul>
+<h3 id="full-generation-prompt-2">Full generation prompt</h3>
+<pre><code>Create SLIDE 4 — Agentic AI architecture for Community Hero hackathon deck.
+
+=== GLOBAL DESIGN ===
+16:9 cream #F6F3EE, coral #E0632B, paper panels #FEFDFB.
+Fraunces + Space Grotesk. Footer slide 4. LIGHT theme only.
+
+=== LAYOUT ===
+Split slide:
+- LEFT 55%: large dashed placeholder box, label inside:
+  &quot;AGENT WORKFLOW DIAGRAM — insert 04-agent-workflow.png&quot;
+- RIGHT 45%: title, subtitle, 4 bullet points
+
+=== RIGHT SIDE CONTENT ===
+Title (coral): 6-Agent Orchestration — not one mega-prompt
+
+Subtitle (gray): Agentic Depth · 20% of jury criteria
+
+Bullets (dark text, coral bold keywords):
+• Six discrete agents in auditable code — Vision, Routing, SLA, Dedup, Priority, Gamification
+• Low confidence → Draft review queue (human-in-the-loop)
+• Geohash dedup → duplicate merge suggestions (~40% reduction)
+• Vision runs pre-submit; routing uses deterministic department map
+
+Bottom note (small gray):
+Single Cloud Run container · Express API + React PWA · GitHub open source
+
+=== RULES ===
+Exactly 4 bullets on right. Diagram placeholder dominates left side.
+Technical but clean — NOT academic. No dark background. No teal.</code></pre>
+<h3 id="edit-prompt-if-too-much-text">Edit prompt if too much text</h3>
+<pre><code>Edit slide 4. Reduce right column to exactly 4 bullet points.
+Enlarge the left diagram placeholder to 55% of slide width.
+Keep coral accents and cream background.</code></pre>
+<h3 id="manual-steps-2">Manual steps</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Insert image:
+<code>docs/diagrams/png/04-agent-workflow.png</code> into left
+placeholder<br />
+</label></li>
+<li><label><input type="checkbox" />Verify diagram readable on
+projector</label></li>
+</ul>
+<h3 id="speaker-notes-045">Speaker notes (0:45)</h3>
+<blockquote>
+<p>“This is what scores Agentic Depth — six discrete agent functions,
+not one mega-prompt. Low confidence routes to a Draft queue. Geohash
+dedup cuts duplicates. Every branch is auditable on GitHub.”</p>
+</blockquote>
+<hr />
+<h2 id="slide-5-live-demo">Slide 5 — Live demo</h2>
+<h3 id="when-to-use-4">When to use</h3>
+<ul>
+<li><strong>Create new slide</strong> (slide 5). <strong>Most important
+slide for demo transition.</strong></li>
+</ul>
+<h3 id="full-generation-prompt-3">Full generation prompt</h3>
+<pre><code>Create SLIDE 5 — Live demo slide for Community Hero hackathon presentation.
+
+=== GLOBAL DESIGN ===
+16:9 cream #F6F3EE, coral #E0632B accents, paper card #FEFDFB.
+Fraunces title, Space Grotesk body. Footer slide 5. LIGHT theme.
+
+=== LAYOUT ===
+- CENTER: largest element — dashed square placeholder with coral border (3px),
+  label: &quot;QR CODE — insert qr-production.png&quot;
+- Below QR: full URL in coral, large readable font
+- Below URL: coral pill badge
+- LEFT SIDE: compact numbered demo script (7 steps, small gray text)
+- TOP: title centered or left-aligned
+
+=== CONTENT ===
+Title (Fraunces, dark): Live Demo — follow along
+
+URL (coral, bold, large):
+community-hero-987477089222.asia-south1.run.app
+
+Badge (coral background, white text):
+Submit without login — no personal data required
+
+DEMO SCRIPT (left column, numbered, gray #7A7F8E):
+1. Landing → Submit without login
+2. Map → filter Pothole → open issue
+3. Issue → Boost → agent stepper + SLA
+4. Report → photo → AI Analyze → submit
+5. Dashboard → charts + hotspot
+6. Assistant → &quot;What potholes are near me?&quot;
+7. Admin → mark In Progress
+
+Bottom center (dark): 3:30 live walkthrough · incognito phone recommended
+
+=== RULES ===
+QR placeholder must be the visual focal point — largest on slide.
+No dark theme. No teal. Minimal decoration.</code></pre>
+<h3 id="edit-prompt-if-qr-area-is-too-small">Edit prompt if QR area is
+too small</h3>
+<pre><code>Edit slide 5. Make the QR code placeholder the largest element — at least 35% of slide height,
+centered. Demo script stays on left in small text. URL directly under QR in coral.
+Keep cream background.</code></pre>
+<h3 id="manual-steps-3">Manual steps</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Insert
+<code>docs/demo/qr-production.png</code> into center placeholder<br />
+</label></li>
+<li><label><input type="checkbox" />Test QR scan from 3 meters before
+presenting<br />
+</label></li>
+<li><label><input type="checkbox" />Pre-open incognito tab on phone to
+production URL</label></li>
+</ul>
+<h3 id="speaker-notes-330-demo-see-section-10-for-full-script">Speaker
+notes (3:30 demo — see Section 10 for full script)</h3>
+<blockquote>
+<p>“Follow the QR — you can submit without login, no personal data. I’ll
+walk the full citizen-to-admin loop in three and a half minutes.”</p>
+</blockquote>
+<hr />
+<h2 id="slide-6-impact-google-technologies">Slide 6 — Impact + Google
+technologies</h2>
+<h3 id="when-to-use-5">When to use</h3>
+<ul>
+<li><strong>Create new slide</strong> (slide 6).</li>
+</ul>
+<h3 id="full-generation-prompt-4">Full generation prompt</h3>
+<pre><code>Create SLIDE 6 — Impact metrics and Google technologies for Community Hero.
+
+=== GLOBAL DESIGN ===
+16:9 cream #F6F3EE, coral #E0632B, paper panels #FEFDFB.
+Fraunces title, Space Grotesk. Footer slide 6. LIGHT theme only.
+
+=== LAYOUT ===
+Full-width title at top.
+Two equal columns below, each in a paper card.
+
+=== TITLE (Fraunces, dark) ===
+Measurable impact · Built on Google
+
+=== LEFT COLUMN — header &quot;Design targets&quot; (coral) ===
+Four metric rows — bold coral number on left, description on right:
+80% faster — triage vs manual municipal forms
+~40% — duplicate reduction (geohash + community verify)
+&lt;3 sec — vision analyze latency
+100% — issues have public status timelines
+
+Small gray footnote under table:
+Design targets validated on demo ward + architecture
+
+=== RIGHT COLUMN — header &quot;Google stack&quot; (coral) ===
+2×3 grid of simple icons + name + one line each:
+• Gemini 2.5 Flash — report wizard, civic assistant, insights
+• Firebase Auth — secure API sessions
+• Cloud Firestore — realtime issues + geohash queries
+• Cloud Storage — report &amp; proof images
+• Google Maps Platform — explorer + geocoding
+• Cloud Run + AI Studio — prototype → production deploy
+
+=== RULES ===
+Numbers must pop in coral. No paragraph text. No dark theme. No teal.
+Balanced two-column layout.</code></pre>
+<h3 id="edit-prompt-if-table-is-cramped">Edit prompt if table is
+cramped</h3>
+<pre><code>Edit slide 6. Widen both columns equally. Make metric numbers (80%, 40%, 3 sec, 100%)
+extra large in coral #E0632B. Google stack as clean 2x3 icon grid, not a paragraph list.</code></pre>
+<h3 id="speaker-notes-045-1">Speaker notes (0:45)</h3>
+<blockquote>
+<p>“Eighty percent faster triage, forty percent fewer duplicates,
+sub-three-second vision — design targets on our demo ward. Built
+entirely on Google: Gemini, Firebase, Maps, Cloud Run. You saw every one
+of these in the demo.”</p>
+</blockquote>
+<hr />
+<h2 id="slide-7-closing">Slide 7 — Closing</h2>
+<h3 id="when-to-use-6">When to use</h3>
+<ul>
+<li><strong>Create new slide</strong> (slide 7). Final slide judges
+remember.</li>
+</ul>
+<h3 id="full-generation-prompt-5">Full generation prompt</h3>
+<pre><code>Create SLIDE 7 — Closing slide for Community Hero hackathon jury presentation.
+
+=== GLOBAL DESIGN ===
+16:9 cream #F6F3EE with subtle centered coral radial glow behind quote.
+Coral #E0632B accents. Fraunces for quote, Space Grotesk for links.
+Footer slide 7. LIGHT cinematic minimal layout.
+
+=== LAYOUT ===
+Centered vertical stack. Generous whitespace. No clutter.
+
+=== CONTENT ===
+Large centered quote (Fraunces, dark #252836, 32-36pt, bold):
+&quot;Every pothole deserves a public record and a named resolution.&quot;
+
+Three link rows (coral label + dark URL), centered:
+Live App → community-hero-987477089222.asia-south1.run.app
+GitHub → github.com/Ojas-Srivastava05/community-hero
+Google Doc → [ADD PUBLIC LINK BEFORE SUBMIT]
+
+Gray centered line:
+Open source · Live today · Thank you — questions?
+
+Small bottom credit:
+Ojas Srivastava
+
+=== RULES ===
+Quote is the hero element. Maximum visual impact. No bullet lists.
+No dark theme. No teal. Keep visible during Q&amp;A.</code></pre>
+<h3 id="edit-prompt-if-quote-is-too-small">Edit prompt if quote is too
+small</h3>
+<pre><code>Edit slide 7. Make the quote the largest text on the slide (minimum 32pt Fraunces bold).
+Center everything. Add faint coral glow halo behind quote only.
+Links below in two lines each, coral labels. Cream background.</code></pre>
+<h3 id="manual-steps-4">Manual steps</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Add Google Doc public view link
+before BlockseBlock submit<br />
+</label></li>
+<li><label><input type="checkbox" />Keep this slide visible during
+Q&amp;A</label></li>
+</ul>
+<h3 id="speaker-notes-045-2">Speaker notes (0:45)</h3>
+<blockquote>
+<p>“Every pothole deserves a public record and a named resolution. Open
+source, live today — happy to walk agents, Firestore rules, or Open311
+export in Q&amp;A.”</p>
+</blockquote>
+<hr />
+<h2 id="slide-8-backup-system-architecture-qa">Slide 8 — Backup: System
+architecture (Q&amp;A)</h2>
+<h3 id="when-to-use-7">When to use</h3>
+<ul>
+<li><strong>Create new slide</strong> — optional, hide until
+Q&amp;A.</li>
+</ul>
+<h3 id="full-generation-prompt-6">Full generation prompt</h3>
+<pre><code>Create BACKUP SLIDE 8 — System architecture (Q&amp;A only) for Community Hero.
+
+LIGHT theme cream #F6F3EE, coral #E0632B, paper #FEFDFB. Fraunces + Space Grotesk. Footer slide 8.
+
+Title: System Architecture
+
+Center: large dashed placeholder &quot;Insert 01-system-architecture.png&quot;
+
+Caption bullets below diagram (max 5):
+• React 19 PWA + Vite + Tailwind (client)
+• Express 5 API + 6-agent pipeline (Cloud Run)
+• Cloud Firestore + Firebase Storage + Firebase Auth
+• Gemini 2.5 Flash (vision, assistant, insights)
+• Single Cloud Run service · asia-south1 · Docker + GitHub Actions
+
+Clean, technical, light background. No teal.</code></pre>
+<h3 id="manual-steps-5">Manual steps</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Insert
+<code>docs/diagrams/png/01-system-architecture.png</code></label></li>
+</ul>
+<hr />
+<h2 id="slide-9-backup-technology-stack-qa">Slide 9 — Backup: Technology
+stack (Q&amp;A)</h2>
+<h3 id="full-generation-prompt-7">Full generation prompt</h3>
+<pre><code>Create BACKUP SLIDE 9 — Technology stack table for Community Hero Q&amp;A.
+
+LIGHT cream #F6F3EE, coral headers #E0632B, paper table rows #FEFDFB.
+Title: Technology Stack. Footer slide 9.
+
+Clean 2-column table (Layer | Technology):
+Frontend | React 19, Vite, Tailwind, Framer Motion, Recharts
+Backend | Node.js, Express 5, Zod, Multer
+Database | Cloud Firestore
+Storage | Firebase Cloud Storage
+Auth | Firebase Authentication (Google)
+AI | Gemini API (@google/generative-ai)
+Maps | Google Maps Platform
+Deploy | Cloud Run asia-south1, Docker, GitHub Actions
+
+Alternating row shading #FCE8DE / #FEFDFB. No dark theme.</code></pre>
+<hr />
+<h2 id="slide-10-backup-product-screenshots-qa">Slide 10 — Backup:
+Product screenshots (Q&amp;A)</h2>
+<h3 id="full-generation-prompt-8">Full generation prompt</h3>
+<pre><code>Create BACKUP SLIDE 10 — Product screenshot gallery for Community Hero Q&amp;A.
+
+LIGHT cream background, coral title, paper screenshot frames.
+Title: Civic Glass UI — mobile-first (footer slide 10)
+
+2×3 grid of dashed placeholders labeled:
+Landing | Report Wizard | Map Explorer
+Issue Detail | Dashboard | Leaderboard
+
+Small note bottom: Dark ink #252836 text on cream — matches live production app</code></pre>
+<h3 id="manual-steps-6">Manual steps</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Capture 6 screenshots from
+production URL in incognito</label></li>
+</ul>
+<hr />
+<h2 id="slide-11-backup-competitive-comparison-qa">Slide 11 — Backup:
+Competitive comparison (Q&amp;A)</h2>
+<h3 id="full-generation-prompt-9">Full generation prompt</h3>
+<pre><code>Create BACKUP SLIDE 11 — Competitive comparison for Community Hero Q&amp;A.
+
+LIGHT cream #F6F3EE, coral #E0632B for Community Hero column highlight.
+Title: Why Community Hero wins. Footer slide 11.
+
+Table 4 columns × 4 rows:
+Header row: Feature | Swachhata | FixMyStreet | Community Hero
+
+Rows:
+Scale / adoption | ✓ 4000+ cities | ✓ Mature | ✓ Multi-city demo
+AI triage (&lt;3s) | ✗ | ✗ | ✓ Gemini Vision
+6-agent pipeline | ✗ | ✗ | ✓
+Public timeline + verify | Partial | ✓ | ✓ + boosts + Open311
+
+Community Hero column: coral checkmarks, light coral-soft column background #FCE8DE.</code></pre>
+<hr />
+<h2 id="section-5-post-generation-master-checklist">Section 5 —
+Post-generation master checklist</h2>
+<table>
+<colgroup>
+<col style="width: 42%" />
+<col style="width: 57%" />
+</colgroup>
+<thead>
+<tr>
+<th>Step</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>All 7 slides use cream background — run color-fix on any dark
+slide</td>
+</tr>
+<tr>
+<td>2</td>
+<td>No teal anywhere — all accents coral</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Slide 1: Landing screenshot inserted</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Slide 4: agent workflow PNG inserted</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Slide 5: QR code inserted and tested</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Slide 7: Google Doc link added</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Footer consistent on every slide</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Presenter View: speaker notes added from Section 10</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Export PDF backup to Google Drive</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Rehearse full 8:00 timed run twice</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="section-6-image-assets-reference">Section 6 — Image assets
+reference</h2>
+<table>
+<colgroup>
+<col style="width: 31%" />
+<col style="width: 27%" />
+<col style="width: 40%" />
+</colgroup>
+<thead>
+<tr>
+<th>Asset</th>
+<th>Path</th>
+<th>Used on</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>QR code</td>
+<td><code>docs/demo/qr-production.png</code></td>
+<td>Slide 5</td>
+</tr>
+<tr>
+<td>Agent workflow</td>
+<td><code>docs/diagrams/png/04-agent-workflow.png</code></td>
+<td>Slide 4</td>
+</tr>
+<tr>
+<td>System architecture</td>
+<td><code>docs/diagrams/png/01-system-architecture.png</code></td>
+<td>Slide 8</td>
+</tr>
+<tr>
+<td>Report sequence</td>
+<td><code>docs/diagrams/png/05-report-intake-sequence.png</code></td>
+<td>Slide 3 (optional)</td>
+</tr>
+<tr>
+<td>Landing screenshot</td>
+<td>Capture from live app</td>
+<td>Slide 1</td>
+</tr>
+<tr>
+<td>Demo script detail</td>
+<td><code>docs/demo/APPENDIX-I-DEMO-SCRIPT.md</code></td>
+<td>Rehearsal</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="section-7-full-8-minute-speaker-script">Section 7 — Full
+8-minute speaker script</h2>
+<pre><code>[0:00 SLIDE 1]
+&quot;Community Hero — citizen photo to accountable civic record. Live on Cloud Run today.&quot;
+
+[0:20 SLIDE 2]
+&quot;Have you reported a pothole and never heard back? Swachhata proved demand.
+The gap is AI speed, agentic routing, and public transparency.&quot;
+
+[1:15 SLIDE 3]
+&quot;Four pillars: 3-second triage, six agents, community verify, public timeline.
+All eight Vibe2Ship features shipped.&quot;
+
+[2:15 SLIDE 4]
+&quot;Six discrete agents — not one prompt. Draft queue for low confidence.
+Auditable on GitHub.&quot;
+
+[3:00 SLIDE 5 — START DEMO]
+&quot;Scan the QR. Submit without login — no personal data.&quot;
+
+  Demo steps (3:30):
+  · Submit without login
+  · Map → pothole → issue detail → boost
+  · Report → AI analyze
+  · Dashboard hotspot
+  · Assistant question
+  · Admin in progress
+
+[6:30 SLIDE 6]
+&quot;80% faster triage, 40% fewer dupes, sub-3-second AI.
+Built on Gemini, Firebase, Maps, Cloud Run.&quot;
+
+[7:15 SLIDE 7]
+&quot;Every pothole deserves a public record and a named resolution.
+Open source, live today — questions?&quot;
+
+[8:00 STOP]</code></pre>
+<hr />
+<h2 id="section-8-troubleshooting-gemini-slide-generation">Section 8 —
+Troubleshooting Gemini slide generation</h2>
+<table>
+<colgroup>
+<col style="width: 64%" />
+<col style="width: 35%" />
+</colgroup>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dark background appeared</td>
+<td>Paste <strong>Universal color-fix prompt</strong> (Section 3A)</td>
+</tr>
+<tr>
+<td>Teal instead of coral</td>
+<td>Same color-fix prompt; say “replace ALL teal with coral
+#E0632B”</td>
+</tr>
+<tr>
+<td>Too much text</td>
+<td>Section 3C clutter prompt + ask to reduce to 6 bullets</td>
+</tr>
+<tr>
+<td>Wrong fonts</td>
+<td>Edit: “Headings Fraunces serif, body Space Grotesk”</td>
+</tr>
+<tr>
+<td>Columns uneven</td>
+<td>Slide-specific edit prompt in each section</td>
+</tr>
+<tr>
+<td>QR too small</td>
+<td>Slide 5 edit prompt</td>
+</tr>
+<tr>
+<td>Generated extra slides</td>
+<td>Delete manually; Gemini one-slide mode should not add
+agenda/TOC</td>
+</tr>
+<tr>
+<td>Colors OK but bland</td>
+<td>Add: “subtle coral radial glow top-left, premium product keynote
+style”</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2
+id="section-9-jury-criteria-mapping-what-to-emphasize-while-presenting">Section
+9 — Jury criteria mapping (what to emphasize while presenting)</h2>
+<table>
+<thead>
+<tr>
+<th>Criterion</th>
+<th>Weight</th>
+<th>Slide</th>
+<th>Demo moment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Impact</td>
+<td>20%</td>
+<td>2, 6</td>
+<td>Dashboard hotspot</td>
+</tr>
+<tr>
+<td>Agentic depth</td>
+<td>20%</td>
+<td>4</td>
+<td>Issue detail agent stepper</td>
+</tr>
+<tr>
+<td>Innovation</td>
+<td>20%</td>
+<td>3</td>
+<td>Boost + dedup + assistant</td>
+</tr>
+<tr>
+<td>Google tech</td>
+<td>15%</td>
+<td>6</td>
+<td>Gemini analyze live</td>
+</tr>
+<tr>
+<td>Product experience</td>
+<td>10%</td>
+<td>1, 5</td>
+<td>Submit without login</td>
+</tr>
+<tr>
+<td>Technical</td>
+<td>10%</td>
+<td>4, 8</td>
+<td>GitHub mention</td>
+</tr>
+<tr>
+<td>Completeness</td>
+<td>5%</td>
+<td>3, 5</td>
+<td>Admin resolve step</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="section-10-quick-reference-copy-paste-order">Section 10 — Quick
+reference: copy-paste order</h2>
+<ol type="1">
+<li>Slide 1 prompt → create<br />
+</li>
+<li>Slide 2 prompt → create<br />
+</li>
+<li>Slide 3 prompt → create<br />
+</li>
+<li>Slide 4 prompt → create<br />
+</li>
+<li>Slide 5 prompt → create<br />
+</li>
+<li>Slide 6 prompt → create<br />
+</li>
+<li>Slide 7 prompt → create<br />
+</li>
+<li>Color-fix any slide that looks wrong<br />
+</li>
+<li>Insert QR + screenshots + diagrams<br />
+</li>
+<li>Optional slides 8–11 for Q&amp;A</li>
+</ol>
+<hr />
+<p><em>Generated for Community Hero · Vibe2Ship 2026 · Colors aligned
+with <code>frontend/src/index.css</code> (coral + cream light
+theme).</em></p>
+</body>
+</html>

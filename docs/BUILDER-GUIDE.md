@@ -353,7 +353,7 @@ Vibe2Ship/
 ├── shared/types.ts    ← Shared definitions (Issue, Category, Status)
 ├── docs/              ← All documentation (you are here)
 ├── scripts/           ← deploy, seed data, verify production, screenshots
-├── Dockerfile         ← Recipe to build production container
+├── deploy/Dockerfile  ← Recipe to build production container
 └── firebase.json      ← Firestore security rules + indexes
 ```
 

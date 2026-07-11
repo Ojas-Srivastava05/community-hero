@@ -1,0 +1,55 @@
+{
+  "capturedAt": "2026-07-10T12:42:34.464Z",
+  "base": "https://community-hero-987477089222.asia-south1.run.app",
+  "issueId": "demo-blr-01",
+  "shots": [
+    {
+      "file": "slide-01-landing-screenshot.png",
+      "slide": 1,
+      "status": "ok",
+      "route": "/"
+    },
+    {
+      "file": "slide-10-01-landing.png",
+      "slide": 10,
+      "status": "ok",
+      "route": "/"
+    },
+    {
+      "file": "slide-10-02-report-wizard.png",
+      "slide": 10,
+      "status": "ok",
+      "route": "/report"
+    },
+    {
+      "file": "slide-10-03-map-explorer.png",
+      "slide": 10,
+      "status": "ok",
+      "route": "/map"
+    },
+    {
+      "file": "slide-10-04-issue-detail.png",
+      "slide": 10,
+      "status": "ok",
+      "route": "/issues/demo-blr-01"
+    },
+    {
+      "file": "slide-10-05-dashboard.png",
+      "slide": 10,
+      "status": "ok",
+      "route": "/dashboard"
+    },
+    {
+      "file": "slide-10-06-leaderboard.png",
+      "slide": 10,
+      "status": "ok",
+      "route": "/leaderboard"
+    },
+    {
+      "file": "slide-05-admin-console.png",
+      "slide": 5,
+      "status": "ok",
+      "route": "/admin"
+    }
+  ]
+}

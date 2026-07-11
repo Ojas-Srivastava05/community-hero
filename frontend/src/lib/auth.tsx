@@ -92,10 +92,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const auth = getFirebaseAuth()
       if (!auth) throw new Error('Firebase is not configured')
+      // Different demo roles use different Firebase UIDs — sign out first so
+      // custom-token sign-in always swaps accounts (avoids stale citizen claims).
+      if (auth.currentUser) await signOut(auth)
       const { token } = await apiDemoToken(role)
       await signInWithCustomToken(auth, token)
       const signedIn = auth.currentUser
-      if (signedIn) await signedIn.getIdToken(true)
+      if (signedIn) {
+        await signedIn.getIdTokenResult(true)
+        await signedIn.getIdToken(true)
+      }
     } finally {
       signInLock.current = false
       setSigningIn(false)

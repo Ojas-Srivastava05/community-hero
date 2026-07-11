@@ -42,7 +42,7 @@ bash scripts/verify-phases.sh https://community-hero-987477089222.asia-south1.ru
 | `GET /api/departments` returns 200 | ✅ | Phase 8 |
 | End-to-end test report or seeded demo data | ✅ | `server/scripts/seed-firestore.ts`, Phase 17 |
 
-Firebase console (see [`TODO.md`](../TODO.md)):
+Firebase console (see [`TODO.md`](TODO.md)):
 
 | Item | Status | Notes |
 |------|--------|-------|
@@ -158,8 +158,8 @@ Evaluation mapping (Appendix A): innovation, agentic depth, impact, Google tech,
 | Architecture | [`architecture.md`](architecture.md) |
 | Deployment runbook | [`deployment.md`](deployment.md) |
 | Submission prep script | [`../scripts/prepare-submission.sh`](../scripts/prepare-submission.sh) |
-| Master plan | [`../Community-Hero-Master-Plan.pdf`](../Community-Hero-Master-Plan.pdf) |
-| Phase plan | [`../Community-Hero-Phase-Development-Plan.pdf`](../Community-Hero-Phase-Development-Plan.pdf) |
-| Manual TODO | [`../TODO.md`](../TODO.md) |
+| Master plan | [`planning/Community-Hero-Master-Plan.pdf`](planning/Community-Hero-Master-Plan.pdf) |
+| Phase plan | [`planning/Community-Hero-Phase-Development-Plan.pdf`](planning/Community-Hero-Phase-Development-Plan.pdf) |
+| Manual TODO | [`TODO.md`](TODO.md) |
 
 **Project:** `community-hero-vibe2ship` · **Region:** `asia-south1` · **Service:** `community-hero`

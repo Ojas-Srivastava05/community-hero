@@ -1,5 +1,5 @@
 # Multi-stage build: frontend + server → Cloud Run
-FROM node:20-alpine AS frontend-build
+FROM node:22-alpine AS frontend-build
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
@@ -23,7 +23,7 @@ ENV VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY \
     VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY
 RUN npm run build
 
-FROM node:20-alpine AS server
+FROM node:22-alpine AS server
 WORKDIR /app
 COPY server/package*.json ./server/
 RUN cd server && npm ci --omit=dev

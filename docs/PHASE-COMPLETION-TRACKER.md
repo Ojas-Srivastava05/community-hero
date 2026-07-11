@@ -5,7 +5,7 @@
 **Last updated:** 2026-06-27  
 **Verification:** `bash scripts/verify-phases.sh` · Tag: `v1.0.0-submission` via `bash scripts/prepare-submission.sh`
 
-Manual-only items (Firebase console, Google Docs publish, BlockseBlock click, live rehearsal) are noted in [`TODO.md`](../TODO.md).
+Manual-only items (Firebase console, Google Docs publish, BlockseBlock click, live rehearsal) are noted in [`TODO.md`](TODO.md).
 
 ---
 
@@ -251,7 +251,7 @@ Manual-only items (Firebase console, Google Docs publish, BlockseBlock click, li
 | Submission checklist | [`SUBMISSION-CHECKLIST.md`](SUBMISSION-CHECKLIST.md) |
 | Prepare script + tag | [`scripts/prepare-submission.sh`](../scripts/prepare-submission.sh) |
 | Screenshot capture guide | [`submission/screenshots/README.md`](submission/screenshots/README.md) |
-| CHANGELOG | [`CHANGELOG.md`](../CHANGELOG.md) § v1.0.0-submission |
+| CHANGELOG | [`CHANGELOG.md`](CHANGELOG.md) § v1.0.0-submission |
 | README polish | [`README.md`](../README.md) |
 
 **Manual:** Publish Google Doc · BlockseBlock Final Submit

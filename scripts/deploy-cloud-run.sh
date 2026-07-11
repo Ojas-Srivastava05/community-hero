@@ -41,7 +41,7 @@ fi
 echo "Building image via Cloud Build..."
 gcloud builds submit \
   --project="${PROJECT_ID}" \
-  --config=cloudbuild.yaml \
+  --config=deploy/cloudbuild.yaml \
   --substitutions="_VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY},_VITE_FIREBASE_AUTH_DOMAIN=${VITE_FIREBASE_AUTH_DOMAIN:-community-hero-vibe2ship.firebaseapp.com},_VITE_FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID:-community-hero-vibe2ship},_VITE_FIREBASE_STORAGE_BUCKET=${VITE_FIREBASE_STORAGE_BUCKET:-community-hero-vibe2ship.firebasestorage.app},_VITE_FIREBASE_MESSAGING_SENDER_ID=${VITE_FIREBASE_MESSAGING_SENDER_ID:-987477089222},_VITE_FIREBASE_APP_ID=${VITE_FIREBASE_APP_ID},_VITE_GOOGLE_MAPS_API_KEY=${VITE_GOOGLE_MAPS_API_KEY:-}" \
   .
 

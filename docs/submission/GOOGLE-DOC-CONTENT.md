@@ -164,7 +164,7 @@ Civic points: report +10, upvote +5, merge +15, resolved +25. Badges (e.g. First
 | **Google Maps Platform** | Map tiles (client), Geocoding API (server reverse geocode) |
 | **Cloud Run** | Production HTTPS at `asia-south1`; single container serves API + SPA |
 | **Container Registry** | `gcr.io/community-hero-vibe2ship/community-hero:latest` |
-| **Cloud Build** | `cloudbuild.yaml` CI deploy pipeline |
+| **Cloud Build** | `deploy/cloudbuild.yaml` CI deploy pipeline |
 
 **Firebase project:** `community-hero-vibe2ship` (isolated from other projects).
 
@@ -267,7 +267,7 @@ Embed the six-agent orchestration diagram from the repo PNG export:
 | Presentation slides | `docs/ppt-info/SLIDES-COMPLETE.md` |
 | Demo script | `docs/demo/APPENDIX-I-DEMO-SCRIPT.md` |
 | Phase tracker | `docs/PHASE-COMPLETION-TRACKER.md` |
-| Master plan | `Community-Hero-Master-Plan.pdf` |
+| Master plan | `docs/planning/Community-Hero-Master-Plan.pdf` |
 
 ---
 

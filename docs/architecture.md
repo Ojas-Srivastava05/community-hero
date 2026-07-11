@@ -61,14 +61,15 @@ Vibe2Ship/
 │   └── scripts/              seed-firestore.ts, seed-departments.ts
 ├── shared/types.ts           Shared TypeScript types (mirrored in server)
 ├── scripts/                  deploy, seed, verify, render-diagrams
-├── docs/                     architecture, system-design, deployment, diagrams
+├── deploy/                   Dockerfile, cloudbuild.yaml (Cloud Run)
+├── docs/                     architecture, guides, planning PDFs, submission kit
+│   ├── planning/             master plan + phase plan PDFs
+│   └── reference/            hackathon reference decks
 ├── .github/workflows/        ci.yml, deploy.yml
 ├── firebase.json             Firestore rules, indexes
 ├── firestore.rules
 ├── firestore.indexes.json
 ├── storage.rules
-├── cloudbuild.yaml           Docker multi-stage build
-├── Dockerfile
 └── Makefile                  dev, build, test, seed-all, deploy, diagrams
 ```
 
@@ -289,7 +290,7 @@ API keys: **server-side only** for Gemini and Maps geocoding. Client uses restri
 | Cloud Run service | `community-hero` |
 | URL | https://community-hero-987477089222.asia-south1.run.app |
 | Container | `gcr.io/community-hero-vibe2ship/community-hero:latest` |
-| Build | `cloudbuild.yaml` → Docker multi-stage (frontend build + server) |
+| Build | `deploy/cloudbuild.yaml` → Docker multi-stage (frontend build + server) |
 | Preview | Vercel `community-hero-eight.vercel.app` (optional) |
 
 Diagram: [`12-deployment.mmd`](diagrams/mermaid/12-deployment.mmd).
@@ -382,7 +383,7 @@ Render PNGs: `make diagrams` or `bash scripts/render-diagrams.sh`.
 - **System design** (Sections 20, 25, 29): `docs/system-design.md`
 - **API contract**: `docs/api_contract.md`
 - **Deployment runbook**: `docs/deployment.md`
-- **Master plan**: `Community-Hero-Master-Plan.pdf`
-- **Phase plan**: `Community-Hero-Phase-Development-Plan.pdf`
+- **Master plan**: `docs/planning/Community-Hero-Master-Plan.pdf`
+- **Phase plan**: `docs/planning/Community-Hero-Phase-Development-Plan.pdf`
 - **Presentation kit**: `docs/ppt-info/slides/` (Appendix P)
 - **Submission checklist**: `docs/SUBMISSION-CHECKLIST.md`

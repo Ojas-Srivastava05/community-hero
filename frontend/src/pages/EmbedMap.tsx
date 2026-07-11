@@ -22,6 +22,8 @@ export function EmbedMapPage() {
     lng,
     radiusKm,
     fetchLimit: 80,
+    preferApi: true,
+    geoFallback: true,
   })
 
   const selected = useMemo(

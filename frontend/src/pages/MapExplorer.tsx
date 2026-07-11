@@ -11,7 +11,6 @@ import { VerificationBadges } from '@/components/civic/VerificationBadges'
 import { Chip } from '@/components/civic/GlassCard'
 import { MapExplorerSkeleton } from '@/components/PageSkeleton'
 import { LanguagePicker } from '@/lib/i18n'
-import { useLocation } from '../lib/location'
 import { apiHotspots } from '../lib/api'
 import { useLiveIssues } from '../lib/use-live-issues'
 import { useMapStore } from '../stores/useMapStore'
@@ -25,6 +24,15 @@ import {
 import { CATEGORIES } from '../../../shared/types'
 import { cn } from '@/lib/utils'
 
+const MAP_CITIES = [
+  { id: 'blr', label: 'Bengaluru', lat: 12.9716, lng: 77.5946, wardPrefix: 'BLR_WARD' },
+  { id: 'del', label: 'Delhi', lat: 28.6329, lng: 77.2167, wardPrefix: 'DEL_WARD' },
+  { id: 'mum', label: 'Mumbai', lat: 19.076, lng: 72.8777, wardPrefix: 'MUM_WARD' },
+  { id: 'pun', label: 'Pune', lat: 18.5204, lng: 73.8567, wardPrefix: 'PUN_WARD' },
+  { id: 'hyd', label: 'Hyderabad', lat: 17.385, lng: 78.4867, wardPrefix: 'HYD_WARD' },
+  { id: 'all', label: 'All India', lat: 22.5, lng: 79.0, wardPrefix: '' },
+] as const
+
 type MapHotspot = {
   geohash: string
   lat: number
@@ -35,17 +43,17 @@ type MapHotspot = {
 }
 
 export function MapExplorerPage() {
-  const { location } = useLocation()
-  const [showHotspots, setShowHotspots] = useState(true)
+  const [showHotspots, setShowHotspots] = useState(false)
   const [showFilters, setShowFilters] = useState(true)
+  const [mapZoom, setMapZoom] = useState(12)
+  const [activeCity, setActiveCity] = useState<string>('all')
   const filterPanelRef = useRef<HTMLDivElement>(null)
   const [hotspots, setHotspots] = useState<MapHotspot[]>([])
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null)
-  const { issues, livePulse, loading } = useLiveIssues({
-    lat: location?.lat,
-    lng: location?.lng,
-    radiusKm: location ? 50 : undefined,
-    fetchLimit: 100,
+  // Map explorer shows ALL public issues — no GPS radius (that hid 90% of multi-city demo data).
+  const { issues, livePulse, loading, error } = useLiveIssues({
+    fetchLimit: 200,
+    preferApi: true,
   })
   const { selectedId, filter, categoryFilter, search, setSelectedId, setFilter, setCategoryFilter, setSearch } = useMapStore()
   const [previewDismissed, setPreviewDismissed] = useState(false)
@@ -54,8 +62,21 @@ export function MapExplorerPage() {
   const handleSelectIssue = (id: string) => {
     setPreviewDismissed(false)
     setSelectedId(id)
-    const picked = issues.find((i) => i.id === id)
-    if (picked) setMapCenter({ lat: picked.lat, lng: picked.lng })
+    const picked = filtered.find((i) => i.id === id) ?? issues.find((i) => i.id === id)
+    if (picked) {
+      setMapCenter({ lat: picked.lat, lng: picked.lng })
+      setMapZoom(15)
+    }
+  }
+
+  const jumpToCity = (cityId: string) => {
+    const city = MAP_CITIES.find((c) => c.id === cityId) ?? MAP_CITIES[5]
+    setActiveCity(cityId)
+    setMapCenter({ lat: city.lat, lng: city.lng })
+    setMapZoom(cityId === 'all' ? 5 : 13)
+    setPreviewDismissed(false)
+    setSelectedId(undefined)
+    initialSelectDone.current = false
   }
 
   const handleDismissPreview = () => {
@@ -84,19 +105,28 @@ export function MapExplorerPage() {
 
   const mapHotspots = showHotspots ? hotspots : []
 
-  const filtered = issues.filter((i) => {
-    if (filter === 'resolved') return ['Resolved', 'Closed'].includes(i.status)
-    if (filter === 'critical') return i.severity >= 5
-    if (filter === 'high') return i.severity >= 4
-    return true
-  }).filter((i) => {
-    if (categoryFilter !== 'all' && i.category !== categoryFilter) return false
-    return true
-  }).filter((i) => {
-    const q = search.trim().toLowerCase()
-    if (!q) return true
-    return i.title.toLowerCase().includes(q) || (i.address || '').toLowerCase().includes(q)
-  })
+  const cityMeta = MAP_CITIES.find((c) => c.id === activeCity) ?? MAP_CITIES[5]
+
+  const filtered = issues
+    .filter((i) => {
+      if (cityMeta.wardPrefix) return i.wardId?.startsWith(cityMeta.wardPrefix)
+      return true
+    })
+    .filter((i) => {
+      if (filter === 'resolved') return ['Resolved', 'Closed'].includes(i.status)
+      if (filter === 'critical') return i.severity >= 5
+      if (filter === 'high') return i.severity >= 4
+      return true
+    })
+    .filter((i) => {
+      if (categoryFilter !== 'all' && i.category !== categoryFilter) return false
+      return true
+    })
+    .filter((i) => {
+      const q = search.trim().toLowerCase()
+      if (!q) return true
+      return i.title.toLowerCase().includes(q) || (i.address || '').toLowerCase().includes(q)
+    })
 
   useEffect(() => {
     if (initialSelectDone.current || previewDismissed) return
@@ -115,13 +145,9 @@ export function MapExplorerPage() {
 
   const issue = filtered.find((i) => i.id === selectedId) ?? filtered[0]
 
-  const defaultCenter = location
-    ? { lat: location.lat, lng: location.lng }
-    : issues[0]
-      ? { lat: issues[0].lat, lng: issues[0].lng }
-      : { lat: 12.9716, lng: 77.5946 }
+  const defaultCenter = mapCenter ?? { lat: 22.5, lng: 79.0 }
 
-  const center = mapCenter ?? defaultCenter
+  const center = defaultCenter
   const hasActiveFilters = filter !== 'all' || categoryFilter !== 'all' || search.trim().length > 0
   const showEmptyMap = !loading && issues.length === 0
   const showNoMatches = !loading && issues.length > 0 && filtered.length === 0
@@ -143,9 +169,10 @@ export function MapExplorerPage() {
       <div className="relative h-[calc(100dvh-env(safe-area-inset-bottom))] w-full">
         <CivicMap
           center={center}
-          zoom={12}
+          zoom={mapZoom}
           issues={filtered}
           hotspots={mapHotspots}
+          showHotspotLayer={showHotspots}
           selectedId={selectedId}
           onSelect={handleSelectIssue}
           className="absolute inset-0 size-full"
@@ -241,6 +268,13 @@ export function MapExplorerPage() {
             <button type="button" onClick={() => setFilter('resolved')}><Chip tone={filter === 'resolved' ? 'ok' : undefined}>Resolved</Chip></button>
           </div>
           <div className="no-scrollbar mt-2 flex gap-2 overflow-x-auto">
+            {MAP_CITIES.map((city) => (
+              <button key={city.id} type="button" onClick={() => jumpToCity(city.id)}>
+                <Chip tone={activeCity === city.id ? 'indigo' : undefined}>{city.label}</Chip>
+              </button>
+            ))}
+          </div>
+          <div className="no-scrollbar mt-2 flex gap-2 overflow-x-auto">
             <button type="button" onClick={() => setCategoryFilter('all')}><Chip tone={categoryFilter === 'all' ? 'indigo' : undefined}>All types</Chip></button>
             {CATEGORIES.map((cat) => (
               <button key={cat} type="button" onClick={() => setCategoryFilter(cat)}>
@@ -267,6 +301,50 @@ export function MapExplorerPage() {
         >
           <Layers className="size-5 text-ink" />
         </motion.button>
+        {!loading && (
+          <div
+            className={cn(
+              'absolute left-3 z-20 rounded-full px-3 py-1.5 text-[11px] font-bold glass-strong',
+              showFilters ? 'top-[10.5rem]' : 'top-[4.75rem]',
+            )}
+          >
+            {error ? (
+              <span className="text-coral">Could not load issues</span>
+            ) : (
+              <span className="text-ink">
+                {filtered.length} of {issues.length} issue{issues.length === 1 ? '' : 's'}
+                {activeCity !== 'all' ? ` · ${cityMeta.label}` : ''}
+                {showHotspots ? ' · density overlay on' : ''}
+              </span>
+            )}
+          </div>
+        )}
+        {!loading && filtered.length > 0 && (
+          <div className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-40 px-3 pointer-events-none">
+            <div className="pointer-events-auto glass-strong rounded-2xl p-2">
+              <p className="mb-1.5 px-1 text-[10px] font-bold uppercase tracking-wide text-ink-muted">
+                Tap an issue — colored dots are reports; purple rings are optional density overlay
+              </p>
+              <div className="no-scrollbar flex gap-2 overflow-x-auto">
+                {filtered.slice(0, 24).map((i) => (
+                  <button
+                    key={i.id}
+                    type="button"
+                    onClick={() => handleSelectIssue(i.id)}
+                    className={cn(
+                      'shrink-0 max-w-[11rem] truncate rounded-xl border px-3 py-2 text-left text-xs font-semibold transition-colors',
+                      selectedId === i.id
+                        ? 'border-coral bg-coral-soft text-coral'
+                        : 'border-rule bg-paper/80 text-ink hover:border-coral/40',
+                    )}
+                  >
+                    {i.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
         <AnimatePresence>
           {issue && !previewDismissed && (
             <motion.div
@@ -275,7 +353,7 @@ export function MapExplorerPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 24 }}
               transition={{ type: 'spring', stiffness: 280, damping: 26 }}
-              className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-50 px-3 pointer-events-none"
+              className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+10.5rem)] z-50 px-3 pointer-events-none"
             >
               <div className="paper relative pointer-events-auto overflow-hidden shadow-lg">
                 <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-ink/20" />

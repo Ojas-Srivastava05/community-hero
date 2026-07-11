@@ -1,14 +1,14 @@
 # Community Hero — Build status
 
 **Phases 0–19:** ✅ 100% complete for all in-repo deliverables  
-**Tracker:** [`docs/PHASE-COMPLETION-TRACKER.md`](docs/PHASE-COMPLETION-TRACKER.md)  
+**Tracker:** [`PHASE-COMPLETION-TRACKER.md`](PHASE-COMPLETION-TRACKER.md)  
 **Changelog:** [`CHANGELOG.md`](CHANGELOG.md) § v1.0.0-submission
 
 ---
 
 ## Complete (Phases 0–17 — product + docs + CI)
 
-- [x] Phase 0 — Foundation, evaluation matrix, competitive analysis ([`docs/PHASE-0-FOUNDATION.md`](docs/PHASE-0-FOUNDATION.md))
+- [x] Phase 0 — Foundation, evaluation matrix, competitive analysis ([`PHASE-0-FOUNDATION.md`](PHASE-0-FOUNDATION.md))
 - [x] Civic Canvas UI — all 18 routes (incl. `/privacy`, `/waiting`, `/admin/analytics`)
 - [x] Firebase Auth + Firestore rules + indexes
 - [x] Report wizard — WebP resize, InvalidMediaCard, AI analysis → create with confidence
@@ -33,29 +33,29 @@
 - [x] `Makefile` — `test`, `lint`, `health`, `verify`
 - [x] `.github/workflows/ci.yml`
 - [x] `server/src/lib/priority.test.ts`
-- [x] `scripts/verify-phases.sh`
+- [x] [`scripts/verify-phases.sh`](../scripts/verify-phases.sh)
 
 ---
 
 ## Complete (Phase 18 — submission package, in-repo)
 
-- [x] [`docs/submission/GOOGLE-DOC-CONTENT.md`](docs/submission/GOOGLE-DOC-CONTENT.md) — Appendix J all 10 sections + evaluation mapping
-- [x] [`docs/ppt-info/SLIDES-COMPLETE.md`](docs/ppt-info/SLIDES-COMPLETE.md) — 15 slides full speaker notes
-- [x] [`docs/ppt-info/SUBMISSION.md`](docs/ppt-info/SUBMISSION.md) — slide outline
-- [x] [`docs/SUBMISSION-CHECKLIST.md`](docs/SUBMISSION-CHECKLIST.md) — in-repo items checked with evidence
-- [x] [`scripts/prepare-submission.sh`](scripts/prepare-submission.sh) — tags `v1.0.0-submission`, prints 3 BlockseBlock URLs
-- [x] [`README.md`](README.md) — architecture links, 8-feature table, team, live URLs
-- [x] [`docs/submission/screenshots/README.md`](docs/submission/screenshots/README.md) — 8 screenshot capture paths for Google Doc
+- [x] [`submission/GOOGLE-DOC-CONTENT.md`](submission/GOOGLE-DOC-CONTENT.md) — Appendix J all 10 sections + evaluation mapping
+- [x] [`ppt-info/SLIDES-COMPLETE.md`](ppt-info/SLIDES-COMPLETE.md) — 15 slides full speaker notes
+- [x] [`ppt-info/SUBMISSION.md`](ppt-info/SUBMISSION.md) — slide outline
+- [x] [`SUBMISSION-CHECKLIST.md`](SUBMISSION-CHECKLIST.md) — in-repo items checked with evidence
+- [x] [`../scripts/prepare-submission.sh`](../scripts/prepare-submission.sh) — tags `v1.0.0-submission`, prints 3 BlockseBlock URLs
+- [x] [`../README.md`](../README.md) — architecture links, 8-feature table, team, live URLs
+- [x] [`submission/screenshots/README.md`](submission/screenshots/README.md) — 8 screenshot capture paths for Google Doc
 - [x] [`CHANGELOG.md`](CHANGELOG.md) — v1.0.0-submission entry
 
 ---
 
 ## Complete (Phase 19 — demo & closure, in-repo)
 
-- [x] [`docs/demo/APPENDIX-I-DEMO-SCRIPT.md`](docs/demo/APPENDIX-I-DEMO-SCRIPT.md) — timed 3-minute script with click paths
-- [x] [`docs/demo/REHEARSAL-CHECKLIST.md`](docs/demo/REHEARSAL-CHECKLIST.md) — twice-timed + backup video steps
-- [x] [`docs/demo/QR-CODE.md`](docs/demo/QR-CODE.md) — production URL for jury slide
-- [x] [`docs/PHASE-COMPLETION-TRACKER.md`](docs/PHASE-COMPLETION-TRACKER.md) — phases 0–19 at 100%
+- [x] [`demo/APPENDIX-I-DEMO-SCRIPT.md`](demo/APPENDIX-I-DEMO-SCRIPT.md) — timed 3-minute script with click paths
+- [x] [`demo/REHEARSAL-CHECKLIST.md`](demo/REHEARSAL-CHECKLIST.md) — twice-timed + backup video steps
+- [x] [`demo/QR-CODE.md`](demo/QR-CODE.md) — production URL for jury slide
+- [x] [`PHASE-COMPLETION-TRACKER.md`](PHASE-COMPLETION-TRACKER.md) — phases 0–19 at 100%
 
 ---
 
@@ -77,7 +77,7 @@
 
 ### Google Docs (Appendix J)
 
-7. Copy [`docs/submission/GOOGLE-DOC-CONTENT.md`](docs/submission/GOOGLE-DOC-CONTENT.md) into a new Google Doc
+7. Copy [`submission/GOOGLE-DOC-CONTENT.md`](submission/GOOGLE-DOC-CONTENT.md) into a new Google Doc
 8. Add production screenshots at placeholder paths
 9. Set sharing to **Anyone with the link → Viewer**
 10. Copy the public URL for BlockseBlock
@@ -93,7 +93,7 @@
 
 ### Demo rehearsal (Phase 19)
 
-17. Rehearse [`docs/demo/APPENDIX-I-DEMO-SCRIPT.md`](docs/demo/APPENDIX-I-DEMO-SCRIPT.md) **twice**, timed ≤3:00 — [`docs/demo/REHEARSAL-CHECKLIST.md`](docs/demo/REHEARSAL-CHECKLIST.md)
+17. Rehearse [`demo/APPENDIX-I-DEMO-SCRIPT.md`](demo/APPENDIX-I-DEMO-SCRIPT.md) **twice**, timed ≤3:00 — [`demo/REHEARSAL-CHECKLIST.md`](demo/REHEARSAL-CHECKLIST.md)
 18. Record backup demo video per rehearsal checklist
 19. Monitor `GET /api/health` during evaluation (UptimeRobot or cron)
 20. Do **not** delete AI Studio app until evaluation ends

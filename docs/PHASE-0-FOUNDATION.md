@@ -133,5 +133,5 @@ Three mandatory links for BlockseBlock:
 | [PRODUCT-VISION.md](PRODUCT-VISION.md) | 30-second pitch script |
 | [COMPETITIVE-MATRIX.md](COMPETITIVE-MATRIX.md) | Appendix F feature comparison |
 | [TEAM-ROLES.md](TEAM-ROLES.md) | Appendix U role assignments |
-| [Community-Hero-Master-Plan.pdf](../Community-Hero-Master-Plan.pdf) | Full 61-page specification |
-| [Community-Hero-Phase-Development-Plan.pdf](../Community-Hero-Phase-Development-Plan.pdf) | Phase 0–19 tracker |
+| [Community-Hero-Master-Plan.pdf](planning/Community-Hero-Master-Plan.pdf) | Full 61-page specification |
+| [Community-Hero-Phase-Development-Plan.pdf](planning/Community-Hero-Phase-Development-Plan.pdf) | Phase 0–19 tracker |

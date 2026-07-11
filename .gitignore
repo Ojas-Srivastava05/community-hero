@@ -8,5 +8,7 @@ dist/
 .venv/
 __pycache__/
 *.pdf
-!Community-Hero*.pdf
+!docs/planning/*.pdf
 .vercel
+dist-mobile/
+frontend/android/local.properties

@@ -8,8 +8,8 @@ from pathlib import Path
 from fpdf import FPDF
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / "Community-Hero-Phase-Development-Plan.pdf"
-MASTER_PLAN = ROOT / "Community-Hero-Master-Plan.pdf"
+OUTPUT = ROOT / "docs/planning/Community-Hero-Phase-Development-Plan.pdf"
+MASTER_PLAN = ROOT / "docs/planning/Community-Hero-Master-Plan.pdf"
 
 UNICODE_REPLACEMENTS = {
     "\u2014": "-",

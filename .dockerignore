@@ -1,0 +1,20 @@
+node_modules
+frontend/node_modules
+server/node_modules
+frontend/dist
+server/dist
+dist-mobile
+frontend/android
+.git
+.github
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.venv
+presentation preparation
+docs/planning
+*.pdf
+!docs/planning/*.pdf
+.cursor

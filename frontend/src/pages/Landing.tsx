@@ -3,7 +3,6 @@ import { Link, Navigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowUpRight, Bell, Flame, Loader2, MapPin, ShieldCheck, Sparkles, TrendingUp, Zap } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageSkeleton } from '@/components/PageSkeleton'
 import { SectionHeader } from '@/components/civic/GlassCard'
 import { LiveIndicator } from '@/components/civic/LiveIndicator'
 import { SeverityBadge } from '@/components/civic/SeverityBadge'
@@ -98,7 +97,9 @@ export function LandingPage() {
   if (user && checking) {
     return (
       <AppShell>
-        <PageSkeleton rows={4} />
+        <div className="flex min-h-[50vh] items-center justify-center text-sm text-ink-muted">
+          Loading…
+        </div>
       </AppShell>
     )
   }

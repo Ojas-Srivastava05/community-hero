@@ -31,6 +31,8 @@ type CivicMapProps = {
   center: { lat: number; lng: number }
   issues: Issue[]
   hotspots?: MapHotspot[]
+  /** Purple density rings — off by default on explorer; easy to confuse with issue pins. */
+  showHotspotLayer?: boolean
   selectedId?: string
   onSelect?: (id: string) => void
   className?: string
@@ -74,13 +76,18 @@ function pinDropIcon(): google.maps.Icon {
   }
 }
 
-function hotspotMarkerIcon(predictive: boolean): google.maps.Icon {
+function hotspotMarkerIcon(predictive: boolean, count: number): google.maps.Icon {
   const color = predictive ? '#c0392b' : '#6c5ce7'
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"><circle cx="14" cy="14" r="11" fill="${color}" fill-opacity="0.35" stroke="${color}" stroke-width="2"/><circle cx="14" cy="14" r="4" fill="${color}"/></svg>`
+  const label = count > 99 ? '99+' : String(count)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+    <circle cx="18" cy="18" r="15" fill="${color}" fill-opacity="0.35" stroke="${color}" stroke-width="2"/>
+    <circle cx="18" cy="18" r="12" fill="${color}"/>
+    <text x="18" y="18" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="11" font-weight="700" font-family="system-ui,sans-serif">${label}</text>
+  </svg>`
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new google.maps.Size(28, 28),
-    anchor: new google.maps.Point(14, 14),
+    scaledSize: new google.maps.Size(36, 36),
+    anchor: new google.maps.Point(18, 18),
   }
 }
 
@@ -94,7 +101,7 @@ function HotspotMarkers({ map, hotspots }: { map: google.maps.Map; hotspots: Map
       return new google.maps.Marker({
         map,
         position: { lat: h.lat, lng: h.lng },
-        icon: hotspotMarkerIcon(Boolean(h.predictive)),
+        icon: hotspotMarkerIcon(Boolean(h.predictive), h.count),
         zIndex: 200,
         clickable: false,
         title: `${h.geohash}: ${h.count} open (score ${h.score})`,
@@ -122,11 +129,23 @@ function ClusteredMarkers({
   const clustererRef = useRef<MarkerClusterer | null>(null)
   const markersRef = useRef<google.maps.Marker[]>([])
   const markerByIdRef = useRef<Map<string, google.maps.Marker>>(new Map())
+  const markerIssueIdRef = useRef(new WeakMap<google.maps.Marker, string>())
+  const issueByIdRef = useRef(new Map<string, Issue>())
   const onSelectRef = useRef(onSelect)
   onSelectRef.current = onSelect
   const issueKey = issues.map((i) => `${i.id}:${i.lat}:${i.lng}:${i.severity}`).join('|')
 
+  const selectIssue = (issueId: string) => {
+    const issue = issueByIdRef.current.get(issueId)
+    if (!issue) return
+    onSelectRef.current?.(issueId)
+    map.panTo({ lat: issue.lat, lng: issue.lng })
+    const zoom = map.getZoom() ?? 14
+    if (zoom < 16) map.setZoom(16)
+  }
+
   useEffect(() => {
+    issueByIdRef.current = new Map(issues.map((i) => [i.id, i]))
     clustererRef.current?.clearMarkers()
     markersRef.current.forEach((m) => m.setMap(null))
     markersRef.current = []
@@ -139,13 +158,10 @@ function ClusteredMarkers({
         title: issue.title,
         zIndex: issueMarkerZIndex(issue, selectedId),
         optimized: false,
+        clickable: true,
       })
-      marker.addListener('click', () => {
-        onSelectRef.current?.(issue.id)
-        map.panTo({ lat: issue.lat, lng: issue.lng })
-        const zoom = map.getZoom() ?? 14
-        if (zoom < 16) map.setZoom(16)
-      })
+      markerIssueIdRef.current.set(marker, issue.id)
+      marker.addListener('click', () => selectIssue(issue.id))
       markerByIdRef.current.set(issue.id, marker)
       return marker
     })
@@ -154,8 +170,12 @@ function ClusteredMarkers({
     clustererRef.current = new MarkerClusterer({
       map,
       markers,
-      onClusterClick: (event, cluster, m) => {
-        defaultOnClusterClickHandler(event, cluster, m)
+      onClusterClick: (_event, cluster, m) => {
+        const clusterMarkers = cluster.markers as google.maps.Marker[] | undefined
+        const first = clusterMarkers?.[0]
+        const issueId = first ? markerIssueIdRef.current.get(first) : undefined
+        if (issueId) selectIssue(issueId)
+        defaultOnClusterClickHandler(_event, cluster, m)
       },
     })
 
@@ -166,7 +186,8 @@ function ClusteredMarkers({
       markersRef.current = []
       markerByIdRef.current.clear()
     }
-  }, [map, issueKey, issues])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- issueKey captures issue data changes
+  }, [map, issueKey])
 
   useEffect(() => {
     for (const issue of issues) {
@@ -240,6 +261,7 @@ export function CivicMap({
   center,
   issues,
   hotspots = [],
+  showHotspotLayer = false,
   selectedId,
   onSelect,
   className,
@@ -281,7 +303,7 @@ export function CivicMap({
         <>
           <PanToCenter map={map} center={center} />
           <ClusteredMarkers map={map} issues={issues} selectedId={selectedId} onSelect={onSelect} />
-          {hotspots.length > 0 && <HotspotMarkers map={map} hotspots={hotspots} />}
+          {showHotspotLayer && hotspots.length > 0 && <HotspotMarkers map={map} hotspots={hotspots} />}
           {pinPosition && <DraftPin map={map} position={pinPosition} />}
           <MapClickHandler map={map} onMapClick={onMapClick} />
         </>

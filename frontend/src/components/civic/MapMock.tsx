@@ -46,10 +46,12 @@ export function MapMock({
         >
           <span
             className={cn(
-              'grid size-6 place-items-center rounded-full ring-2 ring-paper',
-              h.predictive ? 'bg-coral/60' : 'bg-indigo/50',
+              'grid size-7 place-items-center rounded-full text-[10px] font-bold text-paper ring-2 ring-paper',
+              h.predictive ? 'bg-coral/80' : 'bg-indigo/80',
             )}
-          />
+          >
+            {h.count > 99 ? '99+' : h.count}
+          </span>
         </span>
       ))}
       {issues.map((i) => {

@@ -95,6 +95,28 @@ Verify production: `bash scripts/verify-phases.sh`
 
 **Deadline:** June 29, 2026, 2:00 PM — BlockseBlock
 
+## Repository layout
+
+```
+Vibe2Ship/
+├── frontend/          React PWA (Vite)
+├── server/            Express API + agent pipeline
+│   └── public/        Server static assets (ward GeoJSON)
+├── shared/            Shared TypeScript types/constants
+├── scripts/           Deploy, seed, verify, diagram render
+├── docs/              All documentation, planning PDFs, submission kit
+│   ├── planning/      Master plan + phase development PDFs
+│   ├── reference/     Hackathon reference decks
+│   ├── presentation/  Presentation walkthrough + slide kit
+│   ├── TODO.md        Manual Firebase + submission steps
+│   └── CHANGELOG.md
+├── deploy/            Dockerfile + cloudbuild.yaml (Cloud Run)
+├── .github/workflows/ CI + deploy pipelines
+├── firebase.json      Firestore rules, indexes (Firebase CLI)
+├── package.json       Root workspace scripts (`npm run dev`)
+└── README.md          You are here
+```
+
 ## Local development
 
 ```bash

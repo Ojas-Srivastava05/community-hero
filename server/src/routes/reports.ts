@@ -434,7 +434,7 @@ reportsRouter.post('/', requireAuth, reportLimit, upload.array('images', 3), asy
 
 reportsRouter.get('/', async (req, res) => {
   try {
-    const limit = Math.min(Number(req.query.limit) || 50, 100)
+    const limit = Math.min(Number(req.query.limit) || 50, 250)
     const status = req.query.status as string | undefined
     const lat = req.query.lat ? Number(req.query.lat) : undefined
     const lng = req.query.lng ? Number(req.query.lng) : undefined
@@ -444,7 +444,8 @@ reportsRouter.get('/', async (req, res) => {
     const wardPrefix = req.query.ward_prefix as string | undefined
 
     const excludeDemo = req.query.exclude_demo === '1' && req.query.include_demo !== '1'
-    const fetchLimit = lat !== undefined && lng !== undefined ? Math.min(limit * 4, 100) : limit
+    const hasGeo = lat !== undefined && lng !== undefined && Number.isFinite(lat) && Number.isFinite(lng)
+    const fetchLimit = hasGeo ? Math.min(limit * 4, 250) : limit
 
     type IssueItem = {
       id: string
@@ -474,8 +475,8 @@ reportsRouter.get('/', async (req, res) => {
     }
 
     let issues: IssueItem[] = []
-    const maxPages = excludeDemo ? 5 : 1
-    const pageSize = excludeDemo ? 100 : fetchLimit
+    const pageSize = 100
+    const maxPages = Math.min(10, Math.max(1, Math.ceil(fetchLimit / pageSize)))
     let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined
 
     const runPagedQuery = async () => {
@@ -485,7 +486,7 @@ reportsRouter.get('/', async (req, res) => {
         issues.push(...(snap.docs.map((d) => ({ id: d.id, ...d.data() })) as IssueItem[]))
         cursor = snap.docs[snap.docs.length - 1]
         if (snap.size < pageSize) break
-        if (!excludeDemo) break
+        if (issues.length >= fetchLimit) break
       }
     }
 
@@ -501,7 +502,7 @@ reportsRouter.get('/', async (req, res) => {
           .collection('issues')
           .where('status', '==', status)
           .orderBy('createdAt', 'desc')
-          .limit(Math.min(fetchLimit * 2, 100))
+          .limit(Math.min(fetchLimit * 2, 250))
         const snap = await fallbackQ.get()
         issues = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as IssueItem[]
         issues.sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0))

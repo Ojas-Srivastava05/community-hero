@@ -126,7 +126,7 @@ GitHub Actions (`.github/workflows/ci.yml`) on push/PR to `main`:
 
 ## Post-deploy manual steps (BlockseBlock)
 
-See `TODO.md` for submission checklist (Auth domains, Storage, API keys, Google Doc, deadline **June 29, 2026 2:00 PM**).
+See [`TODO.md`](TODO.md) for submission checklist (Auth domains, Storage, API keys, Google Doc, deadline **June 29, 2026 2:00 PM**).
 
 ---
 

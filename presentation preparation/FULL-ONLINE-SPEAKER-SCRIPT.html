@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>FULL-ONLINE-SPEAKER-SCRIPT</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: 1.5em;}
+    div.column{flex: auto;}
+    @media screen {
+    div.columns{gap: min(4vw, 1.5em);}
+    div.column{overflow-x: auto;}
+    }
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+body {
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.55;
+  color: #252836;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 24px 32px;
+  background: #FEFDFB;
+}
+
+h1 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 22pt;
+  color: #252836;
+  border-bottom: 3px solid #E0632B;
+  padding-bottom: 8px;
+  margin-top: 0;
+  page-break-after: avoid;
+}
+
+h2 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 13.5pt;
+  color: #E0632B;
+  margin-top: 26px;
+  page-break-before: always;
+  page-break-after: avoid;
+  border-left: 4px solid #E0632B;
+  padding-left: 10px;
+}
+
+h2:first-of-type { page-break-before: avoid; margin-top: 16px; }
+
+h3 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 11pt;
+  color: #252836;
+  margin-top: 16px;
+  page-break-after: avoid;
+}
+
+p { margin: 8px 0; }
+
+strong { color: #111; }
+
+blockquote {
+  border-left: 4px solid #E0632B;
+  margin: 12px 0;
+  padding: 10px 16px;
+  background: #F6F3EE;
+  font-style: italic;
+  color: #333;
+  page-break-inside: avoid;
+}
+
+blockquote p { margin: 6px 0; }
+
+hr {
+  border: none;
+  border-top: 1px solid #E8E4DE;
+  margin: 18px 0;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+
+th, td {
+  border: 1px solid #E8E4DE;
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: #FCE8DE;
+  font-weight: 600;
+}
+
+tr:nth-child(even) { background: #F6F3EE; }
+
+ul, ol { padding-left: 22px; margin: 8px 0; }
+li { margin: 4px 0; }
+
+em { color: #666; font-size: 9.5pt; }
+
+@media print {
+  body { padding: 0; }
+  h2 { page-break-before: always; }
+  h2:first-of-type { page-break-before: avoid; }
+  blockquote, table { page-break-inside: avoid; }
+}
+</style></head>
+<body>
+<h1 id="community-hero-full-online-presentation-script">Community Hero —
+Full Online Presentation Script</h1>
+<p><strong>Event:</strong> Vibe to Ship (Vibe2Ship) / BlockseBlock 2026
+· Problem Statement 2<br />
+<strong>Deck path:</strong> Slides 1 → 2 → 3 → 4 → 5 → 6 (live demo) → 7
+→ 11 (~8 minutes)<br />
+<strong>Live app:</strong>
+https://community-hero-987477089222.asia-south1.run.app</p>
+<p><strong>How to use:</strong> Read naturally — you don’t need to
+memorize every word. Bracketed lines like <code>[Show Slide 1]</code>
+are stage directions, not spoken aloud.</p>
+<hr />
+<h2 id="memorize-these-two-lines">Memorize these two lines</h2>
+<p><strong>Open (Slide 1):</strong></p>
+<blockquote>
+<p>CIVICPULSE AI is our platform — Community Hero is the live app. A
+citizen photo becomes a public, routed, verifiable record — deployed on
+Cloud Run today.</p>
+</blockquote>
+<p><strong>Close (Slide 11):</strong></p>
+<blockquote>
+<p>Report once. Track in public. Resolve with proof.</p>
+</blockquote>
+<hr />
+<h2 id="pre-start-checklist-do-not-say-aloud">Pre-start checklist (do
+not say aloud)</h2>
+<ul>
+<li>Mic check, camera on, notifications off</li>
+<li>Tab 1: Google Slides (fullscreen)</li>
+<li>Tab 2: Live app (incognito)</li>
+<li>Tab 3: Admin / “Enter as demo authority” if needed</li>
+<li>Paste live URL in meeting chat before you begin</li>
+<li>Clicker or keyboard ready on Slide 1</li>
+</ul>
+<hr />
+<h2 id="slide-1-title-30-seconds">Slide 1 — Title (~30 seconds)</h2>
+<p><strong>[Show Slide 1 — landing screenshot + live URL]</strong></p>
+<blockquote>
+<p>Good morning, everyone. I’m <strong>Ojas Srivastava</strong>, and
+this is <strong>CIVICPULSE AI</strong> — our platform — and
+<strong>Community Hero</strong>, the live product built for <strong>Vibe
+to Ship, Problem Statement 2</strong>.</p>
+<p>In one line: <strong>a citizen takes a photo, and that photo becomes
+a public, routed, verifiable civic record</strong> — not a message lost
+in a WhatsApp group.</p>
+<p>If you look at the flow on this slide — <strong>Photo, AI, Map,
+Verify, Resolution</strong> — that’s the entire journey we shipped.</p>
+<p>And this is not a mockup. <strong>Community Hero is live on Google
+Cloud Run right now.</strong> I’ve put the link in chat — you can follow
+along on your phone while I present.</p>
+</blockquote>
+<p><strong>[Paste in chat if not already:]</strong></p>
+<p><code>https://community-hero-987477089222.asia-south1.run.app</code></p>
+<p><strong>[Advance to Slide 2]</strong></p>
+<hr />
+<h2 id="slide-2-problem-45-seconds">Slide 2 — Problem (~45 seconds)</h2>
+<p><strong>[Point at left column, then middle, then right]</strong></p>
+<blockquote>
+<p>Let me make this personal. You see a pothole on your street. You
+report it somewhere — a municipal portal, a WhatsApp group, maybe you
+call someone. <strong>And then… silence.</strong> You never know if
+anyone saw it, who owns it, or when it gets fixed.</p>
+<p>On the left: the <strong>citizen dilemma</strong> — fragmented
+channels, duplicate photos of the same leak, zero accountability.</p>
+<p>In the middle: <strong>what already exists.</strong> Apps like
+<strong>Swachhata</strong> proved Indians <em>will</em> report civic
+issues at massive scale — thousands of cities.
+<strong>FixMyStreet</strong> showed how good map-based UX can feel. But
+they weren’t built for <strong>sub-three-second AI triage</strong> or
+<strong>agentic routing</strong>.</p>
+<p>On the right: the <strong>gap we’re filling</strong> — no fast vision
+classification, no automated department routing with SLA deadlines, no
+duplicate detection, and <strong>no public timeline</strong> that
+citizens can actually trust.</p>
+<p>The banner says it simply: <strong>millions of complaints every year,
+and opacity is the default.</strong> We fix <strong>speed</strong> and
+<strong>accountability</strong>.</p>
+</blockquote>
+<p><strong>[Advance to Slide 3]</strong></p>
+<hr />
+<h2 id="slide-3-solution-45-seconds">Slide 3 — Solution (~45
+seconds)</h2>
+<p><strong>[Walk the journey banner left to right]</strong></p>
+<blockquote>
+<p>Here’s how Community Hero solves that — and we’ve implemented
+<strong>all eight official Vibe2Ship features</strong> in
+production.</p>
+<p><strong>Step one:</strong> a citizen snaps a photo. GPS attaches
+automatically.</p>
+<p><strong>Step two:</strong> <strong>Gemini Vision</strong> classifies
+the issue in under three seconds — category, severity, safety risk.</p>
+<p><strong>Step three:</strong> the report lands in
+<strong>Firestore</strong> — our database — and appears on the
+<strong>live map</strong>.</p>
+<p><strong>Step four:</strong> neighbours <strong>upvote</strong> to
+verify — this is real community signal, not AI pretending to verify.</p>
+<p><strong>Step five — important:</strong> <strong>Boost means
+neighbours verify</strong>, not the AI boosting itself.</p>
+<p><strong>Steps six and seven:</strong> the issue moves through
+<strong>Assigned → In Progress → Resolved</strong>, with a <strong>proof
+photo</strong> and a <strong>public timeline</strong> everyone can
+see.</p>
+<p>The three cards at the bottom are our pillars: <strong>AI
+triage</strong>, <strong>community verification</strong>, and
+<strong>public closure</strong> — including <strong>Open311
+export</strong> so municipalities aren’t locked in.</p>
+</blockquote>
+<p><strong>[Advance to Slide 4]</strong></p>
+<hr />
+<h2 id="slide-4-six-agents-45-seconds">Slide 4 — Six agents (~45
+seconds)</h2>
+<p><strong>[Point at the agent diagram — hub and branches]</strong></p>
+<blockquote>
+<p>This is where we score on <strong>agentic depth</strong>. Community
+Hero doesn’t use one giant ChatGPT prompt. It runs <strong>six discrete
+agents</strong> on every submission.</p>
+<p><strong>Vision</strong> classifies the photo.
+<strong>Routing</strong> picks the right department — Roads, Water,
+Waste — from a deterministic map, so it’s auditable.
+<strong>SLA</strong> sets a resolution deadline from severity.
+<strong>Dedup</strong> uses geohash neighbours to cut duplicate noise —
+we target roughly <strong>forty percent fewer duplicates</strong>.
+<strong>Priority</strong> scores what field crews should see first. And
+<strong>Gamification</strong> awards civic points when people
+participate ethically.</p>
+<p>See this branch? <strong>Low confidence</strong> doesn’t go public —
+it goes to a <strong>Draft / Judge review queue</strong> for a human
+before citizens see it.</p>
+<p>Everything runs <strong>server-side</strong> in one <strong>Cloud
+Run</strong> container — frontend, API, and agents — and it’s all
+<strong>open source on GitHub</strong> if you want to audit the
+code.</p>
+</blockquote>
+<p><strong>[Advance to Slide 5]</strong></p>
+<hr />
+<h2 id="slide-5-authority-console-30-seconds">Slide 5 — Authority
+console (~30 seconds)</h2>
+<p><strong>[Point at admin screenshot]</strong></p>
+<blockquote>
+<p>Citizens report — but <strong>authorities close the loop</strong>.
+This is the <strong>Authority Console</strong>.</p>
+<p>Ops teams get a <strong>Judge queue</strong> for low-confidence AI
+reports, tabs for dispatch and SLA breaches, and a one-click path to
+mark <strong>In Progress</strong> and <strong>Resolved with proof
+photo</strong>.</p>
+<p>The tagline matters: <strong>AI triages — humans decide — and every
+action leaves an audit trail.</strong></p>
+<p>We also support <strong>multi-city demo data</strong> with a
+voluntary region filter — Bengaluru, Delhi, Mumbai, and more — because
+this isn’t a single-ward toy app.</p>
+</blockquote>
+<p><strong>[Advance to Slide 6 — stay on slide during demo]</strong></p>
+<hr />
+<h2 id="slide-6-live-demo-3-minutes">Slide 6 — Live demo (~3
+minutes)</h2>
+<p><strong>[Screen-share switches to browser — slide 6 visible in corner
+or full screen to app]</strong></p>
+<blockquote>
+<p>I’m going to show you the live product now. Same URL in chat — feel
+free to open it on your phone. <strong>You can submit a test report
+without logging in</strong> — no personal data required for the
+demo.</p>
+</blockquote>
+<h3 id="demo-beat-1-landing-submit-without-login-25-sec">Demo beat 1 —
+Landing + submit without login (~25 sec)</h3>
+<p><strong>[Go to <code>/</code>]</strong></p>
+<blockquote>
+<p>This is the <strong>citizen home</strong> — live stats, trending
+issues near you. Watch the <strong>Live</strong> indicator — data is
+real-time from Firestore.</p>
+<p>I’ll tap <strong>Submit without login</strong> — privacy-first: one
+tap, no signup wall for reporting.</p>
+</blockquote>
+<p><strong>[Tap Submit without login or go to
+<code>/report</code>]</strong></p>
+<h3 id="demo-beat-2-map-25-sec">Demo beat 2 — Map (~25 sec)</h3>
+<p><strong>[Go to <code>/map</code>]</strong></p>
+<blockquote>
+<p>Here’s the <strong>Map Explorer</strong> — geotagged issues,
+<strong>severity colours</strong>, hotspot clusters with counts. Tap
+<strong>Bengaluru</strong> to see all demo issues in that city… open an
+issue… you can see department, ward, and verification level.</p>
+<p>The badge shows how many issues are loaded — this is live data from
+our database.</p>
+</blockquote>
+<p><strong>[Tap a city chip, then tap an issue — show preview card or
+bottom list]</strong></p>
+<h3 id="demo-beat-3-issue-detail-community-verify-25-sec">Demo beat 3 —
+Issue detail + community verify (~25 sec)</h3>
+<p><strong>[Open <code>/issues/:id</code>]</strong></p>
+<blockquote>
+<p>On the issue page — scroll to the <strong>agent stepper</strong>:
+Vision, Routing, SLA, Dedup — visible to citizens, not hidden in the
+backend.</p>
+<p>I’ll hit <strong>Boost</strong> — that’s a neighbour upvote. At
+<strong>one, three, and ten</strong> upvotes, verification tiers kick
+in. <strong>Community verifies the issue — not the AI.</strong></p>
+</blockquote>
+<p><strong>[Tap Boost if logged in, or point at upvote count on seeded
+issue]</strong></p>
+<h3 id="demo-beat-4-report-wizard-ai-45-sec">Demo beat 4 — Report wizard
++ AI (~45 sec)</h3>
+<p><strong>[Go to <code>/report</code>]</strong></p>
+<blockquote>
+<p>New report — <strong>three steps</strong>. I’ll upload a pothole
+photo… tap <strong>Analyze with AI</strong>…</p>
+<p><strong>[Wait for Gemini]</strong> There — in about <strong>three
+seconds</strong>: category, severity, title, description, department —
+all prefilled. I confirm the map pin… <strong>Submit</strong>.</p>
+<p>That one action triggered the <strong>six-agent pipeline</strong> on
+the server. The new issue will appear on the map for everyone.</p>
+</blockquote>
+<p><strong>[Submit — optionally show success / issue page]</strong></p>
+<h3 id="demo-beat-5-dashboard-25-sec">Demo beat 5 — Dashboard (~25
+sec)</h3>
+<p><strong>[Go to <code>/dashboard</code>]</strong></p>
+<blockquote>
+<p><strong>Impact dashboard</strong> — open vs resolved KPIs, department
+SLA compliance, <strong>hotspot map</strong>, thirty-day trends. This is
+how a municipal commissioner sees <strong>where to deploy crews before
+complaints spike</strong> — predictive, not just reactive.</p>
+</blockquote>
+<h3 id="demo-beat-6-civic-assistant-25-sec">Demo beat 6 — Civic
+assistant (~25 sec)</h3>
+<p><strong>[Go to <code>/assistant</code>]</strong></p>
+<blockquote>
+<p><strong>Civic AI assistant</strong> — natural language over
+<strong>live issue data</strong>. I’ll ask: <em>“What open potholes are
+near me?”</em></p>
+<p>It’s not hallucinating — it’s calling our API with <strong>function
+calling</strong> on real Firestore records.</p>
+</blockquote>
+<p><strong>[Type/send query — show response]</strong></p>
+<h3 id="demo-beat-7-authority-action-15-sec">Demo beat 7 — Authority
+action (~15 sec)</h3>
+<p><strong>[Switch to admin tab — <code>/admin</code>]</strong></p>
+<blockquote>
+<p>Back to authorities — I’ll mark an issue <strong>In
+Progress</strong>… done. Citizens see that on the <strong>public
+timeline</strong> immediately. <strong>Report once. Track in public.
+Resolve with proof.</strong></p>
+</blockquote>
+<p><strong>[Return to slides — Slide 7]</strong></p>
+<hr />
+<h2 id="slide-7-impact-google-stack-40-seconds">Slide 7 — Impact +
+Google stack (~40 seconds)</h2>
+<p><strong>[Show Slide 7]</strong></p>
+<blockquote>
+<p>To close the technical story: this is <strong>shipped
+software</strong>, not slideware.</p>
+<p>We have <strong>fifty-plus seeded issues across five cities</strong>,
+<strong>sub-three-second vision classification</strong>, <strong>six
+agents on every submission</strong>, and a full <strong>public status
+timeline</strong> on every issue.</p>
+<p>Built entirely on <strong>Google</strong>: <strong>Gemini</strong>
+for vision and chat, <strong>Firebase Auth</strong> and
+<strong>Firestore</strong>, <strong>Cloud Storage</strong> for photos,
+<strong>Google Maps</strong> for the explorer, <strong>Cloud
+Run</strong> in <strong>asia-south1</strong> for production hosting —
+plus the <strong>AI Studio → export → deploy</strong> path.</p>
+<p>We also export <strong>Open311</strong> for municipal
+interoperability — same standard as mature civic platforms.</p>
+</blockquote>
+<p><strong>[Skip Slides 8–10 unless Q&amp;A — go to Slide
+11]</strong></p>
+<hr />
+<h2 id="slide-11-close-25-seconds">Slide 11 — Close (~25 seconds)</h2>
+<p><strong>[Show Slide 11 — punchline + links]</strong></p>
+<blockquote>
+<p>I’ll leave you with this:</p>
+<p><strong>“Report once. Track in public. Resolve with
+proof.”</strong></p>
+<p><strong>Community Hero</strong> turns citizen photos into
+<strong>accountable, routed, verifiable</strong> civic records — with
+<strong>AI speed</strong>, <strong>agent depth</strong>, and
+<strong>community trust</strong>.</p>
+<p>Everything is live today:</p>
+<ul>
+<li><strong>App:</strong> community-hero on Cloud Run</li>
+<li><strong>Code:</strong> GitHub — fully open source</li>
+<li><strong>Android APK</strong> available for install</li>
+</ul>
+<p>Thank you. I’m happy to go deep on <strong>agents, Firestore rules,
+or the demo</strong> in Q&amp;A.</p>
+</blockquote>
+<p><strong>[Stop. Leave slide up with links during Q&amp;A]</strong></p>
+<hr />
+<h2 id="qa-backup-lines">Q&amp;A backup lines</h2>
+<p><strong>“Why not just use Swachhata?”</strong></p>
+<blockquote>
+<p>Swachhata proved participation at national scale. We add
+<strong>sub-three-second AI triage</strong>, <strong>six-agent routing
+and SLA</strong>, <strong>predictive hotspots</strong>, and
+<strong>Open311 export</strong> — it’s the next layer on top of citizen
+willingness to report.</p>
+</blockquote>
+<p><strong>“How is AI used beyond a chatbot?”</strong></p>
+<blockquote>
+<p>Six <strong>deterministic agents</strong> on every submit — vision,
+routing, SLA, dedup, priority, gamification — with a <strong>confidence
+gate</strong> to human review. Not one mega-prompt.</p>
+</blockquote>
+<p><strong>“Is it production-ready?”</strong></p>
+<blockquote>
+<p>Live on Cloud Run with <strong>CI/CD</strong>, <strong>rate
+limits</strong>, <strong>Firestore security rules</strong>, health
+checks, and a <strong>19-phase verification script</strong>. You can hit
+<code>/api/health</code> right now.</p>
+</blockquote>
+<p><strong>“Why two names — CIVICPULSE AI and Community
+Hero?”</strong></p>
+<blockquote>
+<p><strong>CIVICPULSE AI</strong> is the hackathon project name.
+<strong>Community Hero</strong> is the shipped product — same
+deployment, same URL.</p>
+</blockquote>
+<p><strong>“What if the map is empty?”</strong></p>
+<blockquote>
+<p>We seed multi-city demo data; the API returns live issues from
+Firestore. Tap a <strong>city chip</strong> on the map — Bengaluru,
+Delhi, etc.</p>
+</blockquote>
+<p><strong>Wi‑Fi / demo fails:</strong></p>
+<blockquote>
+<p>The slide gallery and GitHub repo are the <strong>same production
+build</strong> — identical code path.</p>
+</blockquote>
+<hr />
+<h2 id="one-page-timing-cheat-sheet">One-page timing cheat sheet</h2>
+<table>
+<thead>
+<tr>
+<th>Time</th>
+<th>Slide</th>
+<th>Focus</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0:00</td>
+<td>1</td>
+<td>Intro + live URL in chat</td>
+</tr>
+<tr>
+<td>0:30</td>
+<td>2</td>
+<td>Problem — opacity, gap</td>
+</tr>
+<tr>
+<td>1:15</td>
+<td>3</td>
+<td>7-step journey + 3 pillars</td>
+</tr>
+<tr>
+<td>2:00</td>
+<td>4</td>
+<td>Six agents + draft queue</td>
+</tr>
+<tr>
+<td>2:45</td>
+<td>5</td>
+<td>Authority console</td>
+</tr>
+<tr>
+<td>3:15</td>
+<td>6</td>
+<td><strong>LIVE DEMO</strong> (7 beats)</td>
+</tr>
+<tr>
+<td>6:15</td>
+<td>7</td>
+<td>Shipped + Google stack</td>
+</tr>
+<tr>
+<td>6:55</td>
+<td>11</td>
+<td>Punchline + thank you</td>
+</tr>
+<tr>
+<td><strong>~8:00</strong></td>
+<td>—</td>
+<td><strong>STOP</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="running-over-cut-this-first">Running over? Cut this first</h2>
+<ol type="1">
+<li>Slide 5 detail (keep tagline only)</li>
+<li>Gamification on slide 4</li>
+<li>Demo dashboard + assistant</li>
+<li>Long Google list on slide 7</li>
+</ol>
+<p><strong>Never cut:</strong> Submit without login · map ·
+boost/stepper · AI classify · closing line</p>
+<hr />
+<h2 id="online-presentation-tips">Online presentation tips</h2>
+<ol type="1">
+<li><strong>Say “link in chat”</strong> at least twice — remote judges
+may not see your slide URL.</li>
+<li><strong>Narrate every click</strong> — “I’m opening Map… tapping
+Bengaluru… opening this issue.”</li>
+<li><strong>Pause 2 seconds</strong> after AI analyze — let Gemini
+finish before you talk over it.</li>
+<li><strong>If screen share lags</strong>, stay on slides and describe
+the beat: “You’d see classification in under three seconds.”</li>
+<li><strong>Rehearse twice with a timer</strong> — cut dashboard +
+assistant first if you run long.</li>
+</ol>
+<hr />
+<h2 id="emergency-one-liners">Emergency one-liners</h2>
+<table>
+<colgroup>
+<col style="width: 68%" />
+<col style="width: 31%" />
+</colgroup>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Say</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Empty map</td>
+<td>“Tap Bengaluru — same architecture, live seeded data.”</td>
+</tr>
+<tr>
+<td>Slow AI</td>
+<td>“Sub-3s in prod — here’s the classification card.”</td>
+</tr>
+<tr>
+<td>No Wi‑Fi</td>
+<td>“Deck gallery + GitHub — identical build.”</td>
+</tr>
+<tr>
+<td>Why two names?</td>
+<td>“CIVICPULSE AI = project · Community Hero = live app.”</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>Rehearse with slides on screen. This script is your full spoken
+backup — the 8-MINUTE-SPEAKER-SCRIPT is the pocket cue-card
+version.</em></p>
+</body>
+</html>

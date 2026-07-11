@@ -3,6 +3,7 @@ import { Home, Map, Activity, User, Plus } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n'
+import { useAuth } from '@/lib/auth'
 import { useAdminMode } from '@/lib/admin-mode'
 import { AdminNav } from './AdminNav'
 
@@ -19,6 +20,7 @@ function useTabs() {
 export function BottomNav({ hiddenOn = [] }: { hiddenOn?: string[] }) {
   const { pathname } = useLocation()
   const { t } = useI18n()
+  const { user } = useAuth()
   const { isAdmin, checking } = useAdminMode()
   const tabs = useTabs()
   if (hiddenOn.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
@@ -27,7 +29,13 @@ export function BottomNav({ hiddenOn = [] }: { hiddenOn?: string[] }) {
   if (pathname === '/admin' || pathname.startsWith('/admin/')) {
     return null
   }
-  if (!checking && isAdmin) {
+  if (pathname === '/login') {
+    return null
+  }
+  if (user && checking) {
+    return null
+  }
+  if (isAdmin) {
     return <AdminNav />
   }
   return (

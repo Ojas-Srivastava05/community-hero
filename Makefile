@@ -1,4 +1,4 @@
-.PHONY: dev build preview install verify verify-phases seed seed-all deploy test lint health diagrams
+.PHONY: dev build preview install verify verify-phases seed seed-all deploy test lint health diagrams android-apk
 
 install:
 	cd frontend && npm install
@@ -26,6 +26,9 @@ seed-all: seed seed-departments
 
 deploy:
 	bash scripts/deploy-cloud-run.sh
+
+android-apk:
+	bash scripts/build-android-apk.sh
 
 diagrams:
 	bash scripts/render-diagrams.sh

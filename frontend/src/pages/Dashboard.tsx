@@ -10,12 +10,14 @@ import { DashboardSkeleton } from '@/components/PageSkeleton'
 import { useLocation } from '../lib/location'
 import { useI18n } from '../lib/i18n'
 import { useDashboardStore } from '../stores/useDashboardStore'
+import { useLiveIssues } from '../lib/use-live-issues'
 import { fadeUp, fadeUpChart, stagger } from '../lib/motion'
 
 export function DashboardPage() {
   const { t } = useI18n()
   const { location } = useLocation()
   const { summary, hotspots, trends, loading, loadAll } = useDashboardStore()
+  const { issues: mapIssues } = useLiveIssues({ fetchLimit: 80, preferApi: true })
 
   useEffect(() => {
     void loadAll()
@@ -229,7 +231,7 @@ export function DashboardPage() {
           <motion.div variants={fadeUp}>
             <GlassCard className="overflow-hidden p-0">
             <div className="h-48">
-              <CivicMap center={mapCenter} issues={[]} hotspots={mapHotspots} zoom={13} className="size-full" />
+              <CivicMap center={mapCenter} issues={mapIssues} hotspots={mapHotspots} showHotspotLayer zoom={13} className="size-full" />
             </div>
           </GlassCard>
           </motion.div>

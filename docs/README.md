@@ -78,6 +78,7 @@ Full index: [diagrams/README.md](diagrams/README.md). PNG exports in [`diagrams/
 | [demo/APPENDIX-I-DEMO-SCRIPT.md](demo/APPENDIX-I-DEMO-SCRIPT.md) | Appendix I — 3-minute timed demo with click paths |
 | [demo/REHEARSAL-CHECKLIST.md](demo/REHEARSAL-CHECKLIST.md) | Twice-timed rehearsal + backup video steps |
 | [demo/QR-CODE.md](demo/QR-CODE.md) | Production URL QR for jury slide |
+| [presentation/COMMUNITY-HERO-COMPLETE-GUIDE.md](presentation/COMMUNITY-HERO-COMPLETE-GUIDE.md) | End-to-end presentation walkthrough |
 
 ---
 
@@ -86,15 +87,17 @@ Full index: [diagrams/README.md](diagrams/README.md). PNG exports in [`diagrams/
 | Resource | Path |
 |----------|------|
 | Root README | [`../README.md`](../README.md) — features, URLs, local dev |
-| Build TODO | [`../TODO.md`](../TODO.md) — manual Firebase + BlockseBlock steps |
-| Master plan PDF | [`../Community-Hero-Master-Plan.pdf`](../Community-Hero-Master-Plan.pdf) |
-| Phase development plan | [`../Community-Hero-Phase-Development-Plan.pdf`](../Community-Hero-Phase-Development-Plan.pdf) |
+| Build TODO | [`TODO.md`](TODO.md) — manual Firebase + BlockseBlock steps |
+| Master plan PDF | [`planning/Community-Hero-Master-Plan.pdf`](planning/Community-Hero-Master-Plan.pdf) |
+| Phase development plan | [`planning/Community-Hero-Phase-Development-Plan.pdf`](planning/Community-Hero-Phase-Development-Plan.pdf) |
+| Hackathon guidelines | [`planning/vibe2ship-submission-guidelines.pdf`](planning/vibe2ship-submission-guidelines.pdf) |
+| Reference decks | [`reference/presentations/`](reference/presentations/) |
 | Design system | [`../.stitch/DESIGN.md`](../.stitch/DESIGN.md) — Civic Glass UI |
 | Shared types | [`../shared/types.ts`](../shared/types.ts) |
 | Phase verification | [`../scripts/verify-phases.sh`](../scripts/verify-phases.sh) |
 | Submission prep | [`../scripts/prepare-submission.sh`](../scripts/prepare-submission.sh) |
 | Deploy script | [`../scripts/deploy-cloud-run.sh`](../scripts/deploy-cloud-run.sh) |
-| Changelog | [`../CHANGELOG.md`](../CHANGELOG.md) |
+| Changelog | [`CHANGELOG.md`](CHANGELOG.md) |
 
 ---
 
