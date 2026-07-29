@@ -69,24 +69,36 @@ function pickAddressComponent(components: { long_name: string; types: string[] }
   return components.find((c) => c.types.includes(type))?.long_name || ''
 }
 
-async function forwardGeocodeGoogle(
-  query: string,
-  bias?: { lat: number; lng: number },
-): Promise<PlaceSearchResult[]> {
+function mapGoogleGeocodeResults(
+  results: {
+    formatted_address: string
+    geometry: { location: { lat: number; lng: number } }
+    address_components: { long_name: string; types: string[] }[]
+  }[],
+): PlaceSearchResult[] {
+  return results.map((r) => {
+    const c = r.address_components
+    const locality =
+      pickAddressComponent(c, 'sublocality') ||
+      pickAddressComponent(c, 'neighborhood') ||
+      pickAddressComponent(c, 'locality')
+    const city = pickAddressComponent(c, 'locality') || pickAddressComponent(c, 'administrative_area_level_2')
+    return {
+      lat: r.geometry.location.lat,
+      lng: r.geometry.location.lng,
+      address: r.formatted_address,
+      locality: locality || city || 'Your area',
+      city: city || locality || 'Your city',
+    }
+  })
+}
+
+async function geocodeGoogleQuery(query: string): Promise<PlaceSearchResult[]> {
   const key = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY
   if (!key) return []
 
   try {
-    const params = new URLSearchParams({
-      address: query,
-      key,
-      region: 'in',
-      components: 'country:IN',
-    })
-    if (bias) {
-      const d = 0.15
-      params.set('bounds', `${bias.lat - d},${bias.lng - d}|${bias.lat + d},${bias.lng + d}`)
-    }
+    const params = new URLSearchParams({ address: query, key, region: 'in' })
     const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params}`)
     const data = (await res.json()) as {
       results?: {
@@ -95,40 +107,113 @@ async function forwardGeocodeGoogle(
         address_components: { long_name: string; types: string[] }[]
       }[]
     }
-    return (data.results || []).slice(0, 6).map((r) => {
-      const c = r.address_components
-      const locality = pickAddressComponent(c, 'sublocality') || pickAddressComponent(c, 'neighborhood') || pickAddressComponent(c, 'locality')
-      const city = pickAddressComponent(c, 'locality') || pickAddressComponent(c, 'administrative_area_level_2')
-      return {
-        lat: r.geometry.location.lat,
-        lng: r.geometry.location.lng,
-        address: r.formatted_address,
-        locality: locality || city || 'Your area',
-        city: city || locality || 'Your city',
-      }
-    })
+    return mapGoogleGeocodeResults(data.results || [])
   } catch {
     return []
   }
 }
 
-async function forwardGeocodeNominatim(
-  query: string,
-  bias?: { lat: number; lng: number },
-): Promise<PlaceSearchResult[]> {
+/** Landmark / POI text search — no GPS bounding box. */
+async function findPlaceFromTextGoogle(query: string): Promise<PlaceSearchResult[]> {
+  const key = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY
+  if (!key) return []
+
   try {
     const params = new URLSearchParams({
-      q: query,
+      input: query,
+      inputtype: 'textquery',
+      fields: 'formatted_address,name,geometry',
+      key,
+      region: 'in',
+    })
+    const res = await fetch(`https://maps.googleapis.com/maps/api/place/findplacefromtext/json?${params}`)
+    const data = (await res.json()) as {
+      candidates?: {
+        formatted_address?: string
+        name?: string
+        geometry?: { location: { lat: number; lng: number } }
+      }[]
+    }
+    return (data.candidates || [])
+      .filter((c) => c.geometry?.location)
+      .map((c) => ({
+        lat: c.geometry!.location.lat,
+        lng: c.geometry!.location.lng,
+        address: c.formatted_address || c.name || query,
+        locality: c.name || 'Your area',
+        city: 'India',
+      }))
+  } catch {
+    return []
+  }
+}
+
+async function placesAutocompleteGoogle(query: string): Promise<PlaceSearchResult[]> {
+  const key = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY
+  if (!key) return []
+
+  try {
+    const params = new URLSearchParams({
+      input: query,
+      key,
+      types: 'geocode|establishment',
+      components: 'country:in',
+    })
+    const res = await fetch(`https://maps.googleapis.com/maps/api/place/autocomplete/json?${params}`)
+    const data = (await res.json()) as {
+      predictions?: { description: string; place_id: string }[]
+    }
+    const predictions = (data.predictions || []).slice(0, 5)
+    const results: PlaceSearchResult[] = []
+
+    for (const p of predictions) {
+      const detailParams = new URLSearchParams({
+        place_id: p.place_id,
+        fields: 'formatted_address,geometry,name',
+        key,
+      })
+      const detailRes = await fetch(`https://maps.googleapis.com/maps/api/place/details/json?${detailParams}`)
+      const detail = (await detailRes.json()) as {
+        result?: {
+          formatted_address?: string
+          name?: string
+          geometry?: { location: { lat: number; lng: number } }
+        }
+      }
+      const r = detail.result
+      if (!r?.geometry?.location) continue
+      results.push({
+        lat: r.geometry.location.lat,
+        lng: r.geometry.location.lng,
+        address: r.formatted_address || p.description,
+        locality: r.name || 'Your area',
+        city: 'India',
+      })
+    }
+    return results
+  } catch {
+    return []
+  }
+}
+
+async function forwardGeocodeGoogle(query: string): Promise<PlaceSearchResult[]> {
+  const direct = await geocodeGoogleQuery(query)
+  if (direct.length > 0) return direct
+
+  if (!/\bindia\b/i.test(query)) {
+    return geocodeGoogleQuery(`${query}, India`)
+  }
+  return []
+}
+
+async function forwardGeocodeNominatim(query: string): Promise<PlaceSearchResult[]> {
+  try {
+    const params = new URLSearchParams({
+      q: query.includes('India') ? query : `${query}, India`,
       format: 'json',
       addressdetails: '1',
-      limit: '6',
-      countrycodes: 'in',
+      limit: '8',
     })
-    if (bias) {
-      const d = 0.2
-      params.set('viewbox', `${bias.lng - d},${bias.lat + d},${bias.lng + d},${bias.lat - d}`)
-      params.set('bounded', '1')
-    }
     const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
       headers: { 'Accept-Language': 'en', 'User-Agent': 'CommunityHero/1.0' },
     })
@@ -155,23 +240,56 @@ async function forwardGeocodeNominatim(
   }
 }
 
-/** Forward geocode for report wizard search — server key avoids browser referrer blocks. */
+function placeKey(p: PlaceSearchResult): string {
+  return `${p.address.toLowerCase()}|${p.lat.toFixed(4)}|${p.lng.toFixed(4)}`
+}
+
+function mergePlaceResults(...lists: PlaceSearchResult[][]): PlaceSearchResult[] {
+  const seen = new Set<string>()
+  const merged: PlaceSearchResult[] = []
+  for (const list of lists) {
+    for (const item of list) {
+      const key = placeKey(item)
+      if (seen.has(key)) continue
+      seen.add(key)
+      merged.push(item)
+    }
+  }
+  return merged
+}
+
+function sortByBiasDistance(results: PlaceSearchResult[], bias: { lat: number; lng: number }): PlaceSearchResult[] {
+  return [...results].sort(
+    (a, b) =>
+      haversineKm(bias.lat, bias.lng, a.lat, a.lng) - haversineKm(bias.lat, bias.lng, b.lat, b.lng),
+  )
+}
+
+/** Forward geocode for report wizard — global search; bias only sorts, never hard-filters. */
 export async function searchPlacesServer(
   query: string,
   biasLat?: number,
   biasLng?: number,
 ): Promise<PlaceSearchResult[]> {
   const q = query.trim()
-  if (q.length < 3) return []
+  if (q.length < 2) return []
 
   const bias =
     biasLat !== undefined && biasLng !== undefined && Number.isFinite(biasLat) && Number.isFinite(biasLng)
       ? { lat: biasLat, lng: biasLng }
       : undefined
 
-  const fromGoogle = await forwardGeocodeGoogle(q, bias)
-  if (fromGoogle.length > 0) return fromGoogle
-  return forwardGeocodeNominatim(q, bias)
+  const [autocomplete, findPlace, geocode, nominatim] = await Promise.all([
+    placesAutocompleteGoogle(q),
+    findPlaceFromTextGoogle(q),
+    forwardGeocodeGoogle(q),
+    forwardGeocodeNominatim(q),
+  ])
+
+  const merged = mergePlaceResults(autocomplete, findPlace, geocode, nominatim)
+
+  const sorted = bias ? sortByBiasDistance(merged, bias) : merged
+  return sorted.slice(0, 8)
 }
 
 export async function reverseGeocodeServer(lat: number, lng: number): Promise<GeocodeResult> {

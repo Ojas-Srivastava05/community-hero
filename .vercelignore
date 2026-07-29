@@ -1,0 +1,21 @@
+# Keep Vercel upload lean — only frontend build needs source
+CIVICPULSE AI Presentation.mp4
+*.mp4
+docs/
+presentation preparation/
+server/
+.github/
+scripts/
+deploy/
+firebase.json
+firestore.rules
+firestore.indexes.json
+storage.rules
+*.pdf
+JURY-QA-STAR-GUIDE.pdf
+node_modules/
+frontend/node_modules/
+frontend/android/
+frontend/dist/
+.venv/
+.git/

@@ -670,7 +670,7 @@ export function ReportWizardPage() {
           )}
           {step === 2 && (
             <div className="space-y-4 pb-8">
-              <GlassCard>
+              <GlassCard className="overflow-visible">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold text-ink-muted">Location</p>
                   <button type="button" onClick={() => { setPinAdjusted(false); refresh() }} className="flex items-center gap-1 text-[11px] font-semibold text-coral">
@@ -702,7 +702,7 @@ export function ReportWizardPage() {
                   </Chip>
                 </div>
               </GlassCard>
-              <div className="h-48 overflow-hidden rounded-2xl border border-rule">
+              <div className="relative z-0 h-48 overflow-hidden rounded-2xl border border-rule">
                 <CivicMap
                   center={{
                     lat: hasLocation ? form.lat : FALLBACK_CENTER.lat,
@@ -711,6 +711,7 @@ export function ReportWizardPage() {
                   pinPosition={
                     hasLocation ? { lat: form.lat, lng: form.lng } : undefined
                   }
+                  mapLabel={form.address || undefined}
                   onMapClick={handleMapPin}
                   issues={[]}
                   zoom={16}

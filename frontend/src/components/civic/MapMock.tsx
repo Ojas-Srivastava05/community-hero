@@ -36,6 +36,7 @@ export function MapMock({
   pinPosition,
   onMapClick,
   interactiveLabel,
+  mapLabel,
 }: {
   issues: MapPoint[]
   hotspots?: MapHotspot[]
@@ -46,6 +47,7 @@ export function MapMock({
   pinPosition?: { lat: number; lng: number }
   onMapClick?: (lat: number, lng: number) => void
   interactiveLabel?: string
+  mapLabel?: string
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const interactive = Boolean(onMapClick && center)
@@ -181,6 +183,17 @@ export function MapMock({
             <circle cx="16" cy="12" r="4" fill="#fff" />
           </svg>
         </span>
+      )}
+
+      {interactive && center && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-2 z-10 flex justify-center px-2">
+          <span className="max-w-[95%] truncate rounded-full bg-paper/95 px-2.5 py-1 text-[10px] font-medium text-ink shadow-sm ring-1 ring-rule">
+            {mapLabel ||
+              (pinPosition
+                ? `${pinPosition.lat.toFixed(4)}, ${pinPosition.lng.toFixed(4)}`
+                : `${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}`)}
+          </span>
+        </div>
       )}
     </div>
   )

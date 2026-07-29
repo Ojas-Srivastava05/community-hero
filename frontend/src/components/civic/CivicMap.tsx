@@ -41,6 +41,8 @@ type CivicMapProps = {
   onMapClick?: (lat: number, lng: number) => void
   /** Highlight user-adjusted pin separate from issue markers. */
   pinPosition?: { lat: number; lng: number }
+  /** Shown on fallback map when Google Maps JS is unavailable. */
+  mapLabel?: string
 }
 
 export function severityMarkerColor(severity: number): string {
@@ -268,6 +270,7 @@ export function CivicMap({
   zoom = 14,
   onMapClick,
   pinPosition,
+  mapLabel,
 }: CivicMapProps) {
   const { isLoaded, hasKey, loadError } = useGoogleMaps()
   const [map, setMap] = useState<google.maps.Map | null>(null)
@@ -285,6 +288,7 @@ export function CivicMap({
         center={center}
         pinPosition={pinPosition}
         onMapClick={onMapClick}
+        mapLabel={mapLabel}
         interactiveLabel={
           onMapClick
             ? loadError

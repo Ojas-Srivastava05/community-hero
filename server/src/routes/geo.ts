@@ -24,7 +24,7 @@ geoRouter.get('/reverse', async (req, res) => {
 geoRouter.get('/search', async (req, res) => {
   try {
     const q = String(req.query.q || '').trim()
-    if (q.length < 3) {
+    if (q.length < 2) {
       res.json({ results: [] })
       return
     }

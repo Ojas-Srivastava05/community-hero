@@ -33,7 +33,7 @@ export function PlacesAutocomplete({
   const runSearch = useCallback(
     async (query: string) => {
       const q = query.trim()
-      if (q.length < 3) {
+      if (q.length < 2) {
         setResults([])
         setOpen(false)
         setSearchError(null)
@@ -112,7 +112,8 @@ export function PlacesAutocomplete({
           value={value}
           onChange={(e) => onInputChange(e.target.value)}
           onFocus={() => {
-            if (results.length > 0) setOpen(true)
+            if (value.trim().length >= 2) void runSearch(value)
+            else if (results.length > 0) setOpen(true)
           }}
           onKeyDown={onKeyDown}
           placeholder={placeholder}
@@ -135,7 +136,7 @@ export function PlacesAutocomplete({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-2xl border border-rule bg-paper py-1 shadow-lg"
+          className="absolute z-[200] mt-1 max-h-56 w-full overflow-y-auto rounded-2xl border border-rule bg-paper py-1 shadow-xl ring-1 ring-black/5"
         >
           {results.map((place, idx) => (
             <li key={`${place.lat}-${place.lng}-${idx}`} role="option" aria-selected={idx === activeIndex}>
